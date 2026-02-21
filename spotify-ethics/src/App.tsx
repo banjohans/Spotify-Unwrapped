@@ -61,12 +61,21 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(30);
 
+  // Date filter
+  const [dateFilterMode, setDateFilterMode] = useState<
+    "all" | "year" | "custom"
+  >("all");
+  const [dateFilterYear, setDateFilterYear] = useState<number | null>(null);
+  const [dateFilterStart, setDateFilterStart] = useState<string>("");
+  const [dateFilterEnd, setDateFilterEnd] = useState<string>("");
+
   const [cfg, setCfg] = useState<AnalysisConfig>({
     minutesPerStreamEquivalent: 3.0,
     nokPerStream: 0.04,
     albumPriceNOK: 150,
     minMsPlayedToCount: 30_000,
     sessionGapSeconds: 60,
+    avgMonthlyPrice: 139,
   });
 
   async function onFiles(files: FileList | null) {
@@ -112,14 +121,58 @@ export default function App() {
     setRows(allRows);
   }, [uploadedFiles]);
 
-  const filteredRows = useMemo(() => {
+  // Available years from data
+  const availableYears = useMemo(() => {
     if (!rows.length) return [];
-    if (excludedArtists.size === 0) return rows;
-    return rows.filter((row) => {
+    const years = new Set<number>();
+    for (const r of rows) {
+      if (r.ts) {
+        const d = new Date(r.ts);
+        if (!isNaN(d.getTime())) years.add(d.getFullYear());
+      }
+    }
+    return Array.from(years).sort();
+  }, [rows]);
+
+  // Date range for display
+  const activeDateRange = useMemo(() => {
+    if (dateFilterMode === "year" && dateFilterYear) {
+      return {
+        label: `${dateFilterYear}`,
+        start: new Date(dateFilterYear, 0, 1),
+        end: new Date(dateFilterYear, 11, 31, 23, 59, 59),
+      };
+    }
+    if (dateFilterMode === "custom" && dateFilterStart && dateFilterEnd) {
+      return {
+        label: `${dateFilterStart} – ${dateFilterEnd}`,
+        start: new Date(dateFilterStart),
+        end: new Date(dateFilterEnd + "T23:59:59"),
+      };
+    }
+    return null;
+  }, [dateFilterMode, dateFilterYear, dateFilterStart, dateFilterEnd]);
+
+  // Apply date filter first, then artist exclusion
+  const dateFilteredRows = useMemo(() => {
+    if (!rows.length) return [];
+    if (!activeDateRange) return rows;
+    const { start, end } = activeDateRange;
+    return rows.filter((r) => {
+      if (!r.ts) return false;
+      const d = new Date(r.ts);
+      return !isNaN(d.getTime()) && d >= start && d <= end;
+    });
+  }, [rows, activeDateRange]);
+
+  const filteredRows = useMemo(() => {
+    if (!dateFilteredRows.length) return [];
+    if (excludedArtists.size === 0) return dateFilteredRows;
+    return dateFilteredRows.filter((row) => {
       const artist = row.master_metadata_album_artist_name;
       return !artist || !excludedArtists.has(artist);
     });
-  }, [rows, excludedArtists]);
+  }, [dateFilteredRows, excludedArtists]);
 
   const result = useMemo(() => {
     if (!filteredRows.length) return null;
@@ -131,10 +184,16 @@ export default function App() {
     return result.artists;
   }, [result]);
 
-  const subscriptionEstimate = useMemo(() => {
-    if (!rows.length) return null;
+  // Total theoretical value for ALL artists (not just shown page)
+  const totalAllArtistsValue = useMemo(() => {
+    if (!filteredArtists.length) return 0;
+    return filteredArtists.reduce((sum, a) => sum + a.estValueNOK, 0);
+  }, [filteredArtists]);
 
-    const dates = rows
+  const subscriptionEstimate = useMemo(() => {
+    if (!dateFilteredRows.length) return null;
+
+    const dates = dateFilteredRows
       .map((r) => r.ts)
       .filter(Boolean)
       .map((ts) => new Date(ts!))
@@ -155,7 +214,7 @@ export default function App() {
     );
     const activeMonths = uniqueMonths.size;
 
-    const avgMonthlyPrice = 115;
+    const avgMonthlyPrice = cfg.avgMonthlyPrice;
 
     return {
       firstDate,
@@ -166,7 +225,7 @@ export default function App() {
       activeCost: activeMonths * avgMonthlyPrice,
       avgMonthlyPrice,
     };
-  }, [rows]);
+  }, [dateFilteredRows, cfg.avgMonthlyPrice]);
 
   const searchedArtists = useMemo(() => {
     if (!artistSearchQuery.trim()) return filteredArtists;
@@ -293,12 +352,18 @@ export default function App() {
       <header className="hero">
         <div className="heroGlow" />
         <div className="heroContent">
-          <span className="heroBadgePill">Lokal analyse · Ingen data forlet nettlesaren</span>
+          <span className="heroBadgePill">
+            Lokal analyse · Ingen data forlet nettlesaren
+          </span>
 
           <div className="heroLogo">
             <div className="spotifyLine">
-              <svg className="spotifyIcon" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+              <svg
+                className="spotifyIcon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
               </svg>
               <span className="spotifyText">Spotify</span>
             </div>
@@ -318,27 +383,36 @@ export default function App() {
             </div>
           </div>
 
-          <p className="heroTagline">Kven tjener på musikken din?</p>
+          <p className="heroTagline">Kven tjener på lyttinga di?</p>
           <p className="heroDesc">
-            Oppdag kor mykje pengar dine streams faktisk genererer for
-            artistane du elskar – og kva alternativa kostar.
+            Oppdag kor mykje pengar dine streams faktisk genererer for artistane
+            du elskar – og kva alternativa kostar.
           </p>
 
           <div className="featureGrid">
             <div className="featureCard">
               <span className="featureIcon">📊</span>
               <h3>Analyser lyttinga di</h3>
-              <p>Estimert inntekt for kvar artist basert på reelle straumeprisar.</p>
+              <p>
+                Estimert teoretisk verdi for kvar artist basert på
+                gjennomsnittlege straumeprisar (pro-rata modell).
+              </p>
             </div>
             <div className="featureCard">
               <span className="featureIcon">🎯</span>
               <h3>Få innsikt</h3>
-              <p>Sjekk kva det hadde kosta å støtte artistane med direktekjøp i staden.</p>
+              <p>
+                Sjekk kva det hadde kosta å støtte artistane med direktekjøp i
+                staden.
+              </p>
             </div>
             <div className="featureCard">
               <span className="featureIcon">🔒</span>
               <h3>Heilt privat</h3>
-              <p>Alt skjer lokalt i nettlesaren. Vi lagrar eller sender aldri dine data.</p>
+              <p>
+                Alt skjer lokalt i nettlesaren. Vi lagrar eller sender aldri
+                dine data.
+              </p>
             </div>
           </div>
 
@@ -352,7 +426,8 @@ export default function App() {
               Be om dine data frå Spotify (GDPR) →
             </a>
             <p className="heroCtaHint">
-              Manglar du data? Last ned «Extended Streaming History» frå Spotify-kontoen din.
+              Manglar du data? Last ned «Extended Streaming History» frå
+              Spotify-kontoen din.
             </p>
           </div>
         </div>
@@ -504,16 +579,121 @@ export default function App() {
               }
             />
           </label>
+
+          <label className="field">
+            <span>Abonnementspris (kr/mnd)</span>
+            <input
+              type="number"
+              step="1"
+              value={cfg.avgMonthlyPrice}
+              onChange={(e) =>
+                setCfg({ ...cfg, avgMonthlyPrice: Number(e.target.value) })
+              }
+            />
+          </label>
         </div>
       </section>
+
+      {rows.length > 0 && availableYears.length > 0 && (
+        <section className="card">
+          <div className="cardHeader">
+            <h2>Tidsperiode</h2>
+            <div className="subtle">
+              Filtrer analysen til eit bestemt år eller datoområde.
+            </div>
+          </div>
+
+          <div className="dateFilterControls">
+            <div className="dateFilterTabs">
+              <button
+                className={`dateTab ${dateFilterMode === "all" ? "active" : ""}`}
+                onClick={() => {
+                  setDateFilterMode("all");
+                  setCurrentPage(1);
+                }}
+              >
+                All tid
+              </button>
+              {availableYears.map((year) => (
+                <button
+                  key={year}
+                  className={`dateTab ${dateFilterMode === "year" && dateFilterYear === year ? "active" : ""}`}
+                  onClick={() => {
+                    setDateFilterMode("year");
+                    setDateFilterYear(year);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {year}
+                </button>
+              ))}
+              <button
+                className={`dateTab ${dateFilterMode === "custom" ? "active" : ""}`}
+                onClick={() => {
+                  setDateFilterMode("custom");
+                  setCurrentPage(1);
+                }}
+              >
+                Eigendefinert
+              </button>
+            </div>
+
+            {dateFilterMode === "custom" && (
+              <div className="dateCustomRange">
+                <label className="dateField">
+                  <span>Frå</span>
+                  <input
+                    type="date"
+                    value={dateFilterStart}
+                    onChange={(e) => {
+                      setDateFilterStart(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </label>
+                <span className="dateSep">–</span>
+                <label className="dateField">
+                  <span>Til</span>
+                  <input
+                    type="date"
+                    value={dateFilterEnd}
+                    onChange={(e) => {
+                      setDateFilterEnd(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+
+            {activeDateRange && (
+              <div className="dateFilterInfo">
+                Viser data for: <b>{activeDateRange.label}</b>
+                {" · "}
+                {dateFilteredRows.length.toLocaleString()} rader
+                {rows.length !== dateFilteredRows.length && (
+                  <span className="subtle">
+                    {" "}
+                    (av {rows.length.toLocaleString()} totalt)
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {result && (
         <>
           <section className="card">
             <div className="cardHeader">
-              <h2>2) Oversikt</h2>
+              <h2>
+                2) Oversikt
+                {activeDateRange ? ` (${activeDateRange.label})` : ""}
+              </h2>
               <div className="subtle">
-                Kjapp status på materialet du har lasta opp.
+                Kjapp status på materialet
+                {activeDateRange ? " i vald periode" : " du har lasta opp"}.
               </div>
             </div>
 
@@ -576,6 +756,49 @@ export default function App() {
               )}
             </div>
 
+            <div className="sectionSummary" style={{ marginTop: 14 }}>
+              <div className="summaryItem">
+                <span className="summaryLabel">
+                  Total teoretisk straumeverdi (alle artistar)
+                </span>
+                <span className="summaryValue green">
+                  {formatNOK(totalAllArtistsValue)}
+                </span>
+              </div>
+              {subscriptionEstimate && (
+                <>
+                  <div className="summarySep" />
+                  <div className="summaryItem">
+                    <span className="summaryLabel">
+                      Estimert abonnementskostnad
+                    </span>
+                    <span className="summaryValue">
+                      {formatNOK(subscriptionEstimate.activeCost)}
+                    </span>
+                  </div>
+                  <div className="summarySep" />
+                  <div className="summaryItem">
+                    <span className="summaryLabel">Differanse</span>
+                    <span
+                      className="summaryValue"
+                      style={{
+                        color:
+                          subscriptionEstimate.activeCost -
+                            totalAllArtistsValue >
+                          0
+                            ? "rgb(239, 68, 68)"
+                            : "rgb(30, 215, 96)",
+                      }}
+                    >
+                      {formatNOK(
+                        subscriptionEstimate.activeCost - totalAllArtistsValue,
+                      )}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
             {subscriptionEstimate && (
               <p className="subtle" style={{ marginTop: 10 }}>
                 Periode:{" "}
@@ -596,9 +819,13 @@ export default function App() {
             )}
 
             <p className="subtle" style={{ marginTop: 10 }}>
-              “Tapspotensial” = kven du har generert mest estimert straumeverdi
-              for. Det peikar påytøkonomisk modell enn den spotSpotfify leverer
-              kven som kan vere naturleg å støtte direkte.
+              Merk: Spotify bruker ein <b>pro-rata pooling-modell</b>. Det betyr
+              at abonnementspengane dine ikkje går direkte til artistane du
+              lyttar til – dei går i ein felles pott og vert fordelt etter kvar
+              artist sin andel av <i>alle</i> streams på plattforma. Estimata
+              her viser ein teoretisk verdi basert på gjennomsnittleg
+              straumepris × lyttetid, ikkje kva artisten faktisk har fått frå
+              akkurat deg.
             </p>
           </section>
 
@@ -640,8 +867,12 @@ export default function App() {
             {/* Samandrag */}
             <div className="sectionSummary">
               <div className="summaryItem">
-                <span className="summaryLabel">Estimert inntekt til topp {shownArtists.length} artistar</span>
-                <span className="summaryValue">{formatNOK(totalShownArtistsValue)}</span>
+                <span className="summaryLabel">
+                  Teoretisk straumeverdi, topp {shownArtists.length} artistar
+                </span>
+                <span className="summaryValue">
+                  {formatNOK(totalShownArtistsValue)}
+                </span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
@@ -651,7 +882,9 @@ export default function App() {
               <div className="summarySep" />
               <div className="summaryItem">
                 <span className="summaryLabel">Kjøp alle</span>
-                <span className="summaryValue green">{formatNOK(costToBuyAllShownAlbums)}</span>
+                <span className="summaryValue green">
+                  {formatNOK(costToBuyAllShownAlbums)}
+                </span>
               </div>
             </div>
 
@@ -769,7 +1002,7 @@ export default function App() {
                         </span>
                         <span className="dot">•</span>
                         <span className="metaItem">
-                          <span className="metaLabel">Est. verdi</span>{" "}
+                          <span className="metaLabel">Teor. verdi</span>{" "}
                           <b>{formatNOK(a.estValueNOK)}</b>
                         </span>
                         <span className="dot">•</span>
@@ -892,8 +1125,10 @@ export default function App() {
             <div className="cardHeader">
               <h2>4) Aktiv vs passiv lytting</h2>
               <div className="subtle">
-                Rekneskap basert på <code>reason_start</code> frå Spotify
-                dataene. (Grovt, men gjev ein idé for aktiv / passiv lytting).
+                Heuristikk basert på <code>reason_start</code> frå Spotify
+                dataene. «Aktiv» = du klikka eksplisitt for å spele; «passiv» =
+                autoplay, neste i kø o.l. Ei spilleliste du startar sjølv tel
+                som aktiv berre for fyrste låt.
               </div>
             </div>
 

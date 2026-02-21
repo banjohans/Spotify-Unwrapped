@@ -28,6 +28,7 @@ export type AnalysisConfig = {
   albumPriceNOK: number;
   minMsPlayedToCount: number;
   sessionGapSeconds: number;
+  avgMonthlyPrice: number;
 };
 
 export type ReasonBreakdownRow = {
