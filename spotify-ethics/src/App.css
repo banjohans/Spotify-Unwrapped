@@ -1284,19 +1284,27 @@ body {
   }
 
   .stickyHeader {
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-radius: 12px;
-    top: 6px;
+    top: 4px;
+    gap: 6px;
+  }
+
+  .stickyHeader h2 {
+    font-size: 13px;
+    line-height: 1.3;
+    margin: 0;
   }
 
   .stickyHeader .cardHeader {
     flex-direction: column;
     align-items: stretch;
+    gap: 6px;
   }
 
   .headerActions {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 6px;
   }
 
   .headerActions .btn,
@@ -1304,8 +1312,32 @@ body {
     flex: 1;
     min-width: 0;
     text-align: center;
-    font-size: 13px;
-    padding: 10px 8px;
+    font-size: 12px;
+    padding: 7px 6px;
+    white-space: nowrap;
+  }
+
+  .stickyHeader .plannedDropdown {
+    margin-top: 4px;
+  }
+
+  .stickyHeader .plannedDropdownToggle {
+    font-size: 0.8em;
+    padding: 6px 10px;
+  }
+
+  .stickyHeader .albumBudgetBar {
+    margin-top: 4px;
+    gap: 3px;
+  }
+
+  .stickyHeader .albumBudgetText {
+    font-size: 0.72em;
+    line-height: 1.3;
+  }
+
+  .stickyHeader .albumBudgetProgress {
+    height: 4px;
   }
 
   .priceHistoryTable {
@@ -1437,6 +1469,31 @@ body {
   .topNTabs .dateTab {
     padding: 5px 10px;
     font-size: 12px;
+  }
+
+  .stickyHeader {
+    padding: 8px 10px;
+    top: 2px;
+    gap: 4px;
+  }
+
+  .stickyHeader h2 {
+    font-size: 12px;
+  }
+
+  .headerActions .btn,
+  .headerActions .btnGhost {
+    font-size: 11px;
+    padding: 6px 5px;
+  }
+
+  .stickyHeader .plannedDropdownToggle {
+    font-size: 0.76em;
+    padding: 5px 8px;
+  }
+
+  .stickyHeader .albumBudgetText {
+    font-size: 0.68em;
   }
 
   .sectionSummary {
