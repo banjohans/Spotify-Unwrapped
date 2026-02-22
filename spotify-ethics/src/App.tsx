@@ -27,6 +27,70 @@ function albumKey(artist: string, album: string) {
   return `${artist}|||${album}`;
 }
 
+function exportPlannedAlbumsPDF(
+  plannedAlbums: Record<string, { artist: string; album: string }>,
+  albumPriceNOK: number,
+) {
+  const entries = Object.values(plannedAlbums).sort(
+    (a, b) =>
+      a.artist.localeCompare(b.artist) || a.album.localeCompare(b.album),
+  );
+  const total = entries.length * albumPriceNOK;
+  const date = new Date().toLocaleDateString("nb-NO", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const html = `<!DOCTYPE html>
+<html lang="nn">
+<head>
+<meta charset="utf-8" />
+<title>Handleliste – Album</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; padding: 40px; max-width: 700px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .date { color: #666; font-size: 13px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; border-bottom: 2px solid #ddd; padding: 8px 6px; }
+  td { padding: 8px 6px; border-bottom: 1px solid #eee; font-size: 14px; }
+  td.price { text-align: right; white-space: nowrap; }
+  th.price { text-align: right; }
+  .total-row td { border-top: 2px solid #333; border-bottom: none; font-weight: 700; font-size: 15px; padding-top: 12px; }
+  .footer { margin-top: 32px; font-size: 11px; color: #999; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+<h1>🎵 Handleliste – Album å kjøpe</h1>
+<p class="date">${date} · ${entries.length} album</p>
+<table>
+  <thead>
+    <tr><th>#</th><th>Artist</th><th>Album</th><th class="price">Pris</th></tr>
+  </thead>
+  <tbody>
+    ${entries
+      .map(
+        (e, i) =>
+          `<tr><td>${i + 1}</td><td>${e.artist}</td><td>${e.album}</td><td class="price">${albumPriceNOK} kr</td></tr>`,
+      )
+      .join("\n    ")}
+    <tr class="total-row"><td></td><td colspan="2">Totalt</td><td class="price">${total} kr</td></tr>
+  </tbody>
+</table>
+<p class="footer">Generert frå Spotify Unwrapped – banjohans.github.io/Spotify-Unwrapped</p>
+<script>window.onload = () => { window.print(); }</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
+}
+
 function uniqAlbumKeysFromArtists(
   artists: Array<{ artist: string; topAlbums: Array<{ album: string }> }>,
 ) {
@@ -287,6 +351,10 @@ export default function App() {
   const shownAlbumKeys = useMemo(
     () => uniqAlbumKeysFromArtists(shownArtists),
     [shownArtists],
+  );
+  const allAlbumKeys = useMemo(
+    () => uniqAlbumKeysFromArtists(filteredArtists),
+    [filteredArtists],
   );
 
   // Top-N summary
@@ -955,9 +1023,17 @@ export default function App() {
             <div className="cardHeader stickyHeader">
               <div>
                 <h2>
-                  3) Dine {filteredArtists.length} artistar og ca kva det hadde
-                  kosta å kjøpe albuma deira direkte
+                  3) Dine {filteredArtists.length} artistar –{" "}
+                  {allAlbumKeys.length} unike album
                 </h2>
+                {subscriptionEstimate && (
+                  <p className="stickySubtitle">
+                    For det du har betalt i Spotify Premium (
+                    {formatNOK(subscriptionEstimate.activeCost)}) kunne du ha
+                    kjøpt ca. <strong>{albumBudget} album</strong> à{" "}
+                    {formatNOK(cfg.albumPriceNOK)} direkte.
+                  </p>
+                )}
               </div>
 
               <div className="headerActions">
@@ -1358,6 +1434,16 @@ export default function App() {
                     "Klikk på album-chipane for å legge til."
                   )}
                 </div>
+                {plannedCount > 0 && (
+                  <button
+                    className="btnExportPdf"
+                    onClick={() =>
+                      exportPlannedAlbumsPDF(plannedAlbums, cfg.albumPriceNOK)
+                    }
+                  >
+                    📄 Eksporter handleliste (PDF)
+                  </button>
+                )}
               </div>
 
               {plannedCount > 0 && (

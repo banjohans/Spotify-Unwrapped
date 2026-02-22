@@ -770,6 +770,19 @@ body {
   -webkit-backdrop-filter: blur(12px);
   border-radius: 14px;
   border: 1px solid rgba(30, 215, 96, 0.1);
+  flex-wrap: wrap;
+}
+
+.stickySubtitle {
+  margin: 4px 0 0;
+  font-size: 0.85em;
+  color: #b3b3b3;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.stickySubtitle strong {
+  color: var(--accent);
 }
 
 .headerActions {
@@ -1167,12 +1180,32 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .buyPlanHeader h3 {
   margin: 0;
   font-size: 16px;
   color: var(--text);
+}
+
+.btnExportPdf {
+  background: rgba(30, 215, 96, 0.1);
+  border: 1px solid rgba(30, 215, 96, 0.3);
+  color: var(--accent);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btnExportPdf:hover {
+  background: rgba(30, 215, 96, 0.2);
+  border-color: rgba(30, 215, 96, 0.5);
+  transform: translateY(-1px);
 }
 
 .planTable {
@@ -1296,6 +1329,11 @@ body {
     margin: 0;
   }
 
+  .stickySubtitle {
+    font-size: 0.75em;
+    margin-top: 2px;
+  }
+
   .stickyHeader .cardHeader {
     flex-direction: column;
     align-items: stretch;
@@ -1305,15 +1343,22 @@ body {
   .headerActions {
     flex-wrap: nowrap;
     gap: 6px;
+    width: 100%;
   }
 
-  .headerActions .btn,
-  .headerActions .btnGhost {
+  .headerActions .btn {
     flex: 1;
     min-width: 0;
     text-align: center;
     font-size: 12px;
     padding: 7px 6px;
+    white-space: nowrap;
+  }
+
+  .headerActions .btnGhost {
+    flex: 0 0 auto;
+    font-size: 12px;
+    padding: 7px 10px;
     white-space: nowrap;
   }
 
@@ -1481,10 +1526,19 @@ body {
     font-size: 12px;
   }
 
-  .headerActions .btn,
-  .headerActions .btnGhost {
+  .stickySubtitle {
+    font-size: 0.68em;
+    margin-top: 1px;
+  }
+
+  .headerActions .btn {
     font-size: 11px;
     padding: 6px 5px;
+  }
+
+  .headerActions .btnGhost {
+    font-size: 11px;
+    padding: 6px 8px;
   }
 
   .stickyHeader .plannedDropdownToggle {
