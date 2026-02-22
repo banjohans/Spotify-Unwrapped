@@ -26,7 +26,9 @@ body {
   min-height: 100vh;
   overflow-x: hidden;
 }
-img, svg, table {
+img,
+svg,
+table {
   max-width: 100%;
 }
 body {
@@ -521,7 +523,6 @@ body {
   padding: 20px;
   box-shadow: var(--shadow);
   margin-top: 18px;
-  overflow: hidden;
 }
 
 .card.soft {
