@@ -1,4 +1,66 @@
 // src/lib/analyze.ts
+
+/**
+ * Historisk Spotify Premium Individual-pris i Noreg (NOK/månad).
+ * Verifisert via Wayback Machine-snapshotar av spotify.com/no-nb/premium/.
+ *
+ * Kjelder:
+ *   2015-06 snapshot → 99 kr       (stabil sidan lansering ~2009)
+ *   2021-03 snapshot → 119 kr      (auke frå 99, truleg feb 2021)
+ *   2022-09 snapshot → 119 kr
+ *   2023-05 snapshot → 119 kr
+ *   2023-09 snapshot → 129 kr      (auke juli 2023)
+ *   2024-09 snapshot → 129 kr
+ *   2026-02 live side → 139 kr     (auke truleg juni 2025)
+ *
+ * Kvar oppføring: frå og med [year, month] gjeld prisen.
+ */
+export const SPOTIFY_PRICE_HISTORY_NOK: Array<{
+  from: [number, number]; // [year, month] (month 1-12)
+  price: number;
+}> = [
+  { from: [2009, 1], price: 99 },
+  { from: [2021, 2], price: 119 },
+  { from: [2023, 7], price: 129 },
+  { from: [2025, 6], price: 139 },
+];
+
+/**
+ * Returnerer Spotify Premium Individual-prisen (NOK) for ein gitt månad.
+ */
+export function getMonthlyPriceNOK(year: number, month: number): number {
+  let price = SPOTIFY_PRICE_HISTORY_NOK[0].price;
+  for (const entry of SPOTIFY_PRICE_HISTORY_NOK) {
+    const [fy, fm] = entry.from;
+    if (year > fy || (year === fy && month >= fm)) {
+      price = entry.price;
+    }
+  }
+  return price;
+}
+
+/**
+ * Reknar ut total abonnementskostnad for eit sett med månadar,
+ * ved å bruke historisk pris for kvar einskild månad.
+ */
+export function calcHistoricalSubscriptionCost(
+  uniqueMonths: Array<{ year: number; month: number }>,
+): {
+  totalCost: number;
+  weightedAvgPrice: number;
+  monthDetails: Array<{ year: number; month: number; price: number }>;
+} {
+  const monthDetails = uniqueMonths.map(({ year, month }) => ({
+    year,
+    month,
+    price: getMonthlyPriceNOK(year, month),
+  }));
+  const totalCost = monthDetails.reduce((sum, m) => sum + m.price, 0);
+  const weightedAvgPrice =
+    monthDetails.length > 0 ? totalCost / monthDetails.length : 0;
+  return { totalCost, weightedAvgPrice, monthDetails };
+}
+
 export type SpotifyStreamRow = {
   ts?: string;
   ms_played?: number;
@@ -23,12 +85,10 @@ export type SpotifyStreamRow = {
 };
 
 export type AnalysisConfig = {
-  minutesPerStreamEquivalent: number;
   nokPerStream: number;
   albumPriceNOK: number;
   minMsPlayedToCount: number;
   sessionGapSeconds: number;
-  avgMonthlyPrice: number;
 };
 
 export type ReasonBreakdownRow = {
@@ -170,7 +230,6 @@ export function analyze(
   rows: SpotifyStreamRow[],
   cfg: AnalysisConfig,
 ): AnalysisResult {
-  const minutesPerStream = Math.max(0.5, cfg.minutesPerStreamEquivalent);
   const nokPerStream = Math.max(0, cfg.nokPerStream);
   const albumPrice = Math.max(1, cfg.albumPriceNOK);
   const sessionGapSeconds = Math.max(1, cfg.sessionGapSeconds);
@@ -209,6 +268,8 @@ export function analyze(
 
   let activeMsPlayed = 0;
   let passiveMsPlayed = 0;
+  let activePlays = 0;
+  let passivePlays = 0;
 
   for (let i = 0; i < sorted.length; i++) {
     const r = sorted[i];
@@ -275,9 +336,11 @@ export function analyze(
     if (cls === "active") {
       a.activeMs += ms;
       activeMsPlayed += ms;
+      activePlays++;
     } else {
       a.passiveMs += ms;
       passiveMsPlayed += ms;
+      passivePlays++;
     }
 
     if (!a.byAlbum.has(album)) a.byAlbum.set(album, { msPlayed: 0, plays: 0 });
@@ -288,8 +351,7 @@ export function analyze(
 
   const artists: ArtistAgg[] = Array.from(byArtist.entries()).map(
     ([artist, a]) => {
-      const minutes = a.msPlayed / 60000;
-      const estStreams = minutes / minutesPerStream;
+      const estStreams = a.plays;
       const estValueNOK = estStreams * nokPerStream;
       const albumEquivalent = estValueNOK / albumPrice;
 
@@ -321,19 +383,16 @@ export function analyze(
   const activeShare = activeMsPlayed / totalCounted;
   const passiveShare = passiveMsPlayed / totalCounted;
 
-  const activeMinutes = activeMsPlayed / 60000;
-  const passiveMinutes = passiveMsPlayed / 60000;
-
-  const activeEstStreams = activeMinutes / minutesPerStream;
-  const passiveEstStreams = passiveMinutes / minutesPerStream;
+  // Kvar kvalifiserande rad (ms_played >= terskel) = 1 stream
+  const activeEstStreams = activePlays;
+  const passiveEstStreams = passivePlays;
 
   const activeEstValueNOK = activeEstStreams * nokPerStream;
   const passiveEstValueNOK = passiveEstStreams * nokPerStream;
 
   // Autoplay statistikk
   const autoplayShare = autoplayAfterEndplayMs / Math.max(1, countedMsPlayed);
-  const autoplayMinutes = autoplayAfterEndplayMs / 60000;
-  const autoplayEstStreams = autoplayMinutes / minutesPerStream;
+  const autoplayEstStreams = autoplayEventsCount;
   const autoplayEstValueNOK = autoplayEstStreams * nokPerStream;
 
   const autoplayTopArtists: AutoplayArtist[] = Array.from(
@@ -368,12 +427,10 @@ export function analyze(
     autoplayByReasonStart.entries(),
   )
     .map(([reasonStart, msPlayed]) => {
-      const minutes = msPlayed / 60000;
-      const estStreams = minutes / minutesPerStream;
       return {
         reasonStart,
         msPlayed,
-        estStreams,
+        estStreams: 0, // ikkje mogleg å telle eksakte streams per reason her
         shareMs: msPlayed / Math.max(1, autoplayAfterEndplayMs),
       };
     })

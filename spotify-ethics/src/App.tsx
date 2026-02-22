@@ -1,7 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
-import { analyze } from "./lib/analyze";
+import { analyze, calcHistoricalSubscriptionCost, SPOTIFY_PRICE_HISTORY_NOK } from "./lib/analyze";
 import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
 import "./App.css";
+import analyticsImg from "./assets/analytics.png";
+import insightImg from "./assets/insight.png";
+import privateImg from "./assets/private.png";
 
 function formatHours(ms: number) {
   const h = ms / 3600000;
@@ -70,12 +73,11 @@ export default function App() {
   const [dateFilterEnd, setDateFilterEnd] = useState<string>("");
 
   const [cfg, setCfg] = useState<AnalysisConfig>({
-    minutesPerStreamEquivalent: 3.0,
     nokPerStream: 0.04,
     albumPriceNOK: 150,
     minMsPlayedToCount: 30_000,
     sessionGapSeconds: 60,
-    avgMonthlyPrice: 139,
+
   });
 
   async function onFiles(files: FileList | null) {
@@ -208,24 +210,43 @@ export default function App() {
       (lastDate.getTime() - firstDate.getTime()) /
       (1000 * 60 * 60 * 24 * 30.44);
 
-    // Count unique months with actual activity
-    const uniqueMonths = new Set(
-      dates.map((d) => `${d.getFullYear()}-${d.getMonth()}`),
+    // Unique months with actual activity (year-month pairs)
+    const uniqueMonthSet = new Set(
+      dates.map((d) => `${d.getFullYear()}-${d.getMonth() + 1}`),
     );
-    const activeMonths = uniqueMonths.size;
+    const activeMonths = uniqueMonthSet.size;
 
-    const avgMonthlyPrice = cfg.avgMonthlyPrice;
+    // Bygg liste av aktive månadar for historisk prisutrekning
+    const activeMonthList = Array.from(uniqueMonthSet).map((key) => {
+      const [y, m] = key.split("-").map(Number);
+      return { year: y, month: m };
+    });
+
+    // Kalkuler total kostnad basert på historisk pris per månad
+    const historical = calcHistoricalSubscriptionCost(activeMonthList);
+
+    // Kalkuler også «span-kostnad» (alle månadar i perioden, inkl. inaktive)
+    const spanMonths: Array<{ year: number; month: number }> = [];
+    let cursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    const endMonth = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
+    while (cursor <= endMonth) {
+      spanMonths.push({ year: cursor.getFullYear(), month: cursor.getMonth() + 1 });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    const spanHistorical = calcHistoricalSubscriptionCost(spanMonths);
 
     return {
       firstDate,
       lastDate,
       months,
-      totalCost: months * avgMonthlyPrice,
+      totalCost: spanHistorical.totalCost,
       activeMonths,
-      activeCost: activeMonths * avgMonthlyPrice,
-      avgMonthlyPrice,
+      activeCost: historical.totalCost,
+      avgMonthlyPrice: historical.weightedAvgPrice,
+      spanAvgMonthlyPrice: spanHistorical.weightedAvgPrice,
+      priceBreakdown: historical.monthDetails,
     };
-  }, [dateFilteredRows, cfg.avgMonthlyPrice]);
+  }, [dateFilteredRows]);
 
   const searchedArtists = useMemo(() => {
     if (!artistSearchQuery.trim()) return filteredArtists;
@@ -369,50 +390,58 @@ export default function App() {
             </div>
 
             <div className="tornStrip">
-              <div className="tornEdge tornTop" />
-              <div className="tornInner">
-                <span className="unwrappedText">UNWRAPPED</span>
-              </div>
-              <div className="tornEdge tornBottom" />
-            </div>
-
-            <div className="emojiNarrative">
-              <span className="emojiItem">💰</span>
-              <span className="emojiArrow">⬇️</span>
-              <span className="emojiItem">😞</span>
+              <span className="unwrappedText">UNWRAPPED</span>
             </div>
           </div>
 
-          <p className="heroTagline">Kven tjener på lyttinga di?</p>
+          <p className="heroTagline">Kva tente artistene på lyttinga di?</p>
           <p className="heroDesc">
-            Oppdag kor mykje pengar dine streams faktisk genererer for artistane
-            du elskar – og kva alternativa kostar.
+            Oppdag kor mykje pengar <u>dine streams</u> faktisk genererte for
+            artistane du elskar – og kva det alternativt hadde kosta å kjøpe
+            musikken direkte.
           </p>
+
+          <div className="heroUnderline" />
 
           <div className="featureGrid">
             <div className="featureCard">
-              <span className="featureIcon">📊</span>
-              <h3>Analyser lyttinga di</h3>
-              <p>
-                Estimert teoretisk verdi for kvar artist basert på
-                gjennomsnittlege straumeprisar (pro-rata modell).
-              </p>
+              <div
+                className="featureImg"
+                style={{ backgroundImage: `url(${analyticsImg})` }}
+              />
+              <div className="featureText">
+                <h3>Analyser lyttinga di</h3>
+                <p>
+                  Estimert teoretisk verdi for kvar artist basert på
+                  gjennomsnittlege straumeprisar (pro-rata modell).
+                </p>
+              </div>
             </div>
             <div className="featureCard">
-              <span className="featureIcon">🎯</span>
-              <h3>Få innsikt</h3>
-              <p>
-                Sjekk kva det hadde kosta å støtte artistane med direktekjøp i
-                staden.
-              </p>
+              <div
+                className="featureImg"
+                style={{ backgroundImage: `url(${insightImg})` }}
+              />
+              <div className="featureText">
+                <h3>Få innsikt</h3>
+                <p>
+                  Sjekk kva det hadde kosta å støtte artistane med direktekjøp i
+                  staden.
+                </p>
+              </div>
             </div>
             <div className="featureCard">
-              <span className="featureIcon">🔒</span>
-              <h3>Heilt privat</h3>
-              <p>
-                Alt skjer lokalt i nettlesaren. Vi lagrar eller sender aldri
-                dine data.
-              </p>
+              <div
+                className="featureImg"
+                style={{ backgroundImage: `url(${privateImg})` }}
+              />
+              <div className="featureText">
+                <h3>Heilt privat</h3>
+                <p>
+                  Alt skjer lokalt i nettlesaren. Vi lagrar eller sender aldri
+                  dine data.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -530,21 +559,6 @@ export default function App() {
 
         <div className="controlsGrid">
           <label className="field">
-            <span>Minutt per stream-ekv.</span>
-            <input
-              type="number"
-              step="0.1"
-              value={cfg.minutesPerStreamEquivalent}
-              onChange={(e) =>
-                setCfg({
-                  ...cfg,
-                  minutesPerStreamEquivalent: Number(e.target.value),
-                })
-              }
-            />
-          </label>
-
-          <label className="field">
             <span>NOK per stream (anslag)</span>
             <input
               type="number"
@@ -580,17 +594,37 @@ export default function App() {
             />
           </label>
 
-          <label className="field">
-            <span>Abonnementspris (kr/mnd)</span>
-            <input
-              type="number"
-              step="1"
-              value={cfg.avgMonthlyPrice}
-              onChange={(e) =>
-                setCfg({ ...cfg, avgMonthlyPrice: Number(e.target.value) })
-              }
-            />
-          </label>
+        </div>
+
+        <div className="priceHistoryInfo">
+          <h4>Historisk abonnementspris (Premium Individual, Noreg)</h4>
+          <table className="priceHistoryTable">
+            <thead>
+              <tr>
+                <th>Periode</th>
+                <th>Pris</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SPOTIFY_PRICE_HISTORY_NOK.map((period, i) => {
+                const nextPeriod = SPOTIFY_PRICE_HISTORY_NOK[i + 1];
+                const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                const toStr = nextPeriod
+                  ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                  : "no";
+                return (
+                  <tr key={i}>
+                    <td>{fromStr} → {toStr}</td>
+                    <td>{period.price} kr/mnd</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
+            Abonnementskostnad vert rekna ut automatisk basert på historisk pris
+            per månad i perioden din.
+          </p>
         </div>
       </section>
 
@@ -813,8 +847,21 @@ export default function App() {
                     month: "short",
                   })}
                 </b>{" "}
-                · snittpris: {formatNOK(subscriptionEstimate.avgMonthlyPrice)}
-                /månad
+                · vekta snittpris:{" "}
+                {formatNOK(subscriptionEstimate.avgMonthlyPrice)}/mnd
+                <br />
+                Prisar brukt:{" "}
+                {(() => {
+                  const prices = new Set(
+                    subscriptionEstimate.priceBreakdown.map(
+                      (m: { price: number }) => m.price,
+                    ),
+                  );
+                  return Array.from(prices)
+                    .sort((a, b) => a - b)
+                    .map((p) => `${p} kr`)
+                    .join(", ");
+                })()}
               </p>
             )}
 
@@ -1121,7 +1168,7 @@ export default function App() {
             </p>
           </section>
 
-          <section className="card">
+          {/* <section className="card">
             <div className="cardHeader">
               <h2>4) Aktiv vs passiv lytting</h2>
               <div className="subtle">
@@ -1170,7 +1217,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </section>
+          </section> */}
 
           {excludedArtists.size > 0 && (
             <section className="card soft">
