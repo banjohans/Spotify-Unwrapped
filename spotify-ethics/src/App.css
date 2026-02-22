@@ -1,5 +1,6 @@
 :root {
   --bg: #0b0c10;
+  --accent: #1ed760;
   --panel: rgba(255, 255, 255, 0.06);
   --panel2: rgba(255, 255, 255, 0.09);
   --border: rgba(255, 255, 255, 0.12);
@@ -21,7 +22,9 @@
 * {
   box-sizing: border-box;
 }
-html,
+html {
+  min-height: 100vh;
+}
 body {
   min-height: 100vh;
   overflow-x: hidden;

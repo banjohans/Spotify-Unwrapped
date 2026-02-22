@@ -1016,15 +1016,18 @@ export default function App() {
                             <span className="albumBudgetRemaining">
                               {albumsRemaining} album att
                             </span>{" "}
-                            for å matche abonnementskostnaden (
-                            {formatNOK(subscriptionEstimate.activeCost)} ≈{" "}
-                            {albumBudget} album)
+                            — {albumBudget} album kunne du ha eigd i dag
+                            i staden for å ikkje eige nokon som
+                            Spotify-abonnent (
+                            {formatNOK(subscriptionEstimate.activeCost)})
                           </>
                         ) : (
                           <span className="green">
-                            ✓ Du har valt {plannedCount} album — meir enn dei{" "}
-                            {albumBudget} du kunne fått for
-                            abonnementskostnaden!
+                            ✓ {plannedCount - albumBudget} album meir enn du
+                            kunne fått for
+                            spotify-abonnementsutgiftene dine ({albumBudget}{" "}
+                            album ≈{" "}
+                            {formatNOK(subscriptionEstimate.activeCost)})
                           </span>
                         )}
                       </div>
@@ -1074,7 +1077,9 @@ export default function App() {
               <div className="topNTabs">
                 {([5, 10, 20, 30, 50, "all"] as const).map((n) => {
                   const isAll = n === "all";
-                  const label = isAll ? `Alle (${filteredArtists.length})` : `Topp ${n}`;
+                  const label = isAll
+                    ? `Alle (${filteredArtists.length})`
+                    : `Topp ${n}`;
                   const disabled = !isAll && n > filteredArtists.length;
                   return (
                     <button
@@ -1094,20 +1099,18 @@ export default function App() {
             <div className="sectionSummary">
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Total lyttetid, {summaryTopN === "all" ? `alle ${topNArtists.length}` : `topp ${topNArtists.length}`} artistar
+                  Total lyttetid,{" "}
+                  {summaryTopN === "all"
+                    ? `alle ${topNArtists.length}`
+                    : `topp ${topNArtists.length}`}{" "}
+                  artistar
                 </span>
-                <span className="summaryValue">
-                  {formatHours(topNMs)}
-                </span>
+                <span className="summaryValue">{formatHours(topNMs)}</span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">
-                  Teoretisk Spotify-verdi
-                </span>
-                <span className="summaryValue">
-                  {formatNOK(topNValue)}
-                </span>
+                <span className="summaryLabel">Teoretisk Spotify-verdi</span>
+                <span className="summaryValue">{formatNOK(topNValue)}</span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
