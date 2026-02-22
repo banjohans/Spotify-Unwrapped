@@ -71,6 +71,7 @@ export default function App() {
   const [artistSearchQuery, setArtistSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(30);
+  const [summaryTopN, setSummaryTopN] = useState<number | "all">(30);
 
   // Date filter
   const [dateFilterMode, setDateFilterMode] = useState<
@@ -285,13 +286,28 @@ export default function App() {
     [shownArtists],
   );
 
-  const costToBuyAllShownAlbums = useMemo(
-    () => shownAlbumKeys.length * cfg.albumPriceNOK,
-    [shownAlbumKeys, cfg.albumPriceNOK],
+  // Top-N summary
+  const topNArtists = useMemo(() => {
+    if (!filteredArtists.length) return [];
+    if (summaryTopN === "all") return filteredArtists;
+    return filteredArtists.slice(0, summaryTopN);
+  }, [filteredArtists, summaryTopN]);
+
+  const topNAlbumKeys = useMemo(
+    () => uniqAlbumKeysFromArtists(topNArtists),
+    [topNArtists],
   );
-  const totalShownArtistsValue = useMemo(
-    () => shownArtists.reduce((sum, a) => sum + a.estValueNOK, 0),
-    [shownArtists],
+  const topNValue = useMemo(
+    () => topNArtists.reduce((sum, a) => sum + a.estValueNOK, 0),
+    [topNArtists],
+  );
+  const topNMs = useMemo(
+    () => topNArtists.reduce((sum, a) => sum + a.msPlayed, 0),
+    [topNArtists],
+  );
+  const topNCost = useMemo(
+    () => topNAlbumKeys.length * cfg.albumPriceNOK,
+    [topNAlbumKeys, cfg.albumPriceNOK],
   );
   const plannedCount = Object.keys(plannedAlbums).length;
   const plannedCost = plannedCount * cfg.albumPriceNOK;
@@ -919,6 +935,17 @@ export default function App() {
               straumepris × lyttetid, ikkje kva artisten faktisk har fått frå
               akkurat deg.
             </p>
+
+            <p className="subtle" style={{ marginTop: 10 }}>
+              <b>Om abonnementsprising:</b> Spotify sin GDPR-dataeksport
+              inneheld ikkje informasjon om abonnementstype eller
+              betalingshistorikk. Feltet <code>Payments.json</code> er tomt, og{" "}
+              <code>Userdata.json</code> har berre grunnleggande
+              kontoinformasjon. Difor reknar denne sida med standardpris for
+              vanleg <b>Premium-abonnement</b> i Noreg, basert på historiske
+              prisar verifisert via Wayback Machine. Har du hatt Free, Duo eller
+              Family-abonnement vil den faktiske kostnaden avvike.
+            </p>
           </section>
 
           <section className="card">
@@ -1041,26 +1068,57 @@ export default function App() {
               )}
             </div>
 
+            {/* Top-N veljar */}
+            <div className="topNSelector">
+              <span className="topNLabel">Vis tal for:</span>
+              <div className="topNTabs">
+                {([5, 10, 20, 30, 50, "all"] as const).map((n) => {
+                  const isAll = n === "all";
+                  const label = isAll ? `Alle (${filteredArtists.length})` : `Topp ${n}`;
+                  const disabled = !isAll && n > filteredArtists.length;
+                  return (
+                    <button
+                      key={String(n)}
+                      className={`dateTab ${summaryTopN === n ? "active" : ""}`}
+                      onClick={() => setSummaryTopN(n)}
+                      disabled={disabled}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Samandrag */}
             <div className="sectionSummary">
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Teoretisk Spotify-verdi, topp {shownArtists.length} artistar
+                  Total lyttetid, {summaryTopN === "all" ? `alle ${topNArtists.length}` : `topp ${topNArtists.length}`} artistar
                 </span>
                 <span className="summaryValue">
-                  {formatNOK(totalShownArtistsValue)}
+                  {formatHours(topNMs)}
                 </span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">Synlege album</span>
-                <span className="summaryValue">{shownAlbumKeys.length}</span>
+                <span className="summaryLabel">
+                  Teoretisk Spotify-verdi
+                </span>
+                <span className="summaryValue">
+                  {formatNOK(topNValue)}
+                </span>
+              </div>
+              <div className="summarySep" />
+              <div className="summaryItem">
+                <span className="summaryLabel">Album</span>
+                <span className="summaryValue">{topNAlbumKeys.length}</span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
                 <span className="summaryLabel">Kjøp fysiske album</span>
                 <span className="summaryValue green">
-                  {formatNOK(costToBuyAllShownAlbums)}
+                  {formatNOK(topNCost)}
                 </span>
               </div>
             </div>

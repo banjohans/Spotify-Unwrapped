@@ -529,6 +529,38 @@ body {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Top-N selector */
+.topNSelector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 4px;
+  flex-wrap: wrap;
+}
+
+.topNLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.topNTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.topNTabs .dateTab {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.topNTabs .dateTab:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 /* Section summary banner between header and list */
 .sectionSummary {
   display: flex;
@@ -1377,6 +1409,17 @@ body {
     font-size: 11px;
     padding: 5px 12px;
     margin-bottom: 18px;
+  }
+
+  .topNSelector {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .topNTabs .dateTab {
+    padding: 5px 10px;
+    font-size: 12px;
   }
 
   .sectionSummary {
