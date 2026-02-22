@@ -415,8 +415,7 @@ export function analyze(
 
       const topAlbums = Array.from(a.byAlbum.entries())
         .map(([album, v]) => ({ album, msPlayed: v.msPlayed, plays: v.plays }))
-        .sort((x, y) => y.msPlayed - x.msPlayed)
-        .slice(0, 5);
+        .sort((x, y) => y.msPlayed - x.msPlayed);
 
       const activeShare = a.msPlayed > 0 ? a.activeMs / a.msPlayed : 0;
 

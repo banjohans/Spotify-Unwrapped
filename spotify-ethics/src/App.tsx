@@ -72,6 +72,9 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(30);
   const [summaryTopN, setSummaryTopN] = useState<number | "all">(30);
+  const [expandedAlbumArtists, setExpandedAlbumArtists] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Date filter
   const [dateFilterMode, setDateFilterMode] = useState<
@@ -1256,35 +1259,70 @@ export default function App() {
                         Trykk på albuma du kunne vurdert å kjøpe for å støtte
                         artistane du likar godt.
                       </p>
-                      {a.topAlbums.map((x) => {
-                        const key = albumKey(a.artist, x.album);
-                        const isPlanned = !!plannedAlbums[key];
-
+                      {(() => {
+                        const isExpanded = expandedAlbumArtists.has(a.artist);
+                        const visibleAlbums = isExpanded
+                          ? a.topAlbums
+                          : a.topAlbums.slice(0, 5);
+                        const hasMore = a.topAlbums.length > 5;
                         return (
-                          <button
-                            key={key}
-                            className={
-                              isPlanned ? "albumChip selected" : "albumChip"
-                            }
-                            onClick={() => {
-                              setPlannedAlbums((prev) => {
-                                const next = { ...prev };
-                                if (next[key]) delete next[key];
-                                else
-                                  next[key] = {
-                                    artist: a.artist,
-                                    album: x.album,
-                                  };
-                                return next;
-                              });
-                            }}
-                            title={`${x.album}${isPlanned ? " (i kjøpsplan)" : ""}`}
-                          >
-                            <span className="chipText">{x.album}</span>
-                            {isPlanned && <span className="chipMark">✓</span>}
-                          </button>
+                          <>
+                            {visibleAlbums.map((x) => {
+                              const key = albumKey(a.artist, x.album);
+                              const isPlanned = !!plannedAlbums[key];
+
+                              return (
+                                <button
+                                  key={key}
+                                  className={
+                                    isPlanned
+                                      ? "albumChip selected"
+                                      : "albumChip"
+                                  }
+                                  onClick={() => {
+                                    setPlannedAlbums((prev) => {
+                                      const next = { ...prev };
+                                      if (next[key]) delete next[key];
+                                      else
+                                        next[key] = {
+                                          artist: a.artist,
+                                          album: x.album,
+                                        };
+                                      return next;
+                                    });
+                                  }}
+                                  title={`${x.album}${isPlanned ? " (i kjøpsplan)" : ""}`}
+                                >
+                                  <span className="chipText">{x.album}</span>
+                                  {isPlanned && (
+                                    <span className="chipMark">✓</span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                            {hasMore && (
+                              <button
+                                className="albumChip showAllBtn"
+                                onClick={() => {
+                                  setExpandedAlbumArtists((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(a.artist))
+                                      next.delete(a.artist);
+                                    else next.add(a.artist);
+                                    return next;
+                                  });
+                                }}
+                              >
+                                <span className="chipText">
+                                  {isExpanded
+                                    ? "Vis færre"
+                                    : `Vis alle ${a.topAlbums.length} album`}
+                                </span>
+                              </button>
+                            )}
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
 
                     <button

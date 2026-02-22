@@ -940,6 +940,20 @@ body {
   box-shadow: 0 0 12px rgba(72, 201, 129, 0.12);
 }
 
+.albumChip.showAllBtn {
+  background: rgba(30, 215, 96, 0.08);
+  border-color: rgba(30, 215, 96, 0.25);
+  border-style: dashed;
+}
+.albumChip.showAllBtn:hover {
+  background: rgba(30, 215, 96, 0.15);
+  border-color: rgba(30, 215, 96, 0.4);
+}
+.albumChip.showAllBtn .chipText {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .chipText {
   display: -webkit-box;
   -webkit-line-clamp: 2;
