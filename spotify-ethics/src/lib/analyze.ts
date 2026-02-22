@@ -26,6 +26,51 @@ export const SPOTIFY_PRICE_HISTORY_NOK: Array<{
 ];
 
 /**
+ * Historisk estimert royalty per stream i NOK.
+ *
+ * Spotify betalar ikkje ein fast «per stream»-sats – utbetalinga avheng av
+ * total inntekt, antal streams på plattforma, land, abonnementstype m.m.
+ * Desse tala er gjennomsnittlege estimat basert på bransjedata
+ * (The Trichordist, Soundcharts, Digital Music News) omrekna til NOK
+ * med historiske valutakursar, justert for at Noreg er eit premiummarknad.
+ *
+ * Kjelder:
+ *   2014 → globalt snitt ~$0.006-0.007/stream (få streams, høg sats)
+ *   2015-17 → ~$0.005-0.006 (rask vekst i brukarar)
+ *   2018 → Soundcharts vekta snitt: $0.00318 (500M+ streams analysert)
+ *   2019-21 → ~$0.003-0.004 (peak dilution, mange gratisbrukarar)
+ *   2022-24 → ~$0.004 (prisaukar, 1000-streams-terskel frå 2024)
+ *   2025+ → ~$0.004 (stabil)
+ *
+ * Omrekna til NOK med historiske kursar + premiummarknads-justering.
+ */
+export const SPOTIFY_ROYALTY_HISTORY_NOK: Array<{
+  from: [number, number]; // [year, month]
+  nokPerStream: number;
+}> = [
+  { from: [2009, 1], nokPerStream: 0.05 },
+  { from: [2015, 1], nokPerStream: 0.044 },
+  { from: [2018, 1], nokPerStream: 0.035 },
+  { from: [2020, 1], nokPerStream: 0.03 },
+  { from: [2023, 1], nokPerStream: 0.038 },
+  { from: [2025, 1], nokPerStream: 0.04 },
+];
+
+/**
+ * Returnerer estimert NOK per stream for ein gitt månad.
+ */
+export function getNokPerStream(year: number, month: number): number {
+  let rate = SPOTIFY_ROYALTY_HISTORY_NOK[0].nokPerStream;
+  for (const entry of SPOTIFY_ROYALTY_HISTORY_NOK) {
+    const [fy, fm] = entry.from;
+    if (year > fy || (year === fy && month >= fm)) {
+      rate = entry.nokPerStream;
+    }
+  }
+  return rate;
+}
+
+/**
  * Returnerer Spotify Premium Individual-prisen (NOK) for ein gitt månad.
  */
 export function getMonthlyPriceNOK(year: number, month: number): number {
@@ -85,7 +130,6 @@ export type SpotifyStreamRow = {
 };
 
 export type AnalysisConfig = {
-  nokPerStream: number;
   albumPriceNOK: number;
   minMsPlayedToCount: number;
   sessionGapSeconds: number;
@@ -230,7 +274,6 @@ export function analyze(
   rows: SpotifyStreamRow[],
   cfg: AnalysisConfig,
 ): AnalysisResult {
-  const nokPerStream = Math.max(0, cfg.nokPerStream);
   const albumPrice = Math.max(1, cfg.albumPriceNOK);
   const sessionGapSeconds = Math.max(1, cfg.sessionGapSeconds);
 
@@ -248,6 +291,7 @@ export function analyze(
       plays: number;
       activeMs: number;
       passiveMs: number;
+      estValueNOK: number;
       byAlbum: Map<string, { msPlayed: number; plays: number }>;
     }
   >();
@@ -270,6 +314,9 @@ export function analyze(
   let passiveMsPlayed = 0;
   let activePlays = 0;
   let passivePlays = 0;
+  let activeEstValueNOKAccum = 0;
+  let passiveEstValueNOKAccum = 0;
+  let autoplayEstValueNOKAccum = 0;
 
   for (let i = 0; i < sorted.length; i++) {
     const r = sorted[i];
@@ -280,6 +327,12 @@ export function analyze(
 
     const artist = safeStr(r.master_metadata_album_artist_name);
     if (!artist) continue;
+
+    // Historisk NOK per stream basert på tidspunktet for streamen
+    const rowDate = new Date(r.ts ?? "");
+    const rowYear = isNaN(rowDate.getTime()) ? 2024 : rowDate.getFullYear();
+    const rowMonth = isNaN(rowDate.getTime()) ? 1 : rowDate.getMonth() + 1;
+    const rowRate = getNokPerStream(rowYear, rowMonth);
 
     // Autoplay etter endplay
     if (i > 0) {
@@ -292,6 +345,7 @@ export function analyze(
       if (isAutoplayAfterEndplay(prev, r, gapSeconds, sessionGapSeconds)) {
         autoplayAfterEndplayMs += ms;
         autoplayEventsCount++;
+        autoplayEstValueNOKAccum += rowRate;
 
         autoplayByArtist.set(artist, (autoplayByArtist.get(artist) ?? 0) + ms);
 
@@ -325,6 +379,7 @@ export function analyze(
         plays: 0,
         activeMs: 0,
         passiveMs: 0,
+        estValueNOK: 0,
         byAlbum: new Map(),
       });
     }
@@ -332,15 +387,18 @@ export function analyze(
     const a = byArtist.get(artist)!;
     a.msPlayed += ms;
     a.plays += 1;
+    a.estValueNOK += rowRate;
 
     if (cls === "active") {
       a.activeMs += ms;
       activeMsPlayed += ms;
       activePlays++;
+      activeEstValueNOKAccum += rowRate;
     } else {
       a.passiveMs += ms;
       passiveMsPlayed += ms;
       passivePlays++;
+      passiveEstValueNOKAccum += rowRate;
     }
 
     if (!a.byAlbum.has(album)) a.byAlbum.set(album, { msPlayed: 0, plays: 0 });
@@ -352,7 +410,7 @@ export function analyze(
   const artists: ArtistAgg[] = Array.from(byArtist.entries()).map(
     ([artist, a]) => {
       const estStreams = a.plays;
-      const estValueNOK = estStreams * nokPerStream;
+      const estValueNOK = a.estValueNOK;
       const albumEquivalent = estValueNOK / albumPrice;
 
       const topAlbums = Array.from(a.byAlbum.entries())
@@ -387,13 +445,13 @@ export function analyze(
   const activeEstStreams = activePlays;
   const passiveEstStreams = passivePlays;
 
-  const activeEstValueNOK = activeEstStreams * nokPerStream;
-  const passiveEstValueNOK = passiveEstStreams * nokPerStream;
+  const activeEstValueNOK = activeEstValueNOKAccum;
+  const passiveEstValueNOK = passiveEstValueNOKAccum;
 
   // Autoplay statistikk
   const autoplayShare = autoplayAfterEndplayMs / Math.max(1, countedMsPlayed);
   const autoplayEstStreams = autoplayEventsCount;
-  const autoplayEstValueNOK = autoplayEstStreams * nokPerStream;
+  const autoplayEstValueNOK = autoplayEstValueNOKAccum;
 
   const autoplayTopArtists: AutoplayArtist[] = Array.from(
     autoplayByArtist.entries(),

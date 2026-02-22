@@ -24,6 +24,7 @@
 html,
 body {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 body {
   margin: 0;
@@ -898,6 +899,179 @@ body {
   color: rgb(30, 215, 96);
 }
 
+/* Instruksjonstekst over albumchips */
+.albumInstructions {
+  width: 100%;
+  margin: 0 0 6px;
+  font-size: 0.82em;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Planlagde-album-dropdown i stickyHeader */
+.plannedDropdown {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.plannedDropdownToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 215, 96, 0.25);
+  background: rgba(30, 215, 96, 0.06);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.92em;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.plannedDropdownToggle:hover {
+  background: rgba(30, 215, 96, 0.12);
+  border-color: rgba(30, 215, 96, 0.4);
+}
+
+.plannedDropdownSummary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plannedBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #0b0c10;
+  font-weight: 900;
+  font-size: 0.82em;
+  padding: 0 6px;
+}
+
+.plannedChevron {
+  font-size: 1.2em;
+  transition: transform 0.2s ease;
+}
+.plannedChevron.open {
+  transform: rotate(180deg);
+}
+
+.plannedDropdownList {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(11, 12, 16, 0.95);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.plannedDropdownItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  gap: 10px;
+}
+.plannedDropdownItem:last-of-type {
+  border-bottom: none;
+}
+
+.plannedDropdownInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.plannedAlbumName {
+  font-weight: 700;
+  font-size: 0.88em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plannedArtistName {
+  font-size: 0.78em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plannedRemoveBtn {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 1em;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.plannedRemoveBtn:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.plannedDropdownTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 0.9em;
+  border-top: 1px solid rgba(30, 215, 96, 0.15);
+  background: rgba(30, 215, 96, 0.04);
+  border-radius: 0 0 10px 10px;
+}
+
+/* Budget-bar: kor mange album du kan få for abonnementsprisen */
+.albumBudgetBar {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.albumBudgetProgress {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.albumBudgetFill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), #48c981);
+  transition: width 0.3s ease;
+}
+
+.albumBudgetText {
+  font-size: 0.82em;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.albumBudgetRemaining {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .divider {
   height: 1px;
   background: linear-gradient(
@@ -1012,6 +1186,118 @@ body {
   }
 }
 
+@media (max-width: 768px) {
+  .page {
+    padding: 16px 12px 40px;
+  }
+
+  .card {
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .cardHeader h2 {
+    font-size: 16px;
+  }
+
+  .controlsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stickyHeader {
+    padding: 12px 14px;
+    border-radius: 12px;
+    top: 6px;
+  }
+
+  .stickyHeader .cardHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .headerActions .btn,
+  .headerActions .btnGhost {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 13px;
+    padding: 10px 8px;
+  }
+
+  .priceHistoryTable {
+    font-size: 0.78em;
+  }
+
+  .priceHistoryTable th,
+  .priceHistoryTable td {
+    padding: 4px 8px 4px 0;
+  }
+
+  .plannedDropdownToggle {
+    font-size: 0.84em;
+    padding: 10px 12px;
+  }
+
+  .albumBudgetText {
+    font-size: 0.78em;
+  }
+
+  .stat {
+    padding: 10px;
+  }
+
+  .statValue {
+    font-size: 16px;
+  }
+
+  .trackRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .trackStats {
+    white-space: normal;
+  }
+
+  .paginationControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchBox {
+    max-width: none;
+  }
+
+  .paginationInfo {
+    order: -1;
+    text-align: center;
+  }
+
+  .paginationNav {
+    justify-content: center;
+  }
+
+  .perPageSelect {
+    margin-left: 0;
+  }
+
+  .perPageSelect label {
+    justify-content: center;
+  }
+}
+
 @media (max-width: 640px) {
   .featureGrid {
     grid-template-columns: 1fr;
@@ -1020,6 +1306,11 @@ body {
 
   .hero {
     padding: 40px 0 32px;
+  }
+
+  .priceHistoryInfo {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .spotifyIcon {
@@ -1070,6 +1361,117 @@ body {
 
   .summaryValue {
     font-size: 18px;
+  }
+
+  .controlsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .artistRow {
+    padding: 12px;
+    border-radius: 12px;
+    gap: 10px;
+  }
+
+  .artistName {
+    font-size: 15px;
+  }
+
+  .artistMeta {
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .albumWrap {
+    gap: 6px;
+  }
+
+  .albumChip {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .chipText {
+    font-size: 12px;
+  }
+
+  .searchBox {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .paginationControls {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .paginationNav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pageBtn {
+    padding: 6px 10px;
+    min-width: 32px;
+    font-size: 14px;
+  }
+
+  .buyPlanHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .modalOverlay {
+    padding: 10px;
+    align-items: flex-end;
+  }
+
+  .modalContent {
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modalHeader {
+    padding: 16px;
+  }
+
+  .modalHeader h2 {
+    font-size: 18px;
+  }
+
+  .modalStats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .modalBody {
+    padding: 16px;
+  }
+
+  .modalFilters {
+    padding: 12px 16px;
+    gap: 6px;
+  }
+
+  .filterBtn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .disclaimerBody {
+    padding: 16px;
+  }
+
+  .siteFooter {
+    margin-top: 32px;
+    padding: 24px 16px;
   }
 }
 
@@ -1271,31 +1673,6 @@ body {
   color: var(--muted2);
   font-size: 12px;
   white-space: nowrap;
-}
-
-@media (max-width: 768px) {
-  .modalStats {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .modalFilters {
-    flex-direction: column;
-  }
-
-  .filterBtn {
-    width: 100%;
-  }
-
-  .trackRow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .trackStats {
-    white-space: normal;
-  }
 }
 
 /* Date Filter Controls */
@@ -1552,34 +1929,6 @@ body {
   border-color: rgba(30, 215, 96, 0.2);
 }
 
-@media (max-width: 768px) {
-  .paginationControls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .searchBox {
-    max-width: none;
-  }
-
-  .paginationInfo {
-    order: -1;
-    text-align: center;
-  }
-
-  .paginationNav {
-    justify-content: center;
-  }
-
-  .perPageSelect {
-    margin-left: 0;
-  }
-
-  .perPageSelect label {
-    justify-content: center;
-  }
-}
-
 /* Uploaded Files List */
 .uploadedFilesList {
   padding: 24px;
@@ -1672,4 +2021,73 @@ body {
   .filesHeader .btnGhost {
     width: 100%;
   }
+}
+
+/* Footer */
+.siteFooter {
+  margin-top: 48px;
+  padding: 28px 20px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.88em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.siteFooter p {
+  margin: 0;
+}
+
+.disclaimerLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.92em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.disclaimerLink:hover {
+  background: rgba(30, 215, 96, 0.08);
+  color: #48c981;
+}
+
+/* Disclaimer modal body */
+.disclaimerModal {
+  max-width: 600px;
+}
+
+.disclaimerBody {
+  padding: 20px 24px 28px;
+  font-size: 0.92em;
+  line-height: 1.7;
+  color: var(--text);
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.disclaimerBody p {
+  margin: 0 0 14px;
+}
+
+.disclaimerBody ul {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+
+.disclaimerBody li {
+  margin-bottom: 8px;
+}
+
+.disclaimerBody li strong {
+  color: var(--accent);
 }

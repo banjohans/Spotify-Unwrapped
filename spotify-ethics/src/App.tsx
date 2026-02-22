@@ -1,5 +1,10 @@
 import { useMemo, useState, useEffect } from "react";
-import { analyze, calcHistoricalSubscriptionCost, SPOTIFY_PRICE_HISTORY_NOK } from "./lib/analyze";
+import {
+  analyze,
+  calcHistoricalSubscriptionCost,
+  SPOTIFY_PRICE_HISTORY_NOK,
+  SPOTIFY_ROYALTY_HISTORY_NOK,
+} from "./lib/analyze";
 import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
 import "./App.css";
 import analyticsImg from "./assets/analytics.png";
@@ -13,9 +18,9 @@ function formatHours(ms: number) {
 function formatNOK(n: number) {
   return `${n.toFixed(0)} kr`;
 }
-function pct(x: number) {
-  return `${(x * 100).toFixed(1)}%`;
-}
+// function pct(x: number) {
+//   return `${(x * 100).toFixed(1)}%`;
+// }
 
 function albumKey(artist: string, album: string) {
   return `${artist}|||${album}`;
@@ -55,6 +60,8 @@ export default function App() {
   const [plannedAlbums, setPlannedAlbums] = useState<
     Record<string, { artist: string; album: string }>
   >({});
+  const [plannedAlbumsOpen, setPlannedAlbumsOpen] = useState(false);
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
 
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [artistDetailSort, setArtistDetailSort] = useState<"time" | "tracks">(
@@ -73,11 +80,9 @@ export default function App() {
   const [dateFilterEnd, setDateFilterEnd] = useState<string>("");
 
   const [cfg, setCfg] = useState<AnalysisConfig>({
-    nokPerStream: 0.04,
     albumPriceNOK: 150,
     minMsPlayedToCount: 30_000,
     sessionGapSeconds: 60,
-
   });
 
   async function onFiles(files: FileList | null) {
@@ -230,7 +235,10 @@ export default function App() {
     let cursor = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
     const endMonth = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
     while (cursor <= endMonth) {
-      spanMonths.push({ year: cursor.getFullYear(), month: cursor.getMonth() + 1 });
+      spanMonths.push({
+        year: cursor.getFullYear(),
+        month: cursor.getMonth() + 1,
+      });
       cursor.setMonth(cursor.getMonth() + 1);
     }
     const spanHistorical = calcHistoricalSubscriptionCost(spanMonths);
@@ -286,6 +294,10 @@ export default function App() {
   );
   const plannedCount = Object.keys(plannedAlbums).length;
   const plannedCost = plannedCount * cfg.albumPriceNOK;
+  const albumBudget = subscriptionEstimate
+    ? Math.floor(subscriptionEstimate.activeCost / cfg.albumPriceNOK)
+    : 0;
+  const albumsRemaining = Math.max(0, albumBudget - plannedCount);
 
   const artistDetails = useMemo(() => {
     if (!selectedArtist || !filteredRows.length) return null;
@@ -559,18 +571,6 @@ export default function App() {
 
         <div className="controlsGrid">
           <label className="field">
-            <span>NOK per stream (anslag)</span>
-            <input
-              type="number"
-              step="0.01"
-              value={cfg.nokPerStream}
-              onChange={(e) =>
-                setCfg({ ...cfg, nokPerStream: Number(e.target.value) })
-              }
-            />
-          </label>
-
-          <label className="field">
             <span>Standard albumpris (NOK)</span>
             <input
               type="number"
@@ -593,7 +593,6 @@ export default function App() {
               }
             />
           </label>
-
         </div>
 
         <div className="priceHistoryInfo">
@@ -614,7 +613,9 @@ export default function App() {
                   : "no";
                 return (
                   <tr key={i}>
-                    <td>{fromStr} → {toStr}</td>
+                    <td>
+                      {fromStr} → {toStr}
+                    </td>
                     <td>{period.price} kr/mnd</td>
                   </tr>
                 );
@@ -624,6 +625,41 @@ export default function App() {
           <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
             Abonnementskostnad vert rekna ut automatisk basert på historisk pris
             per månad i perioden din.
+          </p>
+        </div>
+
+        <div className="priceHistoryInfo">
+          <h4>Historisk NOK per stream (anslag, norsk marknad)</h4>
+          <table className="priceHistoryTable">
+            <thead>
+              <tr>
+                <th>Periode</th>
+                <th>NOK/stream</th>
+              </tr>
+            </thead>
+            <tbody>
+              {SPOTIFY_ROYALTY_HISTORY_NOK.map((period, i) => {
+                const nextPeriod = SPOTIFY_ROYALTY_HISTORY_NOK[i + 1];
+                const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                const toStr = nextPeriod
+                  ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                  : "no";
+                return (
+                  <tr key={i}>
+                    <td>
+                      {fromStr} → {toStr}
+                    </td>
+                    <td>{period.nokPerStream.toFixed(3)} kr</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
+            Verdien per stream vert rekna ut automatisk basert på historisk sats
+            for kvar strøyming i perioden din. Satsen er eit anslag basert på
+            Spotify sine totale utbetalingar, globale strøymetall og norske
+            marknadsfaktorar.
           </p>
         </div>
       </section>
@@ -793,7 +829,7 @@ export default function App() {
             <div className="sectionSummary" style={{ marginTop: 14 }}>
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Total teoretisk straumeverdi (alle artistar)
+                  Total teoretisk Spotfiy-verdi (alle artistar)
                 </span>
                 <span className="summaryValue green">
                   {formatNOK(totalAllArtistsValue)}
@@ -909,13 +945,98 @@ export default function App() {
                   </button>
                 )}
               </div>
+
+              {/* Dropdown for planlagde album */}
+              {plannedCount > 0 && (
+                <div className="plannedDropdown">
+                  <button
+                    className="plannedDropdownToggle"
+                    onClick={() => setPlannedAlbumsOpen((o) => !o)}
+                  >
+                    <span className="plannedDropdownSummary">
+                      <span className="plannedBadge">{plannedCount}</span>
+                      Album lagt til &middot; {formatNOK(plannedCost)}
+                    </span>
+                    <span
+                      className={`plannedChevron ${plannedAlbumsOpen ? "open" : ""}`}
+                    >
+                      ▾
+                    </span>
+                  </button>
+
+                  {subscriptionEstimate && (
+                    <div className="albumBudgetBar">
+                      <div className="albumBudgetProgress">
+                        <div
+                          className="albumBudgetFill"
+                          style={{
+                            width: `${Math.min(100, albumBudget > 0 ? (plannedCount / albumBudget) * 100 : 0)}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="albumBudgetText">
+                        {albumsRemaining > 0 ? (
+                          <>
+                            <span className="albumBudgetRemaining">
+                              {albumsRemaining} album att
+                            </span>{" "}
+                            for å matche abonnementskostnaden (
+                            {formatNOK(subscriptionEstimate.activeCost)} ≈{" "}
+                            {albumBudget} album)
+                          </>
+                        ) : (
+                          <span className="green">
+                            ✓ Du har valt {plannedCount} album — meir enn dei{" "}
+                            {albumBudget} du kunne fått for
+                            abonnementskostnaden!
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {plannedAlbumsOpen && (
+                    <div className="plannedDropdownList">
+                      {Object.entries(plannedAlbums).map(([key, val]) => (
+                        <div className="plannedDropdownItem" key={key}>
+                          <div className="plannedDropdownInfo">
+                            <span className="plannedAlbumName">
+                              {val.album}
+                            </span>
+                            <span className="plannedArtistName">
+                              {val.artist}
+                            </span>
+                          </div>
+                          <button
+                            className="plannedRemoveBtn"
+                            title="Fjern"
+                            onClick={() => {
+                              setPlannedAlbums((prev) => {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                              });
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      <div className="plannedDropdownTotal">
+                        <span>Totalt {plannedCount} album</span>
+                        <span className="green">{formatNOK(plannedCost)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Samandrag */}
             <div className="sectionSummary">
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Teoretisk straumeverdi, topp {shownArtists.length} artistar
+                  Teoretisk Spotify-verdi, topp {shownArtists.length} artistar
                 </span>
                 <span className="summaryValue">
                   {formatNOK(totalShownArtistsValue)}
@@ -928,7 +1049,7 @@ export default function App() {
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">Kjøp alle</span>
+                <span className="summaryLabel">Kjøp fysiske album</span>
                 <span className="summaryValue green">
                   {formatNOK(costToBuyAllShownAlbums)}
                 </span>
@@ -1061,6 +1182,10 @@ export default function App() {
                     </div>
 
                     <div className="albumWrap" aria-label="Topp-album">
+                      <p className="albumInstructions">
+                        Trykk på albuma du kunne vurdert å kjøpe for å støtte
+                        artistane du likar godt.
+                      </p>
                       {a.topAlbums.map((x) => {
                         const key = albumKey(a.artist, x.album);
                         const isPlanned = !!plannedAlbums[key];
@@ -1327,6 +1452,83 @@ export default function App() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="siteFooter">
+        <p>Utvikla av Hans Martin Sognefest Austestad</p>
+        <button
+          className="disclaimerLink"
+          onClick={() => setDisclaimerOpen(true)}
+        >
+          Disclaimer &amp; kjelder
+        </button>
+      </footer>
+
+      {/* Disclaimer Modal */}
+      {disclaimerOpen && (
+        <div className="modalOverlay" onClick={() => setDisclaimerOpen(false)}>
+          <div
+            className="modalContent disclaimerModal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modalHeader">
+              <h2>Disclaimer</h2>
+              <button
+                className="modalClose"
+                onClick={() => setDisclaimerOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="disclaimerBody">
+              <p>
+                Spotify sine data gjev ikkje full tilgang til nøyaktige
+                økonomiske tal. Denne nettsida set saman informasjon basert på
+                tre kjelder:
+              </p>
+              <ul>
+                <li>
+                  <strong>Streamingtall frå Spotify</strong> – di eiga
+                  lyttehistorikk, henta via Spotify sin data-eksport.
+                </li>
+                <li>
+                  <strong>Historisk abonnementsprising</strong> – verifisert via
+                  Wayback Machine for den norske marknaden.
+                </li>
+                <li>
+                  <strong>Rapporterte royalties</strong> – basert på offentlege
+                  kjelder som Spotify Loud &amp; Clear, Soundcharts og
+                  bransjeanalysar. Merk at Spotify ikkje opererer med ein fast
+                  sats per stream – utbetalinga er basert på strøymedel.
+                </li>
+              </ul>
+              <p>
+                Ein må ta høgde for variasjonar. Faktisk utbetaling til artistar
+                avheng av avtalar med plateselskap, distribusjonsplattform og
+                region. Tala her er anslag, ikkje fasit.
+              </p>
+              <p>
+                Likevel gjev statistikken ein tydeleg peikepinn på korleis
+                strøyming har endra oppmerksomheitsøkonomien grunnleggjande:
+                Pengane du betalar som lyttar, går i liten grad til musikken du
+                faktisk lyttar til, men inn i ein felles pott som i hovudsak
+                belønner det som «går på repeat». Slik blir musikk brukt som
+                bakgrunn prioritert, framfor musikk som blir lytta til aktivt.
+                Til dømes spelelister som står på kontinuerleg i kjøpesenter og
+                butikkar, eller som fungerer som stemningsskapande lyd i ulike
+                offentlege rom.
+              </p>
+              <p>
+                Denne sida er lagd for å auke bevisstheit rundt korleis folks
+                lyttevanar kanskje ikkje belønner musikken dei høyrer mest på
+                eller bryr seg mest om – og for å synleggjøre at direkte støtte
+                (som å kjøpe album) er ein langt meir effektiv måte å støtte
+                musikken ein bryr seg om.
+              </p>
             </div>
           </div>
         </div>
