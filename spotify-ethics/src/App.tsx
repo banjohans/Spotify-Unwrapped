@@ -10,6 +10,7 @@ import "./App.css";
 import analyticsImg from "./assets/analytics.png";
 import insightImg from "./assets/insight.png";
 import privateImg from "./assets/private.png";
+import heroImg from "./assets/hero.png";
 
 function formatHours(ms: number) {
   const h = ms / 3600000;
@@ -385,6 +386,14 @@ export default function App() {
       <header className="hero">
         <div className="heroGlow" />
         <div className="heroContent">
+          <div className="heroImageWrap">
+            <img
+              src={heroImg}
+              alt="Spotify Unwrapped – illustrasjon"
+              className="heroImage"
+            />
+          </div>
+
           <span className="heroBadgePill">
             Lokal analyse · Ingen data forlet nettlesaren
           </span>
