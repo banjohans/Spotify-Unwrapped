@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Generate OG Image</title>
+    <style>
+      body {
+        font-family: system-ui;
+        padding: 40px;
+        background: #111;
+        color: #fff;
+      }
+      canvas {
+        display: block;
+        margin: 20px 0;
+        border: 1px solid #333;
+      }
+      button {
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #1db954;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+      }
+      button:hover {
+        background: #22d35e;
+      }
+      p {
+        color: #aaa;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>OG Image Generator for Spotify Unwrapped</h1>
+    <p>
+      Click the button below to download the OG image. Place it in
+      <code>public/og-image.png</code>.
+    </p>
+    <canvas id="c" width="2400" height="1260"></canvas>
+    <button onclick="download()">Download og-image.png</button>
+
+    <script>
+      const W = 1200,
+        H = 630,
+        dpr = 2;
+      const canvas = document.getElementById("c");
+      canvas.style.width = W + "px";
+      canvas.style.height = H + "px";
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr);
+
+      // Background
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, "#0d0d0d");
+      bg.addColorStop(1, "#1a1a2e");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      // Glow
+      const glow = ctx.createRadialGradient(600, 315, 40, 600, 315, 320);
+      glow.addColorStop(0, "rgba(29,185,84,0.10)");
+      glow.addColorStop(1, "transparent");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+
+      // Donut chart (illustrative: 6% green, 94% orange)
+      const cx = 860,
+        cy = 280,
+        r = 170;
+      const pct = 0.06;
+      const artistAngle = pct * Math.PI * 2;
+
+      // Orange slice
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(
+        cx,
+        cy,
+        r,
+        -Math.PI / 2 + artistAngle,
+        -Math.PI / 2 + Math.PI * 2,
+      );
+      ctx.closePath();
+      const oGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, r);
+      oGrad.addColorStop(0, "#ff6b6b");
+      oGrad.addColorStop(1, "#ee5a24");
+      ctx.fillStyle = oGrad;
+      ctx.fill();
+
+      // Green slice
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + artistAngle);
+      ctx.closePath();
+      const gGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, r);
+      gGrad.addColorStop(0, "#1ed760");
+      gGrad.addColorStop(1, "#1DB954");
+      ctx.fillStyle = gGrad;
+      ctx.fill();
+
+      // Donut hole
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
+      ctx.fillStyle = "#121220";
+      ctx.fill();
+
+      // "?" in orange slice
+      const oStart = -Math.PI / 2 + artistAngle;
+      const oEnd = -Math.PI / 2 + Math.PI * 2;
+      const oMid = (oStart + oEnd) / 2;
+      const qR = r * 0.76;
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.font =
+        "bold 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("?", cx + qR * Math.cos(oMid), cy + qR * Math.sin(oMid));
+
+      // Center text
+      ctx.fillStyle = "#1ed760";
+      ctx.font =
+        "bold 44px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("6%", cx, cy - 8);
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.font =
+        "14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("to artists", cx, cy + 22);
+
+      // Legend
+      const ly = cy + r + 40;
+      ctx.fillStyle = "#1DB954";
+      ctx.beginPath();
+      ctx.arc(cx - 130, ly, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.font =
+        "bold 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText("6% my artists", cx - 118, ly + 1);
+      ctx.fillStyle = "#ee5a24";
+      ctx.beginPath();
+      ctx.arc(cx + 20, ly, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fillText("94% ...who knows?", cx + 32, ly + 1);
+
+      // Left side text
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ffffff";
+      ctx.font =
+        "800 28px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("Spotify", 60, 80);
+      ctx.fillStyle = "#1ed760";
+      ctx.font =
+        "800 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      if ("letterSpacing" in ctx) ctx.letterSpacing = "4px";
+      ctx.fillText("UNWRAPPED", 60, 104);
+      if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+
+      ctx.fillStyle = "#1DB954";
+      ctx.fillRect(60, 118, 90, 2);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font =
+        "600 24px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("Where does your Spotify", 60, 170);
+      ctx.fillText("money actually go?", 60, 200);
+
+      ctx.fillStyle = "rgba(255,255,255,0.6)";
+      ctx.font =
+        "500 17px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("On average, only ~6% of your", 60, 260);
+      ctx.fillText("subscription reaches the artists", 60, 284);
+      ctx.fillText("you actually listen to.", 60, 308);
+
+      ctx.fillStyle = "#ff6b6b";
+      ctx.font =
+        "bold 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("The rest? Who knows.", 60, 365);
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font =
+        "500 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("Spotify won't tell you.", 60, 390);
+
+      // CTA
+      ctx.fillStyle = "#1ed760";
+      ctx.font =
+        "bold 18px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("Find out where YOUR money goes →", 60, 450);
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.font =
+        "14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillText("Upload your Spotify data export.", 60, 474);
+      ctx.fillText("100% local — no data leaves your browser.", 60, 494);
+
+      // Footer
+      ctx.fillStyle = "rgba(255,255,255,0.25)";
+      ctx.fillRect(0, H - 50, W, 1);
+      ctx.fillStyle = "rgba(255,255,255,0.4)";
+      ctx.font =
+        "13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("banjohans.github.io/Spotify-Unwrapped", W / 2, H - 22);
+
+      function download() {
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "og-image.png";
+          a.click();
+          URL.revokeObjectURL(url);
+        }, "image/png");
+      }
+    </script>
+  </body>
+</html>

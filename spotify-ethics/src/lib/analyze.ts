@@ -1,5 +1,8 @@
 // src/lib/analyze.ts
 
+import type { Locale } from "./i18n";
+import { getRatePerStream, getMonthlyPrice } from "./i18n";
+
 /**
  * Historisk Spotify Premium Individual-pris i Noreg (NOK/månad).
  * Verifisert via Wayback Machine-snapshotar av spotify.com/no-nb/premium/.
@@ -90,6 +93,7 @@ export function getMonthlyPriceNOK(year: number, month: number): number {
  */
 export function calcHistoricalSubscriptionCost(
   uniqueMonths: Array<{ year: number; month: number }>,
+  locale: Locale = "no",
 ): {
   totalCost: number;
   weightedAvgPrice: number;
@@ -98,7 +102,7 @@ export function calcHistoricalSubscriptionCost(
   const monthDetails = uniqueMonths.map(({ year, month }) => ({
     year,
     month,
-    price: getMonthlyPriceNOK(year, month),
+    price: getMonthlyPrice(year, month, locale),
   }));
   const totalCost = monthDetails.reduce((sum, m) => sum + m.price, 0);
   const weightedAvgPrice =
@@ -133,6 +137,7 @@ export type AnalysisConfig = {
   albumPriceNOK: number;
   minMsPlayedToCount: number;
   sessionGapSeconds: number;
+  locale: Locale;
 };
 
 export type ReasonBreakdownRow = {
@@ -328,11 +333,11 @@ export function analyze(
     const artist = safeStr(r.master_metadata_album_artist_name);
     if (!artist) continue;
 
-    // Historisk NOK per stream basert på tidspunktet for streamen
+    // Historisk rate per stream basert på tidspunktet for streamen
     const rowDate = new Date(r.ts ?? "");
     const rowYear = isNaN(rowDate.getTime()) ? 2024 : rowDate.getFullYear();
     const rowMonth = isNaN(rowDate.getTime()) ? 1 : rowDate.getMonth() + 1;
-    const rowRate = getNokPerStream(rowYear, rowMonth);
+    const rowRate = getRatePerStream(rowYear, rowMonth, cfg.locale);
 
     // Autoplay etter endplay
     if (i > 0) {

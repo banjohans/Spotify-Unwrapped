@@ -1,52 +1,343 @@
 import { useMemo, useState, useEffect } from "react";
-import {
-  analyze,
-  calcHistoricalSubscriptionCost,
-  SPOTIFY_PRICE_HISTORY_NOK,
-  SPOTIFY_ROYALTY_HISTORY_NOK,
-} from "./lib/analyze";
+import { analyze, calcHistoricalSubscriptionCost } from "./lib/analyze";
 import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
+import {
+  type Locale,
+  PRICE_HISTORY,
+  ROYALTY_HISTORY,
+  DEFAULT_ALBUM_PRICE,
+  formatCurrency,
+  formatHrs,
+  formatNum,
+  currencyPerMonth,
+  currencyPerStream,
+  dateLocale,
+  t,
+  tRaw,
+} from "./lib/i18n";
 import "./App.css";
 import analyticsImg from "./assets/analytics.png";
 import insightImg from "./assets/insight.png";
 import privateImg from "./assets/private.png";
 import heroImg from "./assets/hero.png";
 
-function formatHours(ms: number) {
-  const h = ms / 3600000;
-  return `${h.toFixed(1)} t`;
-}
-function formatNOK(n: number) {
-  return `${n.toFixed(0)} kr`;
-}
-// function pct(x: number) {
-//   return `${(x * 100).toFixed(1)}%`;
-// }
-
 function albumKey(artist: string, album: string) {
   return `${artist}|||${album}`;
 }
 
+// ─── Share image generator (canvas → PNG) ────────────────────────
+
+async function generateShareImage(opts: {
+  subCost: number;
+  artistValue: number;
+  artistCount: number;
+  hours: string;
+  locale: Locale;
+  heroSrc: string;
+}): Promise<Blob> {
+  const { subCost, artistValue, artistCount, hours, locale, heroSrc } = opts;
+  const rest = Math.max(0, subCost - artistValue);
+  const W = 1200,
+    H = 630; // Facebook recommended
+  const dpr = 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext("2d")!;
+  ctx.scale(dpr, dpr);
+
+  // ── Background: dark gradient ──
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#0d0d0d");
+  bg.addColorStop(1, "#1a1a2e");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle glow behind pie
+  const glow = ctx.createRadialGradient(880, 315, 40, 880, 315, 260);
+  glow.addColorStop(0, "rgba(29,185,84,0.12)");
+  glow.addColorStop(1, "transparent");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Pie chart ──
+  const cx = 880,
+    cy = 290,
+    r = 160;
+  const artistPct = subCost > 0 ? artistValue / subCost : 0;
+  const artistAngle = artistPct * Math.PI * 2;
+
+  // "Other" slice (red/orange)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, -Math.PI / 2 + artistAngle, -Math.PI / 2 + Math.PI * 2);
+  ctx.closePath();
+  const otherGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, r);
+  otherGrad.addColorStop(0, "#ff6b6b");
+  otherGrad.addColorStop(1, "#ee5a24");
+  ctx.fillStyle = otherGrad;
+  ctx.fill();
+
+  // "Artists" slice (Spotify green)
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + artistAngle);
+  ctx.closePath();
+  const artistGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, r);
+  artistGrad.addColorStop(0, "#1ed760");
+  artistGrad.addColorStop(1, "#1DB954");
+  ctx.fillStyle = artistGrad;
+  ctx.fill();
+
+  // Inner circle (donut hole)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
+  ctx.fillStyle = "#121220";
+  ctx.fill();
+
+  // Draw "?" in the orange (unknown) slice
+  const orangeStart = -Math.PI / 2 + artistAngle;
+  const orangeEnd = -Math.PI / 2 + Math.PI * 2;
+  const orangeMid = (orangeStart + orangeEnd) / 2;
+  const qR = r * 0.76;
+  const qx = cx + qR * Math.cos(orangeMid);
+  const qy = cy + qR * Math.sin(orangeMid);
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.font =
+    "bold 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("?", qx, qy);
+
+  // Percentage in center
+  const pctText = `${(artistPct * 100).toFixed(0)}%`;
+  ctx.fillStyle = "#1ed760";
+  ctx.font =
+    "bold 42px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(pctText, cx, cy - 8);
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font =
+    "14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(locale === "en" ? "to artists" : "til artistar", cx, cy + 22);
+
+  // ── Legend ──
+  const legendY = cy + r + 36;
+  const artistPctInt = Math.round(artistPct * 100);
+  const restPctInt = 100 - artistPctInt;
+  // Green dot - artists
+  ctx.fillStyle = "#1DB954";
+  ctx.beginPath();
+  ctx.arc(cx - 130, legendY, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font =
+    "bold 13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(
+    `${artistPctInt}% ${locale === "en" ? "my artists" : "mine artistar"}`,
+    cx - 118,
+    legendY + 1,
+  );
+  // Orange dot - unknown
+  ctx.fillStyle = "#ee5a24";
+  ctx.beginPath();
+  ctx.arc(cx + 20, legendY, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.fillText(
+    `${restPctInt}% ${locale === "en" ? "...who knows?" : "...kven veit?"}`,
+    cx + 32,
+    legendY + 1,
+  );
+
+  // ── Text side (left) ──
+  const fmtK = (n: number) => formatCurrency(n, locale);
+  const lx = 60;
+
+  // ── Mini logo (hero image + text) ──
+  // Load hero image and draw it as miniature
+  const heroImg = new Image();
+  heroImg.crossOrigin = "anonymous";
+  await new Promise<void>((resolve) => {
+    heroImg.onload = () => resolve();
+    heroImg.onerror = () => resolve(); // continue even if image fails
+    heroImg.src = heroSrc;
+  });
+
+  const logoX = lx,
+    logoY = 24;
+  const logoH = 60; // miniature height
+  const logoW = heroImg.naturalWidth
+    ? (heroImg.naturalWidth / heroImg.naturalHeight) * logoH
+    : logoH; // keep aspect ratio
+  if (heroImg.complete && heroImg.naturalWidth > 0) {
+    ctx.drawImage(heroImg, logoX, logoY, logoW, logoH);
+  }
+
+  // "Spotify" text next to hero image
+  const textStartX = logoX + logoW + 12;
+  ctx.fillStyle = "#ffffff";
+  ctx.font =
+    "bold 26px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Spotify", textStartX, logoY + 30);
+
+  // "UNWRAPPED" text - green, smaller, with letter spacing
+  ctx.fillStyle = "#1ed760";
+  ctx.font =
+    "800 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  if ("letterSpacing" in ctx) (ctx as any).letterSpacing = "4px";
+  ctx.fillText("UNWRAPPED", textStartX, logoY + 48);
+  if ("letterSpacing" in ctx) (ctx as any).letterSpacing = "0px";
+
+  // Decorative green accent line
+  ctx.fillStyle = "#1DB954";
+  ctx.fillRect(logoX, logoY + logoH + 8, 90, 2);
+
+  // Main stat lines
+  ctx.fillStyle = "#ffffff";
+  ctx.font =
+    "600 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  const line1 =
+    locale === "en"
+      ? "Spotify Premium cost me"
+      : "Spotify Premium har kosta meg";
+  ctx.fillText(line1, lx, 130);
+  ctx.fillStyle = "#1ed760";
+  ctx.font =
+    "bold 48px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(fmtK(subCost), lx, 182);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font =
+    "600 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  const line2 =
+    locale === "en"
+      ? `Of this, only this went to the ${artistCount} artists I listened to:`
+      : `Av dette gjekk berre dette til dei ${artistCount} artistane eg lytta til:`;
+  // Wrap long text
+  const maxW = 520;
+  const words2 = line2.split(" ");
+  let currentLine = "";
+  let textY = 240;
+  for (const word of words2) {
+    const test = currentLine ? currentLine + " " + word : word;
+    if (ctx.measureText(test).width > maxW && currentLine) {
+      ctx.fillText(currentLine, lx, textY);
+      currentLine = word;
+      textY += 28;
+    } else {
+      currentLine = test;
+    }
+  }
+  if (currentLine) ctx.fillText(currentLine, lx, textY);
+
+  ctx.fillStyle = "#1ed760";
+  ctx.font =
+    "bold 44px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(fmtK(artistValue), lx, textY + 52);
+
+  const restY = textY + 100;
+  ctx.fillStyle = "#ff6b6b";
+  ctx.font =
+    "bold 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(fmtK(rest), lx, restY);
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.font =
+    "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(
+    locale === "en"
+      ? "went to… who knows what? Spotify won\u2019t say."
+      : "gjekk til… kven veit kva? Spotify seier det ikkje.",
+    lx,
+    restY + 28,
+  );
+
+  // Listening time badge
+  ctx.font =
+    "14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  const badge =
+    locale === "en"
+      ? `⏱ ${hours} of listening · 🎤 ${artistCount} artists`
+      : `⏱ ${hours} lyttetid · 🎤 ${artistCount} artistar`;
+  const badgePad = 18;
+  const badgeW = ctx.measureText(badge).width + badgePad * 2;
+  const badgeH = 40,
+    badgeX = lx,
+    badgeY = restY + 52;
+  ctx.fillStyle = "rgba(255,255,255,0.08)";
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 10);
+  } else {
+    const rr = 10;
+    ctx.moveTo(badgeX + rr, badgeY);
+    ctx.arcTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + badgeH, rr);
+    ctx.arcTo(badgeX + badgeW, badgeY + badgeH, badgeX, badgeY + badgeH, rr);
+    ctx.arcTo(badgeX, badgeY + badgeH, badgeX, badgeY, rr);
+    ctx.arcTo(badgeX, badgeY, badgeX + badgeW, badgeY, rr);
+    ctx.closePath();
+  }
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.fillText(badge, badgeX + badgePad, badgeY + 25);
+
+  // ── Footer / CTA ──
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fillRect(0, H - 58, W, 1);
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.font =
+    "13px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.textAlign = "center";
+  const cta =
+    locale === "en"
+      ? "How much of YOUR subscription actually reaches the artists? → banjohans.github.io/Spotify-Unwrapped"
+      : "Kor mykje av DITT abonnement når faktisk artistane? → banjohans.github.io/Spotify-Unwrapped";
+  ctx.fillText(cta, W / 2, H - 26);
+
+  // Privacy note
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.font =
+    "10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  ctx.fillText(
+    locale === "en"
+      ? "100% local analysis · No data leaves your browser"
+      : "100 % lokal analyse · Ingen data forlet nettlesaren",
+    W / 2,
+    H - 8,
+  );
+  ctx.textAlign = "left";
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob!), "image/png");
+  });
+}
+
 function exportPlannedAlbumsPDF(
   plannedAlbums: Record<string, { artist: string; album: string }>,
-  albumPriceNOK: number,
+  albumPrice: number,
+  locale: Locale,
 ) {
   const entries = Object.values(plannedAlbums).sort(
     (a, b) =>
       a.artist.localeCompare(b.artist) || a.album.localeCompare(b.album),
   );
-  const total = entries.length * albumPriceNOK;
-  const date = new Date().toLocaleDateString("nb-NO", {
+  const total = entries.length * albumPrice;
+  const date = new Date().toLocaleDateString(dateLocale(locale), {
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const fmtPrice = (n: number) => formatCurrency(n, locale);
 
   const html = `<!DOCTYPE html>
-<html lang="nn">
+<html lang="${locale === "no" ? "nn" : "en"}">
 <head>
 <meta charset="utf-8" />
-<title>Handleliste – Album</title>
+<title>${t("shoppingListTitle", locale)}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; padding: 40px; max-width: 700px; margin: 0 auto; }
@@ -59,27 +350,505 @@ function exportPlannedAlbumsPDF(
   th.price { text-align: right; }
   .total-row td { border-top: 2px solid #333; border-bottom: none; font-weight: 700; font-size: 15px; padding-top: 12px; }
   .footer { margin-top: 32px; font-size: 11px; color: #999; }
+  .intro { font-size: 12px; color: #555; line-height: 1.6; margin-bottom: 20px; border-left: 3px solid #1DB954; padding: 10px 14px; background: #f7fdf9; border-radius: 0 6px 6px 0; }
   @media print { body { padding: 20px; } }
 </style>
 </head>
 <body>
-<h1>🎵 Handleliste – Album å kjøpe</h1>
-<p class="date">${date} · ${entries.length} album</p>
+<h1>${t("shoppingListTitle", locale)}</h1>
+<p class="date">${date} · ${entries.length} ${t("albumsLabel", locale).toLowerCase()}</p>
+<div class="intro">
+${
+  locale === "en"
+    ? "These albums were identified from your Spotify listening data using <b>Spotify Unwrapped</b>. The app analyzes your GDPR data export to estimate which artists you've listened to the most. Because Spotify's pro-rata model distributes your subscription money into a shared pool rather than directly to the artists you listen to, buying albums is a far more direct way to support the music you enjoy. Prices shown are estimates based on a standard album price."
+    : "Desse albuma er identifiserte frå Spotify-lyttedataa dine ved hjelp av <b>Spotify Unwrapped</b>. Appen analyserer GDPR-dataeksporten din for å estimere kva artistar du har lytta mest til. Fordi Spotify sin pro-rata-modell fordeler abonnementspengane dine i ein felles pott i staden for direkte til artistane du lyttar til, er det å kjøpe album ein langt meir direkte måte å støtte musikken du likar. Prisar er estimat basert på standard albumpris."
+}
+</div>
 <table>
   <thead>
-    <tr><th>#</th><th>Artist</th><th>Album</th><th class="price">Pris</th></tr>
+    <tr><th>#</th><th>Artist</th><th>${t("albumsLabel", locale)}</th><th class="price">${t("priceCol", locale)}</th></tr>
   </thead>
   <tbody>
     ${entries
       .map(
         (e, i) =>
-          `<tr><td>${i + 1}</td><td>${e.artist}</td><td>${e.album}</td><td class="price">${albumPriceNOK} kr</td></tr>`,
+          `<tr><td>${i + 1}</td><td>${e.artist}</td><td>${e.album}</td><td class="price">${fmtPrice(albumPrice)}</td></tr>`,
       )
       .join("\n    ")}
-    <tr class="total-row"><td></td><td colspan="2">Totalt</td><td class="price">${total} kr</td></tr>
+    <tr class="total-row"><td></td><td colspan="2">${t("shoppingListTotal", locale)}</td><td class="price">${fmtPrice(total)}</td></tr>
   </tbody>
 </table>
-<p class="footer">Generert frå Spotify Unwrapped – banjohans.github.io/Spotify-Unwrapped</p>
+<p class="footer">${t("shoppingListGenerated", locale)}</p>
+<script>window.onload = () => { window.print(); }</script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank");
+  if (w) {
+    w.document.write(html);
+    w.document.close();
+  }
+}
+
+function exportFullReportPDF(
+  result: import("./lib/analyze").AnalysisResult,
+  cfg: import("./lib/analyze").AnalysisConfig,
+  subscriptionEstimate: {
+    firstDate: Date;
+    lastDate: Date;
+    months: number;
+    totalCost: number;
+    activeMonths: number;
+    activeCost: number;
+    avgMonthlyPrice: number;
+    spanAvgMonthlyPrice: number;
+  } | null,
+  activeDateRange: { label: string } | null,
+  excludedArtists: Set<string>,
+  plannedAlbums: Record<string, { artist: string; album: string }>,
+  maxArtists: number | "all" = 50,
+  locale: Locale = "no",
+) {
+  const date = new Date().toLocaleDateString(dateLocale(locale), {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const fmtH = (ms: number) => formatHrs(ms, locale);
+  const fmtK = (n: number) => formatCurrency(n, locale);
+  const fmtN = (n: number) => formatNum(n, locale);
+
+  const periodLabel = activeDateRange
+    ? activeDateRange.label
+    : subscriptionEstimate
+      ? `${subscriptionEstimate.firstDate.toLocaleDateString(dateLocale(locale), { year: "numeric", month: "short" })} – ${subscriptionEstimate.lastDate.toLocaleDateString(dateLocale(locale), { year: "numeric", month: "short" })}`
+      : locale === "en"
+        ? "All data"
+        : "Alle data";
+
+  const artistLimit = maxArtists === "all" ? result.artists.length : maxArtists;
+  const topArtists = result.artists.slice(0, artistLimit);
+  const isAllArtists =
+    maxArtists === "all" || artistLimit >= result.artists.length;
+  const reportTitle = isAllArtists
+    ? locale === "en"
+      ? `Complete report – all ${result.artists.length} artists`
+      : `Komplett rapport – alle ${result.artists.length} artistar`
+    : locale === "en"
+      ? `Report – Top ${artistLimit} artists`
+      : `Rapport – Topp ${artistLimit} artistar`;
+  const allAlbumCount = result.artists.reduce(
+    (sum, a) => sum + a.topAlbums.length,
+    0,
+  );
+  const totalValue = result.artists.reduce((sum, a) => sum + a.estValueNOK, 0);
+
+  const plannedEntries = Object.values(plannedAlbums).sort(
+    (a, b) =>
+      a.artist.localeCompare(b.artist) || a.album.localeCompare(b.album),
+  );
+  const plannedTotal = plannedEntries.length * cfg.albumPriceNOK;
+
+  const _t = (key: import("./lib/i18n").TKey) => t(key, locale);
+  const _of = locale === "en" ? "of" : "av";
+  const _totalSuffix = locale === "en" ? "total" : "totalt";
+  const _excluded = locale === "en" ? "excluded" : "ekskluderte";
+  const _activeMonthsLabel =
+    locale === "en" ? "Active months" : "Aktive månadar";
+  const _withActivity =
+    locale === "en" ? "with listening activity" : "med lytteaktivitet";
+  const _avgPriceMo = locale === "en" ? "Avg price/mo" : "Snittpris/mnd";
+  const _uniqueAlbumsListened =
+    locale === "en" ? "Unique albums listened to" : "Unike album lytta til";
+  const _economy = locale === "en" ? "Economy" : "Økonomi";
+  const _theoValue =
+    locale === "en" ? "Theoretical Spotify value" : "Teoretisk Spotify-verdi";
+  const _estSub =
+    locale === "en" ? "Estimated subscription" : "Estimert abonnement";
+  const _diff = locale === "en" ? "Difference" : "Differanse";
+  const _whatMeansTitle =
+    locale === "en" ? "What does this mean?" : "Kva betyr dette?";
+  const _youPaid =
+    locale === "en"
+      ? `You paid approx. <b>${fmtK(subscriptionEstimate?.activeCost ?? 0)}</b> in Spotify subscription over <b>${subscriptionEstimate?.activeMonths ?? 0} active months</b>.`
+      : `Du har betalt ca. <b>${fmtK(subscriptionEstimate?.activeCost ?? 0)}</b> i Spotify-abonnement over <b>${subscriptionEstimate?.activeMonths ?? 0} aktive månadar</b>.`;
+  const _theoArtistValue =
+    locale === "en"
+      ? `The estimated theoretical value your artists received from your streaming is <b>${fmtK(totalValue)}</b>.`
+      : `Den estimerte teoretiske verdien artistane dine har fått frå strøyminga di er <b>${fmtK(totalValue)}</b>.`;
+  const _diffExpl = (diff: number) =>
+    diff > 0
+      ? locale === "en"
+        ? "didn't go to the artists you listened to, but to the shared pool"
+        : "ikkje gjekk til artistane du lytta på, men til den felles poolen"
+      : locale === "en"
+        ? "went beyond what you paid – other listeners subsidized your favorites"
+        : "gjekk utover det du betalte – andre lyttarar finansierte dine favorittar";
+  const _allArtists =
+    locale === "en"
+      ? `All ${topArtists.length} artists`
+      : `Alle ${topArtists.length} artistar`;
+  const _topArtists =
+    locale === "en"
+      ? `Top ${topArtists.length} artists`
+      : `Topp ${topArtists.length} artistar`;
+  const _listeningTime = locale === "en" ? "Listening time" : "Lyttetid";
+  const _theorVal = locale === "en" ? "Theor. value" : "Teor. verdi";
+  const _albumEq = locale === "en" ? "Album eq." : "Album-ekv.";
+  const _totalWord = locale === "en" ? "Total" : "Totalt";
+  const _artists = locale === "en" ? "artists" : "artistar";
+  const _showingTopOf =
+    locale === "en"
+      ? `Showing top ${topArtists.length} of ${result.artists.length} artists. Export "All" for complete overview.`
+      : `Viser topp ${topArtists.length} av ${result.artists.length} artistar. Eksporter "Alle" for komplett oversikt.`;
+  const _purchasePlan =
+    locale === "en" ? "Purchase plan – Albums" : "Kjøpsplan – Album";
+  const _albumsPlanned = locale === "en" ? "albums planned" : "album planlagt";
+  const _price = locale === "en" ? "Price" : "Pris";
+  const _methodology =
+    locale === "en"
+      ? "How the model works &amp; disclaimer"
+      : "Korleis modellen fungerer &amp; disclaimer";
+  const _minSec = (cfg.minMsPlayedToCount / 1000).toFixed(0);
+  const _albumPriceFmt = fmtK(cfg.albumPriceNOK);
+  const _country = locale === "en" ? "USA" : "Noreg";
+  const _currUnit = locale === "en" ? "USD" : "NOK";
+  const _methodIntro =
+    locale === "en"
+      ? "Because Spotify does not share exact financial data per listener, this report uses available data from Spotify's GDPR export and reverse-engineers theoretical royalties and subscription costs."
+      : "Fordi Spotify ikkje deler eksakte data per lyttar, bruker denne rapporten tilgjengelege data frå Spotify sin GDPR-eksport og reknar bakover for å estimere teoretiske royalties og abonnementskostnader.";
+  const _methodSteps =
+    locale === "en"
+      ? [
+          `<b>1. Data filtering:</b> Plays shorter than ${_minSec} seconds are removed. Spotify states 30 sec is the threshold for an official "stream." This excludes test plays, skips, and accidental clicks.`,
+          `<b>2. Estimated royalty value:</b> Historical average per-stream royalty rates (${_currUnit}) are applied to each qualifying play, based on industry data from The Trichordist, Soundcharts, and others. Rates differ by time period (see settings). The value is <i>theoretical</i> – it approximates what Spotify adds to the shared pool based on your habits.`,
+          `<b>3. Subscription cost:</b> Premium Individual pricing (${_country}), verified via Wayback Machine. Only months with actual listening activity are counted. Spotify's GDPR export does <i>not</i> include payment history or subscription type (<code>Payments.json</code> is empty). <b>Why Premium?</b> Other plans produce less reliable data: free-tier users receive ads instead of paying, which changes the revenue model; Duo/Family have lower per-user costs; Student discounts have different pricing. Premium gives the most conservative and transparent estimate – it represents the full payment without ad interruptions.`,
+          `<b>4. Artist aggregation:</b> For each artist: total listening time, estimated royalty value, album distribution, and stream count are summed. "Album equivalent" = estimated streaming value ÷ album price (${_albumPriceFmt}).`,
+        ]
+      : [
+          `<b>1. Filtrering av data:</b> Avspelingar kortare enn ${_minSec} sekund vert fjerna. Spotify har sagt at 30 sek er grensa for ein offisiell «stream». Dette hindrar prøvespeling, hopping og tilfeldige klikk.`,
+          `<b>2. Estimert royalty-verdi:</b> Historiske gjennomsnittssatsar (${_currUnit}/stream) vert brukt per kvalifiserande avspeling, basert på bransjedata frå m.a. The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå innstillingar). Verdien er <i>teoretisk</i> – den viser omtrent kva Spotify ville lagt i den felles poolen basert på dine lyttevanar.`,
+          `<b>3. Abonnementskostnad:</b> Premium Individual (${_country}), verifisert via Wayback Machine. Berre månadar med faktisk lytteaktivitet er talde. Spotify sin GDPR-eksport har <i>ikkje</i> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom). <b>Kvifor Premium?</b> Andre abonnementstypar gir mindre pålitelege data: gratisbrukarar får reklame i staden for full betaling, noko som endrar inntektsmodellen; Duo/Family har lågare pris per brukar; Student-rabatt gir annan prisstruktur. Premium-prising gir det mest konservative og transparente estimatet – det representerer full betaling utan reklameavbrot.`,
+          `<b>4. Artistaggregering:</b> For kvar artist: total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams vert summert. «Album-ekvivalent» = estimert strøymeverdi ÷ albumpris (${_albumPriceFmt}).`,
+        ];
+  const _methodCaveats =
+    locale === "en"
+      ? [
+          "This is an <b>estimation model</b>. Spotify does not publish actual royalty payouts per user.",
+          "Spotify uses a <b>\"StreamShare\" (pro-rata) model</b>: all subscription revenue goes into a shared pool distributed by each artist's share of <i>total</i> platform streams. Your money doesn't necessarily go to the music you listen to.",
+          "In practice, a large portion of subscription money flows to high-volume content – background music, AI-generated tracks, and major-label artists – rather than music people actively choose.",
+          "Rates vary by country, subscription type, and platform activity. These figures represent a <i>reasonable average</i>, not exact payouts.",
+        ]
+      : [
+          "Dette er ein <b>estimatmodell</b>. Spotify publiserer ikkje faktiske royalty-utbetalingar per brukar.",
+          "Spotify bruker ein <b>«StreamShare» (pro-rata)</b>-modell: alle abonnementsinntekter går i ein felles pott fordelt etter kvar artist sin andel av <i>totale</i> streams. Pengane dine går ikkje nødvendigvis til musikken du lyttar til.",
+          "I praksis går ein stor del av abonnementspengane til storforbruk-innhald – bakgrunnsmusikk, KI-generert musikk, og store artistar – heller enn til musikk folk aktivt vel å spele.",
+          "Satsar varierer med land, abonnementstype og plattformaktivitet. Tala gir eit <i>rimeleg gjennomsnittsbilete</i>, ikkje eksakte utbetalingar.",
+        ];
+  const _methodPurpose =
+    locale === "en"
+      ? "This report is designed to make visible that your subscription money largely does <i>not</i> go to the music you listen to – and that direct support (like buying albums) is a far more effective way to support the music you care about."
+      : "Denne rapporten er lagd for å synleggjere at abonnementspengane dine i stor grad <i>ikkje</i> går til musikken du lyttar til – og at direkte støtte (som å kjøpe album) er ein langt meir effektiv måte å støtte musikken du bryr deg om.";
+  const _methodPrivacy =
+    locale === "en"
+      ? "🔒 All analysis runs 100% locally in the browser. No data is sent to any server, stored, or shared with anyone."
+      : "🔒 All analyse skjer 100 % lokalt i nettlesaren. Ingen data vert sendt til nokon server, lagra, eller delt med nokon.";
+  const _genFrom = locale === "en" ? "Generated from" : "Generert frå";
+  const _localNote =
+    locale === "en"
+      ? "All analysis runs locally in the browser. No data is sent or stored."
+      : "All analyse skjer lokalt i nettlesaren. Ingen data vert sendt eller lagra.";
+
+  const html = `<!DOCTYPE html>
+<html lang="${locale === "no" ? "nn" : "en"}">
+<head>
+<meta charset="utf-8" />
+<title>Spotify Unwrapped – ${reportTitle}</title>
+<style>
+  @page { margin: 30px 40px; size: A4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    color: #1a1a1a; padding: 40px; max-width: 900px; margin: 0 auto;
+    font-size: 13px; line-height: 1.5;
+  }
+
+  /* Header */
+  .report-header {
+    text-align: center; margin-bottom: 32px;
+    border-bottom: 3px solid #1DB954; padding-bottom: 20px;
+  }
+  .report-header h1 { font-size: 26px; margin-bottom: 2px; letter-spacing: -0.5px; }
+  .report-header .subtitle { font-size: 14px; color: #666; margin-bottom: 4px; }
+  .report-header .period { font-size: 12px; color: #999; }
+
+  /* Sections */
+  .section { margin-bottom: 28px; page-break-inside: avoid; }
+  .section h2 {
+    font-size: 16px; color: #1DB954; margin-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0; padding-bottom: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;
+  }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; margin-bottom: 16px;
+  }
+  .stat-box {
+    background: #f8f9fa; border-radius: 8px; padding: 14px 16px;
+    text-align: center;
+  }
+  .stat-box .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 2px; }
+  .stat-box .value { font-size: 20px; font-weight: 700; color: #1a1a1a; }
+  .stat-box .hint { font-size: 11px; color: #999; }
+
+  /* Financial summary */
+  .finance-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 0; border: 2px solid #e0e0e0; border-radius: 10px; overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .finance-box { padding: 16px; text-align: center; border-right: 1px solid #e0e0e0; }
+  .finance-box:last-child { border-right: none; }
+  .finance-box .label { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 0.3px; }
+  .finance-box .value { font-size: 22px; font-weight: 800; margin-top: 4px; }
+  .finance-box .value.green { color: #1DB954; }
+  .finance-box .value.red { color: #ef4444; }
+  .finance-box .value.neutral { color: #333; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 12px; }
+  th {
+    text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+    color: #888; border-bottom: 2px solid #ddd; padding: 6px 8px; font-weight: 700;
+  }
+  td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
+  tr:nth-child(even) { background: #fafafa; }
+  .rank { color: #bbb; font-size: 11px; width: 30px; }
+  .right { text-align: right; }
+  .bold { font-weight: 700; }
+  .total-row td { border-top: 2px solid #333; border-bottom: none; font-weight: 700; padding-top: 10px; }
+
+  /* Small info boxes */
+  .info-box {
+    background: #f0faf4; border-left: 4px solid #1DB954; padding: 12px 16px;
+    border-radius: 0 6px 6px 0; margin-bottom: 16px; font-size: 12px; color: #444;
+  }
+  .info-box b { color: #1a1a1a; }
+
+  /* Planned albums */
+  .planned-header {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .planned-header .count { font-size: 13px; color: #1DB954; font-weight: 700; }
+
+  /* Footer */
+  .report-footer {
+    margin-top: 40px; padding-top: 16px;
+    border-top: 1px solid #ddd; font-size: 10px; color: #999;
+    text-align: center;
+  }
+
+  /* Methodology */
+  .methodology { font-size: 11px; color: #666; line-height: 1.6; }
+  .methodology li { margin-bottom: 4px; }
+  .methodology h3 { page-break-after: avoid; }
+  .methodology p { margin-bottom: 6px; }
+
+  /* Report preamble */
+  .preamble {
+    font-size: 12px; color: #555; line-height: 1.6; margin-bottom: 24px;
+    border-left: 4px solid #1DB954; padding: 12px 16px; background: #f7fdf9;
+    border-radius: 0 6px 6px 0;
+  }
+
+  @media print {
+    body { padding: 20px; }
+    .section { page-break-inside: avoid; }
+    .artist-table { page-break-inside: auto; }
+    .artist-table tr { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="report-header">
+  <h1>🎵 Spotify Unwrapped</h1>
+  <p class="subtitle">${reportTitle}</p>
+  <p class="period">${periodLabel} · ${locale === "en" ? "Generated" : "Generert"} ${date}</p>
+</div>
+
+<div class="preamble">
+${
+  locale === "en"
+    ? "This report was generated from your personal Spotify GDPR data export. All analysis runs locally in your browser — no data is sent or stored anywhere. The figures are <b>theoretical estimates</b> based on historical per-stream royalty rates and subscription pricing. Spotify uses a pro-rata pooling model, meaning your subscription money goes into a shared pool rather than directly to the artists you listen to. This report aims to make that visible and encourage more direct forms of artist support."
+    : "Denne rapporten er generert frå din personlege Spotify GDPR-dataeksport. All analyse skjer lokalt i nettlesaren — ingen data vert sendt eller lagra. Tala er <b>teoretiske estimat</b> basert på historiske royalty-satsar per stream og abonnementsprisar. Spotify bruker ein pro-rata-modell der abonnementspengane dine går i ein felles pott i staden for direkte til artistane du lyttar til. Denne rapporten er meint å synleggjere dette, og motivere til meir direkte støtte av artistar."
+}
+</div>
+
+<div class="section">
+  <h2>${_t("rowsAnalyzed").split(" ")[0] === "Rows" ? "Summary" : "Samandrag"}</h2>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="label">${_t("totalListeningTime")}</div>
+      <div class="value">${fmtH(result.totalMsPlayed)}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${_t("rowsAnalyzed")}</div>
+      <div class="value">${fmtN(result.countedRows)}</div>
+      <div class="hint">${_of} ${fmtN(result.totalRows)} ${_totalSuffix}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${_t("uniqueArtists")}</div>
+      <div class="value">${fmtN(result.artists.length)}</div>
+      ${excludedArtists.size > 0 ? `<div class="hint">${excludedArtists.size} ${_excluded}</div>` : ""}
+    </div>
+  </div>
+
+  ${
+    subscriptionEstimate
+      ? `
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="label">${_activeMonthsLabel}</div>
+      <div class="value">${subscriptionEstimate.activeMonths}</div>
+      <div class="hint">${_withActivity}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${_avgPriceMo}</div>
+      <div class="value">${fmtK(subscriptionEstimate.avgMonthlyPrice)}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${_uniqueAlbumsListened}</div>
+      <div class="value">${fmtN(allAlbumCount)}</div>
+    </div>
+  </div>`
+      : ""
+  }
+</div>
+
+${
+  subscriptionEstimate
+    ? `
+<div class="section">
+  <h2>${_economy}</h2>
+  <div class="finance-grid">
+    <div class="finance-box">
+      <div class="label">${_theoValue}</div>
+      <div class="value green">${fmtK(totalValue)}</div>
+    </div>
+    <div class="finance-box">
+      <div class="label">${_estSub}</div>
+      <div class="value neutral">${fmtK(subscriptionEstimate.activeCost)}</div>
+    </div>
+    <div class="finance-box">
+      <div class="label">${_diff}</div>
+      <div class="value ${subscriptionEstimate.activeCost - totalValue > 0 ? "red" : "green"}">
+        ${fmtK(subscriptionEstimate.activeCost - totalValue)}
+      </div>
+    </div>
+  </div>
+  <div class="info-box">
+    <b>${_whatMeansTitle}</b> ${_youPaid}
+    ${_theoArtistValue}
+    ${locale === "en" ? "The difference" : "Differansen"} (${fmtK(subscriptionEstimate.activeCost - totalValue)}) ${locale === "en" ? "represents money that" : "er midlar som"}
+    ${_diffExpl(subscriptionEstimate.activeCost - totalValue)}.
+  </div>
+</div>`
+    : ""
+}
+
+<div class="section">
+  <h2>${isAllArtists ? _allArtists : _topArtists}</h2>
+  <table class="artist-table">
+    <thead>
+      <tr>
+        <th class="rank">#</th>
+        <th>Artist</th>
+        <th class="right">${_listeningTime}</th>
+        <th class="right">Streams</th>
+        <th class="right">${_theorVal}</th>
+        <th class="right">${_albumEq}</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${topArtists
+        .map(
+          (a, i) =>
+            `<tr>
+          <td class="rank">${i + 1}</td>
+          <td class="bold">${a.artist}</td>
+          <td class="right">${fmtH(a.msPlayed)}</td>
+          <td class="right">${fmtN(a.estStreams)}</td>
+          <td class="right">${fmtK(a.estValueNOK)}</td>
+          <td class="right">${a.albumEquivalent.toFixed(2)}</td>
+        </tr>`,
+        )
+        .join("\n      ")}
+      <tr class="total-row">
+        <td></td>
+        <td>${_totalWord} (${result.artists.length} ${_artists})</td>
+        <td class="right">${fmtH(result.countedMsPlayed)}</td>
+        <td class="right">${fmtN(result.countedRows)}</td>
+        <td class="right">${fmtK(totalValue)}</td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  ${!isAllArtists && topArtists.length < result.artists.length ? `<p style="font-size:11px;color:#999;">${_showingTopOf}</p>` : ""}
+</div>
+
+${
+  plannedEntries.length > 0
+    ? `
+<div class="section">
+  <h2>${_purchasePlan}</h2>
+  <div class="planned-header">
+    <span>${plannedEntries.length} ${_albumsPlanned}</span>
+    <span class="count">${fmtK(plannedTotal)}</span>
+  </div>
+  <table>
+    <thead>
+      <tr><th>#</th><th>Artist</th><th>${_t("albumsLabel")}</th><th class="right">${_price}</th></tr>
+    </thead>
+    <tbody>
+      ${plannedEntries
+        .map(
+          (e, i) =>
+            `<tr><td>${i + 1}</td><td>${e.artist}</td><td>${e.album}</td><td class="right">${fmtK(cfg.albumPriceNOK)}</td></tr>`,
+        )
+        .join("\n      ")}
+      <tr class="total-row"><td></td><td colspan="2">${_totalWord}</td><td class="right">${fmtK(plannedTotal)}</td></tr>
+    </tbody>
+  </table>
+</div>`
+    : ""
+}
+
+<div class="section">
+  <h2>${_methodology}</h2>
+  <div class="methodology">
+    <p>${_methodIntro}</p>
+    <ul>
+      ${_methodSteps.map((item) => `<li>${item}</li>`).join("\n      ")}
+    </ul>
+    <h3 style="margin-top:14px;font-size:13px;color:#333;">${locale === "en" ? "Important caveats" : "Viktige atterhald"}</h3>
+    <ul>
+      ${_methodCaveats.map((item) => `<li>${item}</li>`).join("\n      ")}
+    </ul>
+    <p style="margin-top:10px;">${_methodPurpose}</p>
+    <p style="margin-top:8px;font-style:italic;">${_methodPrivacy}</p>
+  </div>
+</div>
+
+<div class="report-footer">
+  <p>${_genFrom} <b>Spotify Unwrapped</b> · banjohans.github.io/Spotify-Unwrapped</p>
+  <p>${_localNote}</p>
+</div>
+
 <script>window.onload = () => { window.print(); }</script>
 </body>
 </html>`;
@@ -127,6 +896,8 @@ export default function App() {
   >({});
   const [plannedAlbumsOpen, setPlannedAlbumsOpen] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [locale, setLocale] = useState<Locale>("no");
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [artistDetailSort, setArtistDetailSort] = useState<"time" | "tracks">(
@@ -149,10 +920,20 @@ export default function App() {
   const [dateFilterEnd, setDateFilterEnd] = useState<string>("");
 
   const [cfg, setCfg] = useState<AnalysisConfig>({
-    albumPriceNOK: 150,
+    albumPriceNOK: DEFAULT_ALBUM_PRICE["no"],
     minMsPlayedToCount: 30_000,
     sessionGapSeconds: 60,
+    locale: "no",
   });
+
+  // Sync locale into cfg whenever it changes
+  useEffect(() => {
+    setCfg((prev) => ({
+      ...prev,
+      locale,
+      albumPriceNOK: DEFAULT_ALBUM_PRICE[locale],
+    }));
+  }, [locale]);
 
   async function onFiles(files: FileList | null) {
     setErr(null);
@@ -297,7 +1078,7 @@ export default function App() {
     });
 
     // Kalkuler total kostnad basert på historisk pris per månad
-    const historical = calcHistoricalSubscriptionCost(activeMonthList);
+    const historical = calcHistoricalSubscriptionCost(activeMonthList, locale);
 
     // Kalkuler også «span-kostnad» (alle månadar i perioden, inkl. inaktive)
     const spanMonths: Array<{ year: number; month: number }> = [];
@@ -310,7 +1091,7 @@ export default function App() {
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
-    const spanHistorical = calcHistoricalSubscriptionCost(spanMonths);
+    const spanHistorical = calcHistoricalSubscriptionCost(spanMonths, locale);
 
     return {
       firstDate,
@@ -323,7 +1104,7 @@ export default function App() {
       spanAvgMonthlyPrice: spanHistorical.weightedAvgPrice,
       priceBreakdown: historical.monthDetails,
     };
-  }, [dateFilteredRows]);
+  }, [dateFilteredRows, locale]);
 
   const searchedArtists = useMemo(() => {
     if (!artistSearchQuery.trim()) return filteredArtists;
@@ -470,20 +1251,27 @@ export default function App() {
 
   return (
     <div className="page">
+      <button
+        className="langSwitch"
+        onClick={() => setLocale((prev) => (prev === "no" ? "en" : "no"))}
+        aria-label={locale === "no" ? "Switch to English" : "Bytt til norsk"}
+      >
+        <span className={locale === "no" ? "langActive" : ""}>🇳🇴 NO</span>
+        <span className="langDivider">/</span>
+        <span className={locale === "en" ? "langActive" : ""}>🇺🇸 EN</span>
+      </button>
       <header className="hero">
         <div className="heroGlow" />
         <div className="heroContent">
           <div className="heroImageWrap">
             <img
               src={heroImg}
-              alt="Spotify Unwrapped – illustrasjon"
+              alt={t("heroImgAlt", locale)}
               className="heroImage"
             />
           </div>
 
-          <span className="heroBadgePill">
-            Lokal analyse · Ingen data forlet nettlesaren
-          </span>
+          <span className="heroBadgePill">{t("heroBadge", locale)}</span>
 
           <div className="heroLogo">
             <div className="spotifyLine">
@@ -502,11 +1290,11 @@ export default function App() {
             </div>
           </div>
 
-          <p className="heroTagline">Kva tente artistene på lyttinga di?</p>
+          <p className="heroTagline">{t("heroTagline", locale)}</p>
           <p className="heroDesc">
-            Oppdag kor mykje pengar <u>dine streams</u> faktisk genererte for
-            artistane du elskar – og kva det alternativt hadde kosta å kjøpe
-            musikken direkte.
+            {t("heroDesc1", locale)}
+            <u>{t("heroDescStreams", locale)}</u>
+            {t("heroDesc2", locale)}
           </p>
 
           <div className="heroUnderline" />
@@ -518,11 +1306,8 @@ export default function App() {
                 style={{ backgroundImage: `url(${analyticsImg})` }}
               />
               <div className="featureText">
-                <h3>Analyser lyttinga di</h3>
-                <p>
-                  Estimert teoretisk verdi for kvar artist basert på
-                  gjennomsnittlege straumeprisar (pro-rata modell).
-                </p>
+                <h3>{t("featureAnalyzeTitle", locale)}</h3>
+                <p>{t("featureAnalyzeDesc", locale)}</p>
               </div>
             </div>
             <div className="featureCard">
@@ -531,11 +1316,8 @@ export default function App() {
                 style={{ backgroundImage: `url(${insightImg})` }}
               />
               <div className="featureText">
-                <h3>Få innsikt</h3>
-                <p>
-                  Sjekk kva det hadde kosta å støtte artistane med direktekjøp i
-                  staden.
-                </p>
+                <h3>{t("featureInsightTitle", locale)}</h3>
+                <p>{t("featureInsightDesc", locale)}</p>
               </div>
             </div>
             <div className="featureCard">
@@ -544,40 +1326,33 @@ export default function App() {
                 style={{ backgroundImage: `url(${privateImg})` }}
               />
               <div className="featureText">
-                <h3>Heilt privat</h3>
-                <p>
-                  Alt skjer lokalt i nettlesaren. Vi lagrar eller sender aldri
-                  dine data.
-                </p>
+                <h3>{t("featurePrivateTitle", locale)}</h3>
+                <p>{t("featurePrivateDesc", locale)}</p>
               </div>
             </div>
           </div>
 
           <div className="heroCta">
             <a
-              href="https://www.spotify.com/no-nb/account/privacy/"
+              href={t("heroCtaUrl", locale)}
               target="_blank"
               rel="noopener noreferrer"
               className="privacyLink"
             >
-              Be om dine data frå Spotify (GDPR) →
+              {t("heroCtaLink", locale)}
             </a>
-            <p className="heroCtaHint">
-              Manglar du data? Last ned «Extended Streaming History» frå
-              Spotify-kontoen din.
-            </p>
+            <p className="heroCtaHint">{t("heroCtaHint", locale)}</p>
           </div>
         </div>
       </header>
 
       <section className="card" style={{ marginTop: 40 }}>
         <div className="cardHeader">
-          <h2>
-            1) Last opp (alle) "Extended streaming history" JSON filene du har
-            motatt frå Spotify
-          </h2>
+          <h2>{t("uploadTitle", locale)}</h2>
           {!!rows.length && (
-            <div className="pill">{rows.length.toLocaleString()} rader</div>
+            <div className="pill">
+              {rows.length.toLocaleString()} {t("rows", locale)}
+            </div>
           )}
         </div>
 
@@ -606,7 +1381,7 @@ export default function App() {
                   ?.click();
               }}
             >
-              📁 Vel Spotify-data filene dine
+              {t("uploadBtn", locale)}
             </button>
           </label>
           {err && (
@@ -619,7 +1394,9 @@ export default function App() {
         {uploadedFiles.length > 0 && (
           <div className="uploadedFilesList">
             <div className="filesHeader">
-              <h3>Opplasta filer ({uploadedFiles.length})</h3>
+              <h3>
+                {t("uploadedFilesLabel", locale)} ({uploadedFiles.length})
+              </h3>
               <button
                 className="btnGhost"
                 onClick={() => {
@@ -627,7 +1404,7 @@ export default function App() {
                   setRows([]);
                 }}
               >
-                Fjern alle
+                {t("removeAll", locale)}
               </button>
             </div>
             <div className="filesList">
@@ -636,7 +1413,7 @@ export default function App() {
                   <div className="fileInfo">
                     <span className="fileName">{file.name}</span>
                     <span className="fileStats">
-                      {file.rowCount.toLocaleString()} rader
+                      {file.rowCount.toLocaleString()} {t("rows", locale)}
                     </span>
                   </div>
                   <button
@@ -646,7 +1423,7 @@ export default function App() {
                         prev.filter((f) => f.name !== file.name),
                       );
                     }}
-                    title="Fjern fil"
+                    title={t("removeFile", locale)}
                   >
                     ✕
                   </button>
@@ -659,15 +1436,13 @@ export default function App() {
 
       <section className="card">
         <div className="cardHeader">
-          <h2>Innstillingar</h2>
-          <div className="subtle">
-            Justér anslaga utan å sende data nokon stad.
-          </div>
+          <h2>{t("settingsTitle", locale)}</h2>
+          <div className="subtle">{t("settingsDesc", locale)}</div>
         </div>
 
         <div className="controlsGrid">
           <label className="field">
-            <span>Standard albumpris (NOK)</span>
+            <span>{t("albumPriceLabel", locale)}</span>
             <input
               type="number"
               step="10"
@@ -679,7 +1454,7 @@ export default function App() {
           </label>
 
           <label className="field">
-            <span>Min. ms per rad</span>
+            <span>{t("minMsLabel", locale)}</span>
             <input
               type="number"
               step="1000"
@@ -692,70 +1467,70 @@ export default function App() {
         </div>
 
         <div className="priceHistoryInfo">
-          <h4>Historisk abonnementspris (Premium Individual, Noreg)</h4>
+          <h4>{t("priceHistoryTitle", locale)}</h4>
           <table className="priceHistoryTable">
             <thead>
               <tr>
-                <th>Periode</th>
-                <th>Pris</th>
+                <th>{t("periodCol", locale)}</th>
+                <th>{t("priceCol", locale)}</th>
               </tr>
             </thead>
             <tbody>
-              {SPOTIFY_PRICE_HISTORY_NOK.map((period, i) => {
-                const nextPeriod = SPOTIFY_PRICE_HISTORY_NOK[i + 1];
+              {PRICE_HISTORY[locale].map((period, i) => {
+                const nextPeriod = PRICE_HISTORY[locale][i + 1];
                 const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
                 const toStr = nextPeriod
                   ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                  : "no";
+                  : locale === "en"
+                    ? "now"
+                    : "no";
                 return (
                   <tr key={i}>
                     <td>
                       {fromStr} → {toStr}
                     </td>
-                    <td>{period.price} kr/mnd</td>
+                    <td>{currencyPerMonth(period.price, locale)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
           <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
-            Abonnementskostnad vert rekna ut automatisk basert på historisk pris
-            per månad i perioden din.
+            {t("priceHistoryNote", locale)}
           </p>
         </div>
 
         <div className="priceHistoryInfo">
-          <h4>Historisk NOK per stream (anslag, norsk marknad)</h4>
+          <h4>{t("royaltyHistoryTitle", locale)}</h4>
           <table className="priceHistoryTable">
             <thead>
               <tr>
-                <th>Periode</th>
-                <th>NOK/stream</th>
+                <th>{t("periodCol", locale)}</th>
+                <th>{t("ratePerStreamCol", locale)}</th>
               </tr>
             </thead>
             <tbody>
-              {SPOTIFY_ROYALTY_HISTORY_NOK.map((period, i) => {
-                const nextPeriod = SPOTIFY_ROYALTY_HISTORY_NOK[i + 1];
+              {ROYALTY_HISTORY[locale].map((period, i) => {
+                const nextPeriod = ROYALTY_HISTORY[locale][i + 1];
                 const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
                 const toStr = nextPeriod
                   ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                  : "no";
+                  : locale === "en"
+                    ? "now"
+                    : "no";
                 return (
                   <tr key={i}>
                     <td>
                       {fromStr} → {toStr}
                     </td>
-                    <td>{period.nokPerStream.toFixed(3)} kr</td>
+                    <td>{currencyPerStream(period.ratePerStream, locale)}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
           <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
-            Verdien per stream vert rekna ut automatisk basert på historisk sats
-            for kvar strøyming i perioden din. Satsen er eit anslag basert på
-            Spotify sine totale utbetalingar, globale strøymetall og norske
-            marknadsfaktorar.
+            {t("royaltyHistoryNote", locale)}
           </p>
         </div>
       </section>
@@ -763,10 +1538,8 @@ export default function App() {
       {rows.length > 0 && availableYears.length > 0 && (
         <section className="card">
           <div className="cardHeader">
-            <h2>Tidsperiode</h2>
-            <div className="subtle">
-              Filtrer analysen til eit bestemt år eller datoområde.
-            </div>
+            <h2>{t("dateFilterTitle", locale)}</h2>
+            <div className="subtle">{t("dateFilterDesc", locale)}</div>
           </div>
 
           <div className="dateFilterControls">
@@ -778,7 +1551,7 @@ export default function App() {
                   setCurrentPage(1);
                 }}
               >
-                All tid
+                {t("allTime", locale)}
               </button>
               {availableYears.map((year) => (
                 <button
@@ -800,14 +1573,14 @@ export default function App() {
                   setCurrentPage(1);
                 }}
               >
-                Eigendefinert
+                {t("custom", locale)}
               </button>
             </div>
 
             {dateFilterMode === "custom" && (
               <div className="dateCustomRange">
                 <label className="dateField">
-                  <span>Frå</span>
+                  <span>{t("fromLabel", locale)}</span>
                   <input
                     type="date"
                     value={dateFilterStart}
@@ -819,7 +1592,7 @@ export default function App() {
                 </label>
                 <span className="dateSep">–</span>
                 <label className="dateField">
-                  <span>Til</span>
+                  <span>{t("toLabel", locale)}</span>
                   <input
                     type="date"
                     value={dateFilterEnd}
@@ -834,13 +1607,14 @@ export default function App() {
 
             {activeDateRange && (
               <div className="dateFilterInfo">
-                Viser data for: <b>{activeDateRange.label}</b>
+                {t("showingDataFor", locale)} <b>{activeDateRange.label}</b>
                 {" · "}
-                {dateFilteredRows.length.toLocaleString()} rader
+                {dateFilteredRows.length.toLocaleString()} {t("rows", locale)}
                 {rows.length !== dateFilteredRows.length && (
                   <span className="subtle">
                     {" "}
-                    (av {rows.length.toLocaleString()} totalt)
+                    ({t("ofTotal", locale)} {rows.length.toLocaleString()}{" "}
+                    {t("totalSuffix", locale)})
                   </span>
                 )}
               </div>
@@ -854,38 +1628,249 @@ export default function App() {
           <section className="card">
             <div className="cardHeader">
               <h2>
-                2) Oversikt
+                {t("overviewTitle", locale)}
                 {activeDateRange ? ` (${activeDateRange.label})` : ""}
               </h2>
               <div className="subtle">
-                Kjapp status på materialet
-                {activeDateRange ? " i vald periode" : " du har lasta opp"}.
+                {activeDateRange
+                  ? t("overviewDescPeriod", locale)
+                  : t("overviewDescUploaded", locale)}
               </div>
+              <div className="exportDropdown">
+                <span className="exportLabel">{t("exportReport", locale)}</span>
+                <div className="exportBtnGroup">
+                  {(
+                    [
+                      [10, `${t("topPrefix", locale)} 10`],
+                      [30, `${t("topPrefix", locale)} 30`],
+                      [50, `${t("topPrefix", locale)} 50`],
+                      [100, `${t("topPrefix", locale)} 100`],
+                      [500, `${t("topPrefix", locale)} 500`],
+                      [
+                        "all",
+                        `${t("allLabel", locale)} (${result.artists.length})`,
+                      ],
+                    ] as [number | "all", string][]
+                  ).map(([n, label]) => (
+                    <button
+                      key={String(n)}
+                      className="btnExportPdf btnExportSmall"
+                      onClick={() =>
+                        exportFullReportPDF(
+                          result,
+                          cfg,
+                          subscriptionEstimate,
+                          activeDateRange,
+                          excludedArtists,
+                          plannedAlbums,
+                          n as number | "all",
+                          locale,
+                        )
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="shareGroup">
+                <button
+                  className="btnShare btnShareMain"
+                  onClick={async () => {
+                    const totalVal = result.artists.reduce(
+                      (s, a) => s + a.estValueNOK,
+                      0,
+                    );
+                    const blob = await generateShareImage({
+                      subCost: subscriptionEstimate?.activeCost ?? 0,
+                      artistValue: totalVal,
+                      artistCount: result.artists.length,
+                      hours: formatHrs(result.totalMsPlayed, locale),
+                      locale,
+                      heroSrc: heroImg,
+                    });
+                    const file = new File([blob], "spotify-unwrapped.png", {
+                      type: "image/png",
+                    });
+
+                    // 1) Try native Web Share API (mobile + some desktop browsers)
+                    //    This opens the OS share sheet and can share directly to
+                    //    Facebook, Instagram, Messenger, WhatsApp, etc.
+                    if (
+                      navigator.share &&
+                      navigator.canShare?.({ files: [file] })
+                    ) {
+                      try {
+                        await navigator.share({
+                          files: [file],
+                          title: "Spotify Unwrapped",
+                          text:
+                            t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        });
+                        return;
+                      } catch {
+                        /* user cancelled — fall through to clipboard/download */
+                      }
+                    }
+
+                    // 2) Desktop fallback: copy IMAGE to clipboard + download file
+                    let copiedImage = false;
+                    try {
+                      const item = new ClipboardItem({ "image/png": blob });
+                      await navigator.clipboard.write([item]);
+                      copiedImage = true;
+                    } catch {
+                      // Clipboard image write not supported — copy text instead
+                      try {
+                        await navigator.clipboard.writeText(
+                          t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        );
+                      } catch {
+                        /* clipboard not available */
+                      }
+                    }
+
+                    // Also download the image file
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "spotify-unwrapped.png";
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    setShareToast(
+                      copiedImage
+                        ? t("shareCopiedImage", locale)
+                        : t("shareCopiedText", locale),
+                    );
+                    setTimeout(() => setShareToast(null), 8000);
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+                    <polyline points="7 7 12 2 17 7" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  {t("shareResults", locale)}
+                </button>
+                <button
+                  className="btnShare btnShareFb"
+                  onClick={async () => {
+                    // Generate personalized image
+                    const totalVal = result.artists.reduce(
+                      (s, a) => s + a.estValueNOK,
+                      0,
+                    );
+                    const blob = await generateShareImage({
+                      subCost: subscriptionEstimate?.activeCost ?? 0,
+                      artistValue: totalVal,
+                      artistCount: result.artists.length,
+                      hours: formatHrs(result.totalMsPlayed, locale),
+                      locale,
+                      heroSrc: heroImg,
+                    });
+
+                    // 1) Try Web Share API with file (mobile → opens FB app directly)
+                    const file = new File([blob], "spotify-unwrapped.png", {
+                      type: "image/png",
+                    });
+                    if (
+                      navigator.share &&
+                      navigator.canShare?.({ files: [file] })
+                    ) {
+                      try {
+                        await navigator.share({
+                          files: [file],
+                          title: "Spotify Unwrapped",
+                          text:
+                            t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        });
+                        return;
+                      } catch {
+                        /* user cancelled — fall through */
+                      }
+                    }
+
+                    // 2) Desktop: Copy image to clipboard + download + open Facebook
+                    try {
+                      const item = new ClipboardItem({ "image/png": blob });
+                      await navigator.clipboard.write([item]);
+                    } catch {
+                      /* clipboard image not supported */
+                    }
+
+                    // Download image file
+                    const dlUrl = URL.createObjectURL(blob);
+                    const dl = document.createElement("a");
+                    dl.href = dlUrl;
+                    dl.download = "spotify-unwrapped.png";
+                    dl.click();
+                    URL.revokeObjectURL(dlUrl);
+
+                    // Open Facebook — direct to homepage so user creates a photo post
+                    window.open(
+                      "https://www.facebook.com/",
+                      "_blank",
+                      "noopener",
+                    );
+
+                    setShareToast(t("shareFbToast", locale));
+                    setTimeout(() => setShareToast(null), 10000);
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                  {t("shareFacebook", locale)}
+                </button>
+              </div>
+              <p className="shareTip">{t("shareTip", locale)}</p>
             </div>
 
             <div className="statsGrid">
               <div className="stat">
-                <div className="statLabel">Total lyttetid</div>
+                <div className="statLabel">
+                  {t("totalListeningTime", locale)}
+                </div>
                 <div className="statValue">
-                  {formatHours(result.totalMsPlayed)}
+                  {formatHrs(result.totalMsPlayed, locale)}
                 </div>
               </div>
 
               <div className="stat">
-                <div className="statLabel">Rader analysert</div>
+                <div className="statLabel">{t("rowsAnalyzed", locale)}</div>
                 <div className="statValue">
                   {result.countedRows.toLocaleString()}
                 </div>
               </div>
 
               <div className="stat">
-                <div className="statLabel">Unike artistar</div>
+                <div className="statLabel">{t("uniqueArtists", locale)}</div>
                 <div className="statValue">
                   {result.artists.length.toLocaleString()}
                   {excludedArtists.size > 0 ? (
                     <span className="statHint">
                       {" "}
-                      · {excludedArtists.size} skjulte
+                      · {excludedArtists.size} {t("hidden", locale)}
                     </span>
                   ) : null}
                 </div>
@@ -893,14 +1878,13 @@ export default function App() {
 
               {subscriptionEstimate && (
                 <div className="stat">
-                  <div className="statLabel">
-                    Estimert abonnement (full periode)
-                  </div>
+                  <div className="statLabel">{t("estSubFull", locale)}</div>
                   <div className="statValue">
-                    {formatNOK(subscriptionEstimate.totalCost)}
+                    {formatCurrency(subscriptionEstimate.totalCost, locale)}
                     <span className="statHint">
                       {" "}
-                      · {subscriptionEstimate.months.toFixed(1)} mnd
+                      · {subscriptionEstimate.months.toFixed(1)}{" "}
+                      {t("monthsAbbr", locale)}
                     </span>
                   </div>
                 </div>
@@ -908,14 +1892,13 @@ export default function App() {
 
               {subscriptionEstimate && (
                 <div className="stat">
-                  <div className="statLabel">
-                    Abonnement (berre aktive mndr)
-                  </div>
+                  <div className="statLabel">{t("subActiveOnly", locale)}</div>
                   <div className="statValue">
-                    {formatNOK(subscriptionEstimate.activeCost)}
+                    {formatCurrency(subscriptionEstimate.activeCost, locale)}
                     <span className="statHint">
                       {" "}
-                      · {subscriptionEstimate.activeMonths} mnd
+                      · {subscriptionEstimate.activeMonths}{" "}
+                      {t("monthsAbbr", locale)}
                     </span>
                   </div>
                 </div>
@@ -925,10 +1908,10 @@ export default function App() {
             <div className="sectionSummary" style={{ marginTop: 14 }}>
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Total teoretisk Spotfiy-verdi (alle artistar)
+                  {t("totalTheoValue", locale)}
                 </span>
                 <span className="summaryValue green">
-                  {formatNOK(totalAllArtistsValue)}
+                  {formatCurrency(totalAllArtistsValue, locale)}
                 </span>
               </div>
               {subscriptionEstimate && (
@@ -936,15 +1919,17 @@ export default function App() {
                   <div className="summarySep" />
                   <div className="summaryItem">
                     <span className="summaryLabel">
-                      Estimert abonnementskostnad
+                      {t("estSubCost", locale)}
                     </span>
                     <span className="summaryValue">
-                      {formatNOK(subscriptionEstimate.activeCost)}
+                      {formatCurrency(subscriptionEstimate.activeCost, locale)}
                     </span>
                   </div>
                   <div className="summarySep" />
                   <div className="summaryItem">
-                    <span className="summaryLabel">Differanse</span>
+                    <span className="summaryLabel">
+                      {t("difference", locale)}
+                    </span>
                     <span
                       className="summaryValue"
                       style={{
@@ -956,8 +1941,9 @@ export default function App() {
                             : "rgb(30, 215, 96)",
                       }}
                     >
-                      {formatNOK(
+                      {formatCurrency(
                         subscriptionEstimate.activeCost - totalAllArtistsValue,
+                        locale,
                       )}
                     </span>
                   </div>
@@ -967,22 +1953,29 @@ export default function App() {
 
             {subscriptionEstimate && (
               <p className="subtle" style={{ marginTop: 10 }}>
-                Periode:{" "}
+                {t("periodCol", locale)}:{" "}
                 <b>
-                  {subscriptionEstimate.firstDate.toLocaleDateString("nb-NO", {
-                    year: "numeric",
-                    month: "short",
-                  })}
+                  {subscriptionEstimate.firstDate.toLocaleDateString(
+                    dateLocale(locale),
+                    {
+                      year: "numeric",
+                      month: "short",
+                    },
+                  )}
                   {" – "}
-                  {subscriptionEstimate.lastDate.toLocaleDateString("nb-NO", {
-                    year: "numeric",
-                    month: "short",
-                  })}
+                  {subscriptionEstimate.lastDate.toLocaleDateString(
+                    dateLocale(locale),
+                    {
+                      year: "numeric",
+                      month: "short",
+                    },
+                  )}
                 </b>{" "}
-                · vekta snittpris:{" "}
-                {formatNOK(subscriptionEstimate.avgMonthlyPrice)}/mnd
+                · {t("weightedAvg", locale)}:{" "}
+                {formatCurrency(subscriptionEstimate.avgMonthlyPrice, locale)}/
+                {t("monthsAbbr", locale)}
                 <br />
-                Prisar brukt:{" "}
+                {t("pricesUsed", locale)}:{" "}
                 {(() => {
                   const prices = new Set(
                     subscriptionEstimate.priceBreakdown.map(
@@ -991,47 +1984,58 @@ export default function App() {
                   );
                   return Array.from(prices)
                     .sort((a, b) => a - b)
-                    .map((p) => `${p} kr`)
+                    .map((p) => formatCurrency(p, locale))
                     .join(", ");
                 })()}
               </p>
             )}
 
-            <p className="subtle" style={{ marginTop: 10 }}>
-              Merk: Spotify bruker ein <b>pro-rata pooling-modell</b>. Det betyr
-              at abonnementspengane dine ikkje går direkte til artistane du
-              lyttar til – dei går i ein felles pott og vert fordelt etter kvar
-              artist sin andel av <i>alle</i> streams på plattforma. Estimata
-              her viser ein teoretisk verdi basert på gjennomsnittleg
-              straumepris × lyttetid, ikkje kva artisten faktisk har fått frå
-              akkurat deg.
-            </p>
+            <p
+              className="subtle"
+              style={{ marginTop: 10 }}
+              dangerouslySetInnerHTML={{ __html: t("proRataNote", locale) }}
+            />
 
-            <p className="subtle" style={{ marginTop: 10 }}>
-              <b>Om abonnementsprising:</b> Spotify sin GDPR-dataeksport
-              inneheld ikkje informasjon om abonnementstype eller
-              betalingshistorikk. Feltet <code>Payments.json</code> er tomt, og{" "}
-              <code>Userdata.json</code> har berre grunnleggande
-              kontoinformasjon. Difor reknar denne sida med standardpris for
-              vanleg <b>Premium-abonnement</b> i Noreg, basert på historiske
-              prisar verifisert via Wayback Machine. Har du hatt Free, Duo eller
-              Family-abonnement vil den faktiske kostnaden avvike.
-            </p>
+            <p
+              className="subtle"
+              style={{ marginTop: 10 }}
+              dangerouslySetInnerHTML={{ __html: t("subPricingNote", locale) }}
+            />
           </section>
 
           <section className="card">
             <div className="cardHeader stickyHeader">
               <div>
                 <h2>
-                  3) Dine {filteredArtists.length} artistar –{" "}
-                  {allAlbumKeys.length} unike album
+                  3) {locale === "en" ? "Your" : "Dine"}{" "}
+                  {filteredArtists.length} {t("yourArtists", locale)} –{" "}
+                  {allAlbumKeys.length} {t("uniqueAlbumsLabel", locale)}
                 </h2>
                 {subscriptionEstimate && (
                   <p className="stickySubtitle">
-                    For det du har betalt i Spotify Premium (
-                    {formatNOK(subscriptionEstimate.activeCost)}) kunne du ha
-                    kjøpt ca. <strong>{albumBudget} album</strong> à{" "}
-                    {formatNOK(cfg.albumPriceNOK)} direkte.
+                    {locale === "en" ? (
+                      <>
+                        For what you paid for Spotify Premium (
+                        {formatCurrency(
+                          subscriptionEstimate.activeCost,
+                          locale,
+                        )}
+                        ) you could have bought approx.{" "}
+                        <strong>{albumBudget} albums</strong> at{" "}
+                        {formatCurrency(cfg.albumPriceNOK, locale)} each.
+                      </>
+                    ) : (
+                      <>
+                        For det du har betalt i Spotify Premium (
+                        {formatCurrency(
+                          subscriptionEstimate.activeCost,
+                          locale,
+                        )}
+                        ) kunne du ha kjøpt ca.{" "}
+                        <strong>{albumBudget} album</strong> à{" "}
+                        {formatCurrency(cfg.albumPriceNOK, locale)} direkte.
+                      </>
+                    )}
                   </p>
                 )}
               </div>
@@ -1048,7 +2052,7 @@ export default function App() {
                     setPlannedAlbums(next);
                   }}
                 >
-                  Legg alle album i kjøpsplan
+                  {t("addAllToPlan", locale)}
                 </button>
 
                 {plannedCount > 0 && (
@@ -1056,7 +2060,7 @@ export default function App() {
                     className="btnGhost"
                     onClick={() => setPlannedAlbums({})}
                   >
-                    Tøm
+                    {t("clear", locale)}
                   </button>
                 )}
               </div>
@@ -1070,7 +2074,8 @@ export default function App() {
                   >
                     <span className="plannedDropdownSummary">
                       <span className="plannedBadge">{plannedCount}</span>
-                      Album lagt til &middot; {formatNOK(plannedCost)}
+                      {t("albumsAddedMiddot", locale)} &middot;{" "}
+                      {formatCurrency(plannedCost, locale)}
                     </span>
                     <span
                       className={`plannedChevron ${plannedAlbumsOpen ? "open" : ""}`}
@@ -1093,20 +2098,25 @@ export default function App() {
                         {albumsRemaining > 0 ? (
                           <>
                             <span className="albumBudgetRemaining">
-                              {albumsRemaining} album att
+                              {albumsRemaining} {t("albumsLeft", locale)}
                             </span>{" "}
-                            — {albumBudget} album kunne du ha eigd i dag
-                            i staden for å ikkje eige nokon som
-                            Spotify-abonnent (
-                            {formatNOK(subscriptionEstimate.activeCost)})
+                            — {albumBudget} {t("couldHaveOwned", locale)} (
+                            {formatCurrency(
+                              subscriptionEstimate.activeCost,
+                              locale,
+                            )}
+                            )
                           </>
                         ) : (
                           <span className="green">
-                            ✓ {plannedCount - albumBudget} album meir enn du
-                            kunne fått for
-                            spotify-abonnementsutgiftene dine ({albumBudget}{" "}
-                            album ≈{" "}
-                            {formatNOK(subscriptionEstimate.activeCost)})
+                            ✓ {plannedCount - albumBudget}{" "}
+                            {t("moreThanBudget", locale)} ({albumBudget}{" "}
+                            {locale === "en" ? "albums" : "album"} ≈{" "}
+                            {formatCurrency(
+                              subscriptionEstimate.activeCost,
+                              locale,
+                            )}
+                            )
                           </span>
                         )}
                       </div>
@@ -1127,7 +2137,7 @@ export default function App() {
                           </div>
                           <button
                             className="plannedRemoveBtn"
-                            title="Fjern"
+                            title={t("removeBtn", locale)}
                             onClick={() => {
                               setPlannedAlbums((prev) => {
                                 const next = { ...prev };
@@ -1141,8 +2151,14 @@ export default function App() {
                         </div>
                       ))}
                       <div className="plannedDropdownTotal">
-                        <span>Totalt {plannedCount} album</span>
-                        <span className="green">{formatNOK(plannedCost)}</span>
+                        <span>
+                          {locale === "en"
+                            ? `Total ${plannedCount} albums`
+                            : `Totalt ${plannedCount} album`}
+                        </span>
+                        <span className="green">
+                          {formatCurrency(plannedCost, locale)}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -1152,13 +2168,13 @@ export default function App() {
 
             {/* Top-N veljar */}
             <div className="topNSelector">
-              <span className="topNLabel">Vis tal for:</span>
+              <span className="topNLabel">{t("showStatsFor", locale)}</span>
               <div className="topNTabs">
                 {([5, 10, 20, 30, 50, "all"] as const).map((n) => {
                   const isAll = n === "all";
                   const label = isAll
-                    ? `Alle (${filteredArtists.length})`
-                    : `Topp ${n}`;
+                    ? `${t("allLabel", locale)} (${filteredArtists.length})`
+                    : `${t("topPrefix", locale)} ${n}`;
                   const disabled = !isAll && n > filteredArtists.length;
                   return (
                     <button
@@ -1178,29 +2194,35 @@ export default function App() {
             <div className="sectionSummary">
               <div className="summaryItem">
                 <span className="summaryLabel">
-                  Total lyttetid,{" "}
+                  {t("totalListeningTime", locale)},{" "}
                   {summaryTopN === "all"
-                    ? `alle ${topNArtists.length}`
-                    : `topp ${topNArtists.length}`}{" "}
-                  artistar
+                    ? `${t("allLabel", locale).toLowerCase()} ${topNArtists.length}`
+                    : `${t("topPrefix", locale).toLowerCase()} ${topNArtists.length}`}{" "}
+                  {t("yourArtists", locale)}
                 </span>
-                <span className="summaryValue">{formatHours(topNMs)}</span>
+                <span className="summaryValue">
+                  {formatHrs(topNMs, locale)}
+                </span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">Teoretisk Spotify-verdi</span>
-                <span className="summaryValue">{formatNOK(topNValue)}</span>
+                <span className="summaryLabel">
+                  {t("theorSpotifyValue", locale)}
+                </span>
+                <span className="summaryValue">
+                  {formatCurrency(topNValue, locale)}
+                </span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">Album</span>
+                <span className="summaryLabel">{t("albumsLabel", locale)}</span>
                 <span className="summaryValue">{topNAlbumKeys.length}</span>
               </div>
               <div className="summarySep" />
               <div className="summaryItem">
-                <span className="summaryLabel">Kjøp fysiske album</span>
+                <span className="summaryLabel">{t("buyPhysical", locale)}</span>
                 <span className="summaryValue green">
-                  {formatNOK(topNCost)}
+                  {formatCurrency(topNCost, locale)}
                 </span>
               </div>
             </div>
@@ -1210,7 +2232,7 @@ export default function App() {
               <div className="searchBox">
                 <input
                   type="text"
-                  placeholder="Søk etter artist..."
+                  placeholder={t("searchArtist", locale)}
                   value={artistSearchQuery}
                   onChange={(e) => {
                     setArtistSearchQuery(e.target.value);
@@ -1225,7 +2247,7 @@ export default function App() {
                       setArtistSearchQuery("");
                       setCurrentPage(1);
                     }}
-                    title="Tøm søk"
+                    title={t("clearSearch", locale)}
                   >
                     ✕
                   </button>
@@ -1233,9 +2255,9 @@ export default function App() {
               </div>
 
               <div className="paginationInfo">
-                Viser {startIndex + 1}–
-                {Math.min(endIndex, searchedArtists.length)} av{" "}
-                {searchedArtists.length}
+                {t("showing", locale)} {startIndex + 1}–
+                {Math.min(endIndex, searchedArtists.length)}{" "}
+                {t("ofWord", locale)} {searchedArtists.length}
               </div>
 
               <div className="paginationNav">
@@ -1254,7 +2276,8 @@ export default function App() {
                   ‹
                 </button>
                 <span className="pageNumbers">
-                  Side {currentPage} av {totalPages}
+                  {t("pageLabel", locale)} {currentPage} {t("ofWord", locale)}{" "}
+                  {totalPages}
                 </span>
                 <button
                   className="pageBtn"
@@ -1276,7 +2299,7 @@ export default function App() {
 
               <div className="perPageSelect">
                 <label>
-                  Per side:
+                  {t("perPage", locale)}
                   <select
                     value={itemsPerPage}
                     onChange={(e) => {
@@ -1314,26 +2337,34 @@ export default function App() {
                       </div>
                       <div className="artistMeta">
                         <span className="metaItem">
-                          <span className="metaLabel">Lyttetid</span>{" "}
-                          <b>{formatHours(a.msPlayed)}</b>
+                          <span className="metaLabel">
+                            {t("listeningTime", locale)}
+                          </span>{" "}
+                          <b>{formatHrs(a.msPlayed, locale)}</b>
                         </span>
                         <span className="dot">•</span>
                         <span className="metaItem">
-                          <span className="metaLabel">Teor. verdi</span>{" "}
-                          <b>{formatNOK(a.estValueNOK)}</b>
+                          <span className="metaLabel">
+                            {t("theorValue", locale)}
+                          </span>{" "}
+                          <b>{formatCurrency(a.estValueNOK, locale)}</b>
                         </span>
                         <span className="dot">•</span>
                         <span className="metaItem">
-                          <span className="metaLabel">Album-ekv.</span>{" "}
+                          <span className="metaLabel">
+                            {t("albumEquiv", locale)}
+                          </span>{" "}
                           <b>{a.albumEquivalent.toFixed(2)}</b>
                         </span>
                       </div>
                     </div>
 
-                    <div className="albumWrap" aria-label="Topp-album">
+                    <div
+                      className="albumWrap"
+                      aria-label={t("albumsLabel", locale)}
+                    >
                       <p className="albumInstructions">
-                        Trykk på albuma du kunne vurdert å kjøpe for å støtte
-                        artistane du likar godt.
+                        {t("clickAlbumsHint", locale)}
                       </p>
                       {(() => {
                         const isExpanded = expandedAlbumArtists.has(a.artist);
@@ -1367,7 +2398,7 @@ export default function App() {
                                       return next;
                                     });
                                   }}
-                                  title={`${x.album}${isPlanned ? " (i kjøpsplan)" : ""}`}
+                                  title={`${x.album}${isPlanned ? ` (${t("inPurchasePlan", locale)})` : ""}`}
                                 >
                                   <span className="chipText">{x.album}</span>
                                   {isPlanned && (
@@ -1391,8 +2422,8 @@ export default function App() {
                               >
                                 <span className="chipText">
                                   {isExpanded
-                                    ? "Vis færre"
-                                    : `Vis alle ${a.topAlbums.length} album`}
+                                    ? t("showFewer", locale)
+                                    : `${t("showAllAlbums", locale)} ${a.topAlbums.length} ${t("albumWord", locale)}`}
                                 </span>
                               </button>
                             )}
@@ -1403,7 +2434,7 @@ export default function App() {
 
                     <button
                       className="iconBtn"
-                      title="Fjern frå lista"
+                      title={t("removeFromList", locale)}
                       onClick={() => {
                         setExcludedArtists((prev) => {
                           const next = new Set(prev);
@@ -1423,25 +2454,30 @@ export default function App() {
 
             <div className="buyPlan">
               <div className="buyPlanHeader">
-                <h3>Planlagde kjøp</h3>
+                <h3>{t("plannedPurchases", locale)}</h3>
                 <div className="subtle">
                   {plannedCount > 0 ? (
                     <>
-                      Album i plan: <b>{plannedCount}</b> · total:{" "}
-                      <b>{formatNOK(plannedCost)}</b>
+                      {t("albumsInPlan", locale)} <b>{plannedCount}</b> ·{" "}
+                      {t("totalLabel", locale)}{" "}
+                      <b>{formatCurrency(plannedCost, locale)}</b>
                     </>
                   ) : (
-                    "Klikk på album-chipane for å legge til."
+                    t("clickChipsToAdd", locale)
                   )}
                 </div>
                 {plannedCount > 0 && (
                   <button
                     className="btnExportPdf"
                     onClick={() =>
-                      exportPlannedAlbumsPDF(plannedAlbums, cfg.albumPriceNOK)
+                      exportPlannedAlbumsPDF(
+                        plannedAlbums,
+                        cfg.albumPriceNOK,
+                        locale,
+                      )
                     }
                   >
-                    📄 Eksporter handleliste (PDF)
+                    {t("exportShoppingList", locale)}
                   </button>
                 )}
               </div>
@@ -1460,7 +2496,7 @@ export default function App() {
                         <div className="planArtist">{row.artist}</div>
                         <div className="planAlbum">{row.album}</div>
                         <div className="planPrice">
-                          {formatNOK(cfg.albumPriceNOK)}
+                          {formatCurrency(cfg.albumPriceNOK, locale)}
                         </div>
                         <button
                           className="btnGhost"
@@ -1472,7 +2508,7 @@ export default function App() {
                             });
                           }}
                         >
-                          Fjern
+                          {t("removeBtn", locale)}
                         </button>
                       </div>
                     ))}
@@ -1481,9 +2517,7 @@ export default function App() {
             </div>
 
             <p className="subtle" style={{ marginTop: 12 }}>
-              Tolking: Viss ein artist ligg høgt her, kan det vere rimeleg å
-              tenkje “eg har brukt mykje av musikken deira”. Ein enkel handling
-              kan vere å kjøpe eitt album, merch, eller billett.
+              {t("interpretation", locale)}
             </p>
           </section>
 
@@ -1504,7 +2538,7 @@ export default function App() {
                 <div className="statValue">
                   {pct(result.activeShare)}{" "}
                   <span className="statHint">
-                    · {formatHours(result.activeMsPlayed)}
+                    · {formatHrs(result.activeMsPlayed, locale)}
                   </span>
                 </div>
               </div>
@@ -1513,7 +2547,7 @@ export default function App() {
                 <div className="statValue">
                   {pct(result.passiveShare)}{" "}
                   <span className="statHint">
-                    · {formatHours(result.passiveMsPlayed)}
+                    · {formatHrs(result.passiveMsPlayed, locale)}
                   </span>
                 </div>
               </div>
@@ -1529,9 +2563,9 @@ export default function App() {
               <div className="stat">
                 <div className="statLabel">Est. verdi</div>
                 <div className="statValue">
-                  {formatNOK(result.activeEstValueNOK)}{" "}
+                  {formatCurrency(result.activeEstValueNOK, locale)}{" "}
                   <span className="statHint">
-                    / {formatNOK(result.passiveEstValueNOK)}
+                    / {formatCurrency(result.passiveEstValueNOK, locale)}
                   </span>
                 </div>
               </div>
@@ -1541,8 +2575,8 @@ export default function App() {
           {excludedArtists.size > 0 && (
             <section className="card soft">
               <div className="cardHeader">
-                <h2>Ekskluderte artistar</h2>
-                <div className="subtle">Klikk for å gjenopprette.</div>
+                <h2>{t("excludedArtistsTitle", locale)}</h2>
+                <div className="subtle">{t("clickToRestore", locale)}</div>
               </div>
 
               <div className="chipsRow">
@@ -1557,7 +2591,7 @@ export default function App() {
                         return next;
                       });
                     }}
-                    title="Klikk for å gjenopprette"
+                    title={t("restoreTitle", locale)}
                   >
                     {artist} ↺
                   </button>
@@ -1577,7 +2611,7 @@ export default function App() {
               <button
                 className="modalClose"
                 onClick={() => setSelectedArtist(null)}
-                aria-label="Lukk"
+                aria-label={t("closeLabel", locale)}
               >
                 ×
               </button>
@@ -1585,19 +2619,21 @@ export default function App() {
 
             <div className="modalStats">
               <div className="statItem">
-                <div className="statLabel">Total lyttetid</div>
+                <div className="statLabel">
+                  {t("totalListeningTime", locale)}
+                </div>
                 <div className="statValue">
-                  {formatHours(artistDetails.totalMs)}
+                  {formatHrs(artistDetails.totalMs, locale)}
                 </div>
               </div>
               <div className="statItem">
-                <div className="statLabel">Totalt avspelingar</div>
+                <div className="statLabel">{t("totalPlaysLabel", locale)}</div>
                 <div className="statValue">
                   {artistDetails.totalPlays.toLocaleString()}
                 </div>
               </div>
               <div className="statItem">
-                <div className="statLabel">Album</div>
+                <div className="statLabel">{t("albumsLabel", locale)}</div>
                 <div className="statValue">{artistDetails.albums.length}</div>
               </div>
             </div>
@@ -1609,7 +2645,7 @@ export default function App() {
                 }
                 onClick={() => setArtistDetailSort("time")}
               >
-                Sorter etter tid
+                {t("sortByTime", locale)}
               </button>
               <button
                 className={
@@ -1619,7 +2655,7 @@ export default function App() {
                 }
                 onClick={() => setArtistDetailSort("tracks")}
               >
-                Sorter etter avspelingar
+                {t("sortByPlays", locale)}
               </button>
             </div>
 
@@ -1629,8 +2665,8 @@ export default function App() {
                   <div className="albumHeader">
                     <h3>{album.album}</h3>
                     <div className="albumStats">
-                      {formatHours(album.totalMs)} · {album.totalPlays}{" "}
-                      avspelingar
+                      {formatHrs(album.totalMs, locale)} · {album.totalPlays}{" "}
+                      {t("playsWord", locale)}
                     </div>
                   </div>
                   <div className="trackList">
@@ -1638,8 +2674,8 @@ export default function App() {
                       <div key={track.trackName} className="trackRow">
                         <div className="trackName">{track.trackName}</div>
                         <div className="trackStats">
-                          {formatHours(track.msPlayed)} · {track.plays}{" "}
-                          avspelingar
+                          {formatHrs(track.msPlayed, locale)} · {track.plays}{" "}
+                          {t("playsWord", locale)}
                         </div>
                       </div>
                     ))}
@@ -1653,12 +2689,12 @@ export default function App() {
 
       {/* Footer */}
       <footer className="siteFooter">
-        <p>Utvikla av Hans Martin Sognefest Austestad</p>
+        <p>{t("developedBy", locale)}</p>
         <button
           className="disclaimerLink"
           onClick={() => setDisclaimerOpen(true)}
         >
-          Disclaimer &amp; kjelder
+          {t("disclaimerLink", locale)}
         </button>
       </footer>
 
@@ -1670,7 +2706,7 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modalHeader">
-              <h2>Disclaimer</h2>
+              <h2>{t("disclaimerTitle", locale)}</h2>
               <button
                 className="modalClose"
                 onClick={() => setDisclaimerOpen(false)}
@@ -1679,54 +2715,67 @@ export default function App() {
               </button>
             </div>
             <div className="disclaimerBody">
-              <p>
-                Spotify sine data gjev ikkje full tilgang til nøyaktige
-                økonomiske tal. Denne nettsida set saman informasjon basert på
-                tre kjelder:
-              </p>
+              <p className="disclaimerIntro">{t("disclaimerIntro", locale)}</p>
+
+              <h3>{t("disclaimerStep1Title", locale)}</h3>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerStep1", locale),
+                }}
+              />
+
+              <h3>{t("disclaimerStep2Title", locale)}</h3>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerStep2", locale),
+                }}
+              />
+
+              <h3>{t("disclaimerStep3Title", locale)}</h3>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerStep3", locale),
+                }}
+              />
+
+              <h3>{t("disclaimerStep4Title", locale)}</h3>
+              <p
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerStep4", locale),
+                }}
+              />
+
+              <h3>{t("disclaimerCaveatsTitle", locale)}</h3>
               <ul>
-                <li>
-                  <strong>Streamingtall frå Spotify</strong> – di eiga
-                  lyttehistorikk, henta via Spotify sin data-eksport.
-                </li>
-                <li>
-                  <strong>Historisk abonnementsprising</strong> – verifisert via
-                  Wayback Machine for den norske marknaden.
-                </li>
-                <li>
-                  <strong>Rapporterte royalties</strong> – basert på offentlege
-                  kjelder som Spotify Loud &amp; Clear, Soundcharts og
-                  bransjeanalysar. Merk at Spotify ikkje opererer med ein fast
-                  sats per stream – utbetalinga er basert på strøymedel.
-                </li>
+                {(tRaw("disclaimerCaveats", locale) as readonly string[]).map(
+                  (item, i) => (
+                    <li key={i} dangerouslySetInnerHTML={{ __html: item }} />
+                  ),
+                )}
               </ul>
-              <p>
-                Ein må ta høgde for variasjonar. Faktisk utbetaling til artistar
-                avheng av avtalar med plateselskap, distribusjonsplattform og
-                region. Tala her er anslag, ikkje fasit.
-              </p>
-              <p>
-                Likevel gjev statistikken ein tydeleg peikepinn på korleis
-                strøyming har endra oppmerksomheitsøkonomien grunnleggjande:
-                Pengane du betalar som lyttar, går i liten grad til musikken du
-                faktisk lyttar til, men inn i ein felles pott som i hovudsak
-                belønner det som «går på repeat». Slik blir musikk brukt som
-                bakgrunn prioritert, framfor musikk som blir lytta til aktivt.
-                Til dømes spelelister som står på kontinuerleg i kjøpesenter og
-                butikkar, eller som fungerer som stemningsskapande lyd i ulike
-                offentlege rom.
-              </p>
-              <p>
-                Denne sida er lagd for å auke bevisstheit rundt korleis folks
-                lyttevanar kanskje ikkje belønner musikken dei høyrer mest på
-                eller bryr seg mest om – og for å synleggjøre at direkte støtte
-                (som å kjøpe album) er ein langt meir effektiv måte å støtte
-                musikken ein bryr seg om.
-              </p>
+
+              <p
+                className="disclaimerPurpose"
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerPurpose", locale),
+                }}
+              />
+              <p
+                className="disclaimerSolution"
+                dangerouslySetInnerHTML={{
+                  __html: t("disclaimerSolution", locale),
+                }}
+              />
+
+              <div className="disclaimerPrivacy">
+                <span>🔒</span> {t("disclaimerPrivacy", locale)}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {shareToast && <div className="shareToast">{shareToast}</div>}
     </div>
   );
 }
