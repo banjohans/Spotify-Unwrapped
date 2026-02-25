@@ -3389,35 +3389,36 @@ body {
 /* Landscape mobile: reduce sticky header height */
 @media (orientation: landscape) and (max-height: 500px) {
   .stickyHeader {
-    padding: 6px 10px;
+    padding: 4px 8px;
     top: 2px;
-    gap: 4px;
+    gap: 2px;
   }
 
   .stickyHeader h2 {
-    font-size: 11px;
-    line-height: 1.2;
+    font-size: 10px;
+    line-height: 1.15;
     margin: 0;
   }
 
   .stickySubtitle {
-    font-size: 0.65em;
-    margin-top: 1px;
+    font-size: 0.58em;
+    margin-top: 0;
+    line-height: 1.2;
   }
 
   .headerActions {
-    gap: 4px;
+    gap: 3px;
   }
 
   .headerActions .btn,
   .headerActions .btnGhost {
-    font-size: 10px;
-    padding: 5px 8px;
+    font-size: 9px;
+    padding: 3px 6px;
   }
 
   .stickyHeader .plannedDropdownToggle {
-    font-size: 0.7em;
-    padding: 4px 6px;
+    font-size: 0.62em;
+    padding: 3px 5px;
   }
 
   .stickyHeader .albumBudgetBar {
@@ -3426,16 +3427,158 @@ body {
   }
 
   .stickyHeader .albumBudgetText {
-    font-size: 0.62em;
+    font-size: 0.55em;
+    line-height: 1.2;
   }
 
   .stickyHeader .albumBudgetProgress {
-    height: 3px;
+    height: 2px;
+  }
+
+  .plannedBadge {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+
+  /* Compact album list items */
+  .albumChip {
+    width: 160px;
+    min-height: 32px;
+    padding: 6px 8px;
+    gap: 4px;
+    border-radius: 6px;
+  }
+
+  .chipText {
+    font-size: 10px;
+    line-height: 1.2;
+  }
+
+  .chipMark {
+    font-size: 10px;
+  }
+
+  .albumWrap {
+    gap: 4px;
+  }
+
+  .albumInstructions {
+    font-size: 0.7em;
+    margin-bottom: 3px;
+  }
+
+  /* Compact artist rows */
+  .artistRow {
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 8px;
+    grid-template-columns: 1fr auto;
+  }
+
+  .artistName {
+    font-size: 12px;
+  }
+
+  .artistMeta {
+    margin-top: 3px;
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .metaLabel {
+    font-size: 8px;
+  }
+
+  .artistMain {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Hide album wrap in landscape - too cramped */
+  .artistRow .albumWrap {
+    display: none;
+  }
+
+  .artistRow .iconBtn {
+    padding: 4px;
+    font-size: 10px;
+  }
+
+  /* Compact cards */
+  .card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .cardHeader {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  /* Top-N selector compact */
+  .topNSelector {
+    padding: 6px 0;
+    gap: 6px;
+  }
+
+  .topNLabel {
+    font-size: 10px;
+  }
+
+  .topNTabs {
+    gap: 3px;
+  }
+
+  .dateTab {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  /* Section summary compact */
+  .sectionSummary {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .summaryLabel {
+    font-size: 9px;
+  }
+
+  .summaryValue {
+    font-size: 14px;
+  }
+
+  /* Search box compact */
+  .searchInput {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  /* Pagination compact */
+  .paginationControls {
+    gap: 8px;
+    padding: 8px 0;
+  }
+
+  .paginationInfo {
+    font-size: 10px;
+  }
+
+  .pageBtn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .pageNum {
+    font-size: 10px;
   }
 
   /* Charts in landscape - more horizontal space */
   .chartContainer {
     margin: 8px 0;
+    padding: 10px;
   }
 
   .chartTabs {
@@ -3470,6 +3613,35 @@ body {
   .chartClickHint {
     font-size: 0.7rem;
     margin-bottom: 4px;
+  }
+
+  /* Planned dropdown compact */
+  .plannedDropdownList {
+    max-height: 120px;
+  }
+
+  .plannedDropdownItem {
+    padding: 4px 8px;
+    gap: 6px;
+  }
+
+  .plannedAlbumName {
+    font-size: 10px;
+  }
+
+  .plannedArtistName {
+    font-size: 9px;
+  }
+
+  .plannedRemoveBtn {
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+  }
+
+  .plannedDropdownTotal {
+    padding: 4px 8px;
+    font-size: 10px;
   }
 }
 
