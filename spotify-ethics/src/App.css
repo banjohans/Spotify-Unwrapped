@@ -2728,8 +2728,12 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .drillDownModal {
@@ -2747,8 +2751,14 @@ body {
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .drillDownClose {
@@ -2894,20 +2904,20 @@ body {
   .drillDownSections {
     grid-template-columns: 1fr;
   }
-  
+
   .drillDownStats {
     flex-wrap: wrap;
   }
-  
+
   .drillDownStat {
     flex: 1 1 calc(50% - 8px);
     min-width: 100px;
   }
-  
+
   .drillDownModal {
     padding: 16px;
   }
-  
+
   .drillDownTitle {
     font-size: 1.2rem;
   }
@@ -3167,6 +3177,43 @@ body {
 
 .artistDropdownSearch::placeholder {
   color: var(--textMuted);
+}
+
+.artistSortOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  align-items: center;
+}
+
+.artistSortLabel {
+  font-size: 0.75rem;
+  color: var(--textMuted);
+  margin-right: 4px;
+}
+
+.artistSortBtn {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  background: transparent;
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.artistSortBtn:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+}
+
+.artistSortBtn.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
 }
 
 .artistDropdownList {

@@ -70,6 +70,8 @@ const MONTH_NAMES_EN = [
   "Dec",
 ];
 
+type ArtistSortOption = "plays-desc" | "plays-asc" | "alpha-asc" | "alpha-desc";
+
 export default function ArtistComparisonChart({
   allRows,
   artists,
@@ -85,6 +87,7 @@ export default function ArtistComparisonChart({
   const [chartMetric, setChartMetric] = useState<"streams" | "minutes">(
     "streams",
   );
+  const [artistSort, setArtistSort] = useState<ArtistSortOption>("plays-desc");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
@@ -114,6 +117,11 @@ export default function ArtistComparisonChart({
       minutes: locale === "en" ? "Minutes" : "Minutt",
       clearAll: locale === "en" ? "Clear all" : "Tøm alle",
       maxSelected: locale === "en" ? "Max 10 artists" : "Maks 10 artistar",
+      sortBy: locale === "en" ? "Sort by:" : "Sorter etter:",
+      mostPlayed: locale === "en" ? "Most played" : "Mest spelt",
+      leastPlayed: locale === "en" ? "Least played" : "Minst spelt",
+      alphaAsc: locale === "en" ? "A → Z" : "A → Å",
+      alphaDesc: locale === "en" ? "Z → A" : "Å → A",
     }),
     [locale],
   );
@@ -141,10 +149,10 @@ export default function ArtistComparisonChart({
 
     try {
       const container = chartContainerRef.current;
-      
+
       // Force a small delay to ensure chart is fully rendered
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(container, {
         backgroundColor: "#121212",
         scale: 2,
@@ -152,7 +160,7 @@ export default function ArtistComparisonChart({
         allowTaint: true,
         onclone: (clonedDoc) => {
           // Replace color-mix() values that html2canvas can't parse
-          const style = clonedDoc.createElement('style');
+          const style = clonedDoc.createElement("style");
           style.textContent = `
             * {
               --accent: #1DB954 !important;
@@ -161,19 +169,25 @@ export default function ArtistComparisonChart({
             }
           `;
           clonedDoc.head.appendChild(style);
-          
+
           // Remove elements with color-mix in their computed styles
-          const allElements = clonedDoc.querySelectorAll('*');
+          const allElements = clonedDoc.querySelectorAll("*");
           allElements.forEach((el) => {
             const htmlEl = el as HTMLElement;
             const computed = clonedDoc.defaultView?.getComputedStyle(htmlEl);
             if (computed) {
               // Replace problematic background colors
-              if (computed.backgroundColor.includes('color-mix') || computed.backgroundColor.includes('color(')) {
-                htmlEl.style.backgroundColor = 'transparent';
+              if (
+                computed.backgroundColor.includes("color-mix") ||
+                computed.backgroundColor.includes("color(")
+              ) {
+                htmlEl.style.backgroundColor = "transparent";
               }
-              if (computed.borderColor.includes('color-mix') || computed.borderColor.includes('color(')) {
-                htmlEl.style.borderColor = 'transparent';
+              if (
+                computed.borderColor.includes("color-mix") ||
+                computed.borderColor.includes("color(")
+              ) {
+                htmlEl.style.borderColor = "transparent";
               }
             }
           });
@@ -186,7 +200,7 @@ export default function ArtistComparisonChart({
       }
 
       const imgData = canvas.toDataURL("image/png");
-      
+
       if (!imgData || imgData === "data:,") {
         throw new Error("Failed to generate image");
       }
@@ -246,9 +260,11 @@ export default function ArtistComparisonChart({
     } catch (err) {
       console.error("Failed to export chart:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
-      alert(locale === "en" 
-        ? `Failed to export chart: ${errorMsg}` 
-        : `Kunne ikkje eksportere graf: ${errorMsg}`);
+      alert(
+        locale === "en"
+          ? `Failed to export chart: ${errorMsg}`
+          : `Kunne ikkje eksportere graf: ${errorMsg}`,
+      );
     }
   }, [locale, labels.title, selectedArtists]);
 
@@ -265,19 +281,34 @@ export default function ArtistComparisonChart({
     return allRows;
   }, [allRows, dateFilterMode, dateFilterYear]);
 
-  // Artists sorted by plays (for dropdown)
-  const sortedArtists = useMemo(() => {
-    return [...artists].sort((a, b) => b.plays - a.plays);
-  }, [artists]);
-
-  // Filtered artists for dropdown (based on search)
+  // Filtered artists for dropdown (based on search and sort)
   const filteredDropdownArtists = useMemo(() => {
-    if (!searchQuery.trim()) return sortedArtists.slice(0, 50);
-    const q = searchQuery.toLowerCase();
-    return sortedArtists
-      .filter((a) => a.artist.toLowerCase().includes(q))
-      .slice(0, 50);
-  }, [sortedArtists, searchQuery]);
+    let list = [...artists];
+
+    // Apply sort
+    switch (artistSort) {
+      case "plays-desc":
+        list.sort((a, b) => b.plays - a.plays);
+        break;
+      case "plays-asc":
+        list.sort((a, b) => a.plays - b.plays);
+        break;
+      case "alpha-asc":
+        list.sort((a, b) => a.artist.localeCompare(b.artist, locale));
+        break;
+      case "alpha-desc":
+        list.sort((a, b) => b.artist.localeCompare(a.artist, locale));
+        break;
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((a) => a.artist.toLowerCase().includes(q));
+    }
+
+    return list;
+  }, [artists, artistSort, searchQuery, locale]);
 
   // Aggregate data by month for selected artists
   const chartData = useMemo(() => {
@@ -510,6 +541,37 @@ export default function ArtistComparisonChart({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 autoFocus
               />
+              <div className="artistSortOptions">
+                <span className="artistSortLabel">{labels.sortBy}</span>
+                <button
+                  className={`artistSortBtn ${artistSort === "plays-desc" ? "active" : ""}`}
+                  onClick={() => setArtistSort("plays-desc")}
+                  title={labels.mostPlayed}
+                >
+                  {labels.mostPlayed}
+                </button>
+                <button
+                  className={`artistSortBtn ${artistSort === "plays-asc" ? "active" : ""}`}
+                  onClick={() => setArtistSort("plays-asc")}
+                  title={labels.leastPlayed}
+                >
+                  {labels.leastPlayed}
+                </button>
+                <button
+                  className={`artistSortBtn ${artistSort === "alpha-asc" ? "active" : ""}`}
+                  onClick={() => setArtistSort("alpha-asc")}
+                  title={labels.alphaAsc}
+                >
+                  {labels.alphaAsc}
+                </button>
+                <button
+                  className={`artistSortBtn ${artistSort === "alpha-desc" ? "active" : ""}`}
+                  onClick={() => setArtistSort("alpha-desc")}
+                  title={labels.alphaDesc}
+                >
+                  {labels.alphaDesc}
+                </button>
+              </div>
               <div className="artistDropdownList">
                 {filteredDropdownArtists.map((artist) => {
                   const isSelected = selectedArtists.includes(artist.artist);
@@ -669,6 +731,7 @@ export default function ArtistComparisonChart({
                   fill={`url(#gradient-${idx})`}
                   strokeWidth={2}
                   dot={false}
+                  isAnimationActive={false}
                   activeDot={{
                     r: 4,
                     fill: ARTIST_COLORS[idx % ARTIST_COLORS.length],

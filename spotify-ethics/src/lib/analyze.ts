@@ -228,7 +228,7 @@ function safeStr(v: unknown, fallback = ""): string {
  * 1. Førre låt enda med "endplay" (album/spilleliste ferdig)
  * 2. Neste låt starta utan eksplisitt brukarhandling
  * 3. Dei er i same økt (kort gap)
- * 
+ *
  * Dette er den mest problematiske passive lyttinga:
  * Spotify serverer nytt innhald du ikkje ba om.
  */
@@ -243,14 +243,14 @@ function isAutoplayAfterEndplay(
 
   // Førre låt enda (album/spilleliste ferdig)
   const ended = prevEnd === "endplay";
-  
+
   // Neste låt starta utan eksplisitt brukarhandling
   const noExplicitClick =
-    currStart === "trackdone" || 
-    currStart === "unknown" || 
+    currStart === "trackdone" ||
+    currStart === "unknown" ||
     currStart === "" ||
     currStart === "appload";
-  
+
   // Same økt (kort gap mellom låtane)
   const sameSession = gapSeconds >= 0 && gapSeconds <= sessionGapSeconds;
 
@@ -260,19 +260,19 @@ function isAutoplayAfterEndplay(
 
 /**
  * Raffinert heuristikk for aktiv/passiv:
- * 
+ *
  * AKTIV lytting:
  * - Eksplisitte brukarhandlingar (clickrow, playbtn, etc.)
  * - trackdone: neste låt i album/spilleliste du valde = framleis ditt val
  * - fwdbtn/backbtn: navigering innanfor valt innhald
- * 
+ *
  * PASSIV lytting (algoritmestyrt):
  * - unknown: Spotify valde noko for deg
  * - appload: Spotify bestemte kva som speler ved oppstart
  * - remote: innhald pusha frå anna enheit
  * - popup: truleg reklame eller prompts
  * - (tom streng): ukjent/algoritme
- * 
+ *
  * Obs: autoplay etter album vert fanga av isAutoplayAfterEndplay()
  */
 export function classifyStart(
@@ -282,35 +282,35 @@ export function classifyStart(
 
   // Eksplisitte brukarhandlingar = AKTIV
   const ACTIVE = new Set([
-    "clickrow",    // klikka på ei rad
-    "playbtn",     // trykte play
-    "fwdbtn",      // neste-knapp
-    "backbtn",     // tilbake-knapp
-    "search",      // fann via søk
-    "artist",      // navigerte via artist
-    "uriopen",     // opna via link/URI
-    "clickside",   // klikka i sidefeltet
-    "trackdone",   // neste låt i album/spilleliste du valde
+    "clickrow", // klikka på ei rad
+    "playbtn", // trykte play
+    "fwdbtn", // neste-knapp
+    "backbtn", // tilbake-knapp
+    "search", // fann via søk
+    "artist", // navigerte via artist
+    "uriopen", // opna via link/URI
+    "clickside", // klikka i sidefeltet
+    "trackdone", // neste låt i album/spilleliste du valde
   ]);
 
   // Algoritmestyrte val = PASSIV
   const PASSIVE = new Set([
-    "unknown",     // Spotify valde for deg (ofte autoplay)
-    "appload",     // app-oppstart, Spotify bestemte
-    "popup",       // reklame, prompts
-    "remote",      // pusha frå anna enheit
-    "endplay",     // sjølv om dette er reason_start
-    "",            // tom streng = ukjent
+    "unknown", // Spotify valde for deg (ofte autoplay)
+    "appload", // app-oppstart, Spotify bestemte
+    "popup", // reklame, prompts
+    "remote", // pusha frå anna enheit
+    "endplay", // sjølv om dette er reason_start
+    "", // tom streng = ukjent
   ]);
 
   if (ACTIVE.has(r)) return "active";
   if (PASSIVE.has(r)) return "passive";
-  
+
   // Ukjende verdiar: sjekk om dei ser aktive ut
   if (r.includes("click") || r.includes("btn") || r.includes("play")) {
     return "active";
   }
-  
+
   return "passive"; // Fallback: ukjende verdiar = passiv
 }
 

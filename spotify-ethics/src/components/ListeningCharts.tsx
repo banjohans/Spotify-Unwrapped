@@ -1,7 +1,6 @@
 // src/components/ListeningCharts.tsx
 
 import { useState, useMemo, useRef, useCallback } from "react";
-import html2canvas from "html2canvas";
 import {
   AreaChart,
   Area,
@@ -105,7 +104,12 @@ export default function ListeningCharts({
     streams: number;
     minutes: number;
     artists: number;
-    topTracks: Array<{ track: string; artist: string; plays: number; ms: number }>;
+    topTracks: Array<{
+      track: string;
+      artist: string;
+      plays: number;
+      ms: number;
+    }>;
     topArtists: Array<{ artist: string; plays: number; ms: number }>;
   } | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -113,86 +117,105 @@ export default function ListeningCharts({
   const monthNames = locale === "en" ? MONTH_NAMES_EN : MONTH_NAMES_NO;
 
   // Get drill-down data for a specific date
-  const getDrillDownForDate = useCallback((dateStr: string) => {
-    const targetDate = new Date(dateStr);
-    const dayRows = rows.filter(r => {
-      if (!r.ts || (r.ms_played ?? 0) < minMsPlayed) return false;
-      const d = new Date(r.ts);
-      return d.toDateString() === targetDate.toDateString();
-    });
+  const getDrillDownForDate = useCallback(
+    (dateStr: string) => {
+      const targetDate = new Date(dateStr);
+      const dayRows = rows.filter((r) => {
+        if (!r.ts || (r.ms_played ?? 0) < minMsPlayed) return false;
+        const d = new Date(r.ts);
+        return d.toDateString() === targetDate.toDateString();
+      });
 
-    // Aggregate tracks
-    const trackMap = new Map<string, { track: string; artist: string; plays: number; ms: number }>();
-    const artistMap = new Map<string, { artist: string; plays: number; ms: number }>();
+      // Aggregate tracks
+      const trackMap = new Map<
+        string,
+        { track: string; artist: string; plays: number; ms: number }
+      >();
+      const artistMap = new Map<
+        string,
+        { artist: string; plays: number; ms: number }
+      >();
 
-    for (const row of dayRows) {
-      const trackKey = `${row.master_metadata_track_name}|||${row.master_metadata_album_artist_name}`;
-      const artistKey = row.master_metadata_album_artist_name || "Unknown";
-      const trackName = row.master_metadata_track_name || "Unknown";
-      const msPlayed = row.ms_played ?? 0;
+      for (const row of dayRows) {
+        const trackKey = `${row.master_metadata_track_name}|||${row.master_metadata_album_artist_name}`;
+        const artistKey = row.master_metadata_album_artist_name || "Unknown";
+        const trackName = row.master_metadata_track_name || "Unknown";
+        const msPlayed = row.ms_played ?? 0;
 
-      // Track aggregation
-      if (!trackMap.has(trackKey)) {
-        trackMap.set(trackKey, { track: trackName, artist: artistKey, plays: 0, ms: 0 });
+        // Track aggregation
+        if (!trackMap.has(trackKey)) {
+          trackMap.set(trackKey, {
+            track: trackName,
+            artist: artistKey,
+            plays: 0,
+            ms: 0,
+          });
+        }
+        const t = trackMap.get(trackKey)!;
+        t.plays++;
+        t.ms += msPlayed;
+
+        // Artist aggregation
+        if (!artistMap.has(artistKey)) {
+          artistMap.set(artistKey, { artist: artistKey, plays: 0, ms: 0 });
+        }
+        const a = artistMap.get(artistKey)!;
+        a.plays++;
+        a.ms += msPlayed;
       }
-      const t = trackMap.get(trackKey)!;
-      t.plays++;
-      t.ms += msPlayed;
 
-      // Artist aggregation
-      if (!artistMap.has(artistKey)) {
-        artistMap.set(artistKey, { artist: artistKey, plays: 0, ms: 0 });
-      }
-      const a = artistMap.get(artistKey)!;
-      a.plays++;
-      a.ms += msPlayed;
-    }
+      const topTracks = [...trackMap.values()]
+        .sort((a, b) => b.plays - a.plays)
+        .slice(0, 10);
+      const topArtists = [...artistMap.values()]
+        .sort((a, b) => b.plays - a.plays)
+        .slice(0, 10);
+      const totalMs = dayRows.reduce((sum, r) => sum + (r.ms_played ?? 0), 0);
+      const uniqueArtists = new Set(
+        dayRows.map((r) => r.master_metadata_album_artist_name),
+      ).size;
 
-    const topTracks = [...trackMap.values()].sort((a, b) => b.plays - a.plays).slice(0, 10);
-    const topArtists = [...artistMap.values()].sort((a, b) => b.plays - a.plays).slice(0, 10);
-    const totalMs = dayRows.reduce((sum, r) => sum + (r.ms_played ?? 0), 0);
-    const uniqueArtists = new Set(dayRows.map(r => r.master_metadata_album_artist_name)).size;
+      const formattedDate = targetDate.toLocaleDateString(
+        locale === "en" ? "en-US" : "nb-NO",
+        {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        },
+      );
 
-    const formattedDate = targetDate.toLocaleDateString(locale === "en" ? "en-US" : "nb-NO", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    });
-
-    return {
-      date: dateStr,
-      label: formattedDate,
-      streams: dayRows.length,
-      minutes: Math.round(totalMs / 60000),
-      artists: uniqueArtists,
-      topTracks,
-      topArtists
-    };
-  }, [rows, minMsPlayed, locale]);
+      return {
+        date: dateStr,
+        label: formattedDate,
+        streams: dayRows.length,
+        minutes: Math.round(totalMs / 60000),
+        artists: uniqueArtists,
+        topTracks,
+        topArtists,
+      };
+    },
+    [rows, minMsPlayed, locale],
+  );
 
   // Handle chart click for drill-down
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = useCallback((data: any) => {
-    if (!data?.activePayload || data.activePayload.length === 0) return;
-    const payload = data.activePayload[0]?.payload;
-    
-    if (activeTab === "daily" && payload?.date) {
-      const drillDown = getDrillDownForDate(payload.date);
-      setDrillDownData(drillDown);
-    }
-  }, [activeTab, getDrillDownForDate]);
+  const handleChartClick = useCallback(
+    (data: any) => {
+      if (!data) return;
 
-  // Handle dot click for drill-down (more reliable than chart onClick)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleDotClick = useCallback((data: any) => {
-    if (activeTab === "daily" && data?.payload?.date) {
-      const drillDown = getDrillDownForDate(data.payload.date);
-      setDrillDownData(drillDown);
-    }
-  }, [activeTab, getDrillDownForDate]);
+      // activeLabel contains the date string directly (YYYY-MM-DD format)
+      const date = data.activeLabel;
 
-  // Export chart as PDF
+      if (activeTab === "daily" && date && typeof date === "string") {
+        const drillDown = getDrillDownForDate(date);
+        setDrillDownData(drillDown);
+      }
+    },
+    [activeTab, getDrillDownForDate],
+  );
+
+  // Export chart as image - using SVG capture instead of html2canvas
   const exportChartPDF = useCallback(async () => {
     if (!chartContainerRef.current) {
       console.error("Chart container not found");
@@ -200,74 +223,69 @@ export default function ListeningCharts({
     }
 
     try {
-      const container = chartContainerRef.current;
-      
-      // Force a small delay to ensure chart is fully rendered
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const canvas = await html2canvas(container, {
-        backgroundColor: "#121212",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        onclone: (clonedDoc) => {
-          // Replace color-mix() values that html2canvas can't parse
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            * {
-              --accent: #1DB954 !important;
-              --text: #ffffff !important;
-              --muted: #999999 !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
-          
-          // Remove elements with color-mix in their computed styles
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const computed = clonedDoc.defaultView?.getComputedStyle(htmlEl);
-            if (computed) {
-              // Replace problematic background colors
-              if (computed.backgroundColor.includes('color-mix') || computed.backgroundColor.includes('color(')) {
-                htmlEl.style.backgroundColor = 'transparent';
-              }
-              if (computed.borderColor.includes('color-mix') || computed.borderColor.includes('color(')) {
-                htmlEl.style.borderColor = 'transparent';
-              }
-            }
-          });
-        },
-      });
-
-      // Validate canvas has content
-      if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error("Canvas is empty");
+      // Find the SVG element inside the chart container
+      const svgElement = chartContainerRef.current.querySelector("svg");
+      if (!svgElement) {
+        throw new Error("No chart SVG found");
       }
 
-      const imgData = canvas.toDataURL("image/png");
-      
-      if (!imgData || imgData === "data:,") {
-        throw new Error("Failed to generate image");
-      }
-      const date = new Date().toLocaleDateString(
-        locale === "en" ? "en-US" : "nb-NO",
-        {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        },
+      // Clone the SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+
+      // Add background
+      const rect = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "rect",
       );
+      rect.setAttribute("width", "100%");
+      rect.setAttribute("height", "100%");
+      rect.setAttribute("fill", "#121212");
+      clonedSvg.insertBefore(rect, clonedSvg.firstChild);
 
-      const tabLabels: Record<ChartTab, Record<"no" | "en", string>> = {
-        daily: { no: "Dagleg", en: "Daily" },
-        hourly: { no: "Timevis", en: "Hourly" },
-        weekday: { no: "Vekedag", en: "Weekday" },
-        monthly: { no: "Månadleg", en: "Monthly" },
-        activePassive: { no: "Aktiv/Passiv", en: "Active/Passive" },
-      };
+      // Serialize SVG
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgString], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
 
-      const html = `<!DOCTYPE html>
+      // Convert SVG to canvas
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = 2;
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          throw new Error("Could not get canvas context");
+        }
+
+        ctx.fillStyle = "#121212";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(scale, scale);
+        ctx.drawImage(img, 0, 0);
+
+        URL.revokeObjectURL(svgUrl);
+
+        const imgData = canvas.toDataURL("image/png");
+
+        const tabLabels: Record<ChartTab, Record<"no" | "en", string>> = {
+          daily: { no: "Dagleg", en: "Daily" },
+          hourly: { no: "Timevis", en: "Hourly" },
+          weekday: { no: "Vekedag", en: "Weekday" },
+          monthly: { no: "Månadleg", en: "Monthly" },
+          activePassive: { no: "Aktiv/Passiv", en: "Active/Passive" },
+        };
+
+        const date = new Date().toLocaleDateString(
+          locale === "en" ? "en-US" : "nb-NO",
+          { year: "numeric", month: "short", day: "numeric" },
+        );
+
+        const html = `<!DOCTYPE html>
 <html>
 <head>
   <title>Spotify Unwrapped - ${tabLabels[activeTab][locale]} Chart</title>
@@ -294,23 +312,33 @@ export default function ListeningCharts({
 </body>
 </html>`;
 
-      const w = window.open("", "_blank");
-      if (w) {
-        w.document.write(html);
-        w.document.close();
-      } else {
-        // Popup blocked - fallback to download
-        const link = document.createElement("a");
-        link.download = `spotify-chart-${activeTab}-${Date.now()}.png`;
-        link.href = imgData;
-        link.click();
-      }
+        const w = window.open("", "_blank");
+        if (w) {
+          w.document.write(html);
+          w.document.close();
+        } else {
+          // Popup blocked - fallback to download
+          const link = document.createElement("a");
+          link.download = `spotify-chart-${activeTab}-${Date.now()}.png`;
+          link.href = imgData;
+          link.click();
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(svgUrl);
+        throw new Error("Failed to load SVG image");
+      };
+
+      img.src = svgUrl;
     } catch (err) {
       console.error("Failed to export chart:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
-      alert(locale === "en" 
-        ? `Failed to export chart: ${errorMsg}` 
-        : `Kunne ikkje eksportere graf: ${errorMsg}`);
+      alert(
+        locale === "en"
+          ? `Failed to export chart: ${errorMsg}`
+          : `Kunne ikkje eksportere graf: ${errorMsg}`,
+      );
     }
   }, [activeTab, locale]);
 
@@ -586,8 +614,8 @@ export default function ListeningCharts({
               )}
             </div>
             <p className="chartClickHint">
-              {locale === "en" 
-                ? "💡 Click on a data point to see details" 
+              {locale === "en"
+                ? "💡 Click on a data point to see details"
                 : "💡 Klikk på eit datapunkt for å sjå detaljar"}
             </p>
             <ResponsiveContainer width="100%" height={350}>
@@ -655,13 +683,13 @@ export default function ListeningCharts({
                     name={labels.streams}
                     stroke={CHART_COLORS.primary}
                     fill="url(#colorGradient)"
+                    isAnimationActive={false}
                     activeDot={{
                       r: 6,
                       fill: CHART_COLORS.primary,
                       stroke: "#fff",
                       strokeWidth: 2,
                       cursor: "pointer",
-                      onClick: handleDotClick,
                     }}
                   />
                 )}
@@ -672,13 +700,13 @@ export default function ListeningCharts({
                     name={labels.listeningTime}
                     stroke={CHART_COLORS.primary}
                     fill="url(#colorGradient)"
+                    isAnimationActive={false}
                     activeDot={{
                       r: 6,
                       fill: CHART_COLORS.primary,
                       stroke: "#fff",
                       strokeWidth: 2,
                       cursor: "pointer",
-                      onClick: handleDotClick,
                     }}
                   />
                 )}
@@ -689,13 +717,13 @@ export default function ListeningCharts({
                     name={labels.uniqueArtists}
                     stroke={CHART_COLORS.secondary}
                     fill="url(#colorGradient)"
+                    isAnimationActive={false}
                     activeDot={{
                       r: 6,
                       fill: CHART_COLORS.secondary,
                       stroke: "#fff",
                       strokeWidth: 2,
                       cursor: "pointer",
-                      onClick: handleDotClick,
                     }}
                   />
                 )}
@@ -835,6 +863,7 @@ export default function ListeningCharts({
                   stroke={CHART_COLORS.primary}
                   strokeWidth={2}
                   dot={{ fill: CHART_COLORS.primary, r: 3 }}
+                  isAnimationActive={false}
                 />
                 <Line
                   yAxisId="right"
@@ -844,6 +873,7 @@ export default function ListeningCharts({
                   stroke={CHART_COLORS.secondary}
                   strokeWidth={2}
                   dot={{ fill: CHART_COLORS.secondary, r: 3 }}
+                  isAnimationActive={false}
                 />
                 <Brush
                   dataKey="month"
@@ -894,23 +924,43 @@ export default function ListeningCharts({
 
       {/* Drill-down Modal */}
       {drillDownData && (
-        <div className="drillDownOverlay" onClick={() => setDrillDownData(null)}>
+        <div
+          className="drillDownOverlay"
+          onClick={() => setDrillDownData(null)}
+        >
           <div className="drillDownModal" onClick={(e) => e.stopPropagation()}>
-            <button className="drillDownClose" onClick={() => setDrillDownData(null)}>×</button>
+            <button
+              className="drillDownClose"
+              onClick={() => setDrillDownData(null)}
+            >
+              ×
+            </button>
             <h3 className="drillDownTitle">{drillDownData.label}</h3>
-            
+
             <div className="drillDownStats">
               <div className="drillDownStat">
-                <span className="drillDownStatValue">{formatNum(drillDownData.streams, locale)}</span>
-                <span className="drillDownStatLabel">{locale === "en" ? "Streams" : "Strøymingar"}</span>
+                <span className="drillDownStatValue">
+                  {formatNum(drillDownData.streams, locale)}
+                </span>
+                <span className="drillDownStatLabel">
+                  {locale === "en" ? "Streams" : "Strøymingar"}
+                </span>
               </div>
               <div className="drillDownStat">
-                <span className="drillDownStatValue">{formatNum(drillDownData.minutes, locale)}</span>
-                <span className="drillDownStatLabel">{locale === "en" ? "Minutes" : "Minutt"}</span>
+                <span className="drillDownStatValue">
+                  {formatNum(drillDownData.minutes, locale)}
+                </span>
+                <span className="drillDownStatLabel">
+                  {locale === "en" ? "Minutes" : "Minutt"}
+                </span>
               </div>
               <div className="drillDownStat">
-                <span className="drillDownStatValue">{drillDownData.artists}</span>
-                <span className="drillDownStatLabel">{locale === "en" ? "Artists" : "Artistar"}</span>
+                <span className="drillDownStatValue">
+                  {drillDownData.artists}
+                </span>
+                <span className="drillDownStatLabel">
+                  {locale === "en" ? "Artists" : "Artistar"}
+                </span>
               </div>
             </div>
 
@@ -930,7 +980,7 @@ export default function ListeningCharts({
                   ))}
                 </ul>
               </div>
-              
+
               <div className="drillDownSection">
                 <h4>{locale === "en" ? "Top Artists" : "Topp artistar"}</h4>
                 <ul className="drillDownList">
@@ -939,7 +989,9 @@ export default function ListeningCharts({
                       <span className="drillDownRank">{i + 1}</span>
                       <div className="drillDownItemInfo">
                         <span className="drillDownTrack">{a.artist}</span>
-                        <span className="drillDownArtist">{Math.round(a.ms / 60000)} min</span>
+                        <span className="drillDownArtist">
+                          {Math.round(a.ms / 60000)} min
+                        </span>
                       </div>
                       <span className="drillDownPlays">{a.plays}×</span>
                     </li>
