@@ -16,7 +16,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Brush,
   ReferenceLine,
 } from "recharts";
 import type { Locale } from "../lib/i18n";
@@ -34,6 +33,8 @@ type ChartTab = "daily" | "hourly" | "weekday" | "monthly" | "activePassive";
 
 type DailyMetric = "streams" | "minutes" | "artists";
 type DateFilterMode = "all" | "year" | "custom";
+type DailyZoom = "all" | 365 | 180 | 90 | 30;
+type MonthlyZoom = "all" | 24 | 12 | 6;
 
 interface ListeningChartsProps {
   rows: SpotifyStreamRow[];
@@ -100,6 +101,8 @@ export default function ListeningCharts({
 }: ListeningChartsProps) {
   const [activeTab, setActiveTab] = useState<ChartTab>("daily");
   const [dailyMetric, setDailyMetric] = useState<DailyMetric>("streams");
+  const [dailyZoom, setDailyZoom] = useState<DailyZoom>("all");
+  const [monthlyZoom, setMonthlyZoom] = useState<MonthlyZoom>("all");
   const [drillDownData, setDrillDownData] = useState<{
     date: string;
     label: string;
@@ -369,6 +372,13 @@ export default function ListeningCharts({
     [rows, minMsPlayed],
   );
 
+  // Zoomed daily data - filter to last N days
+  const zoomedDailyData = useMemo(() => {
+    if (dailyZoom === "all" || dailyData.length === 0) return dailyData;
+    const daysToShow = dailyZoom;
+    return dailyData.slice(-daysToShow);
+  }, [dailyData, dailyZoom]);
+
   const hourlyData = useMemo(
     () => aggregateByHour(rows, minMsPlayed),
     [rows, minMsPlayed],
@@ -383,6 +393,13 @@ export default function ListeningCharts({
     () => aggregateByMonth(rows, minMsPlayed),
     [rows, minMsPlayed],
   );
+
+  // Zoomed monthly data - filter to last N months
+  const zoomedMonthlyData = useMemo(() => {
+    if (monthlyZoom === "all" || monthlyData.length === 0) return monthlyData;
+    const monthsToShow = monthlyZoom;
+    return monthlyData.slice(-monthsToShow);
+  }, [monthlyData, monthlyZoom]);
 
   // Active/Assisted pie data (including unknown category)
   const activePassiveData = useMemo(() => {
@@ -552,16 +569,16 @@ export default function ListeningCharts({
     );
   };
 
-  // Calculate data range to determine best axis format
+  // Calculate data range to determine best axis format (use zoomed data)
   const dataRangeInfo = useMemo(() => {
-    if (dailyData.length === 0) return { years: 0, months: 0 };
-    const first = new Date(dailyData[0].date);
-    const last = new Date(dailyData[dailyData.length - 1].date);
+    if (zoomedDailyData.length === 0) return { years: 0, months: 0 };
+    const first = new Date(zoomedDailyData[0].date);
+    const last = new Date(zoomedDailyData[zoomedDailyData.length - 1].date);
     const years =
       (last.getTime() - first.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
     const months = years * 12;
     return { years, months };
-  }, [dailyData]);
+  }, [zoomedDailyData]);
 
   // Format monthly X-axis - show year prominently on January
   const formatMonthlyXAxis = (monthStr: string): string => {
@@ -576,17 +593,17 @@ export default function ListeningCharts({
     return monthNames[monthIdx];
   };
 
-  // Generate meaningful tick positions for daily chart
+  // Generate meaningful tick positions for daily chart (use zoomed data)
   const dailyTicks = useMemo(() => {
-    if (dailyData.length === 0) return [];
+    if (zoomedDailyData.length === 0) return [];
 
-    const dataDateSet = new Set(dailyData.map((d) => d.date));
+    const dataDateSet = new Set(zoomedDailyData.map((d) => d.date));
     const ticks: string[] = [];
 
     // Multi-year: show years
     if (dataRangeInfo.years > 2) {
       // Find all January 1st dates in the data
-      for (const item of dailyData) {
+      for (const item of zoomedDailyData) {
         const d = new Date(item.date);
         if (d.getMonth() === 0 && d.getDate() === 1) {
           ticks.push(item.date);
@@ -595,7 +612,7 @@ export default function ListeningCharts({
       // If no Jan 1st found, find closest to Jan 1st for each year
       if (ticks.length === 0) {
         const yearsSeen = new Set<number>();
-        for (const item of dailyData) {
+        for (const item of zoomedDailyData) {
           const d = new Date(item.date);
           const year = d.getFullYear();
           if (!yearsSeen.has(year)) {
@@ -608,7 +625,7 @@ export default function ListeningCharts({
     // 1-2 years: show months
     else if (dataRangeInfo.years > 0.5) {
       const monthsSeen = new Set<string>();
-      for (const item of dailyData) {
+      for (const item of zoomedDailyData) {
         const d = new Date(item.date);
         const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
         if (!monthsSeen.has(monthKey)) {
@@ -625,18 +642,18 @@ export default function ListeningCharts({
     }
     // Short range: show every few days
     else {
-      const step = Math.max(1, Math.floor(dailyData.length / 10));
-      for (let i = 0; i < dailyData.length; i += step) {
-        ticks.push(dailyData[i].date);
+      const step = Math.max(1, Math.floor(zoomedDailyData.length / 10));
+      for (let i = 0; i < zoomedDailyData.length; i += step) {
+        ticks.push(zoomedDailyData[i].date);
       }
       // Always include last
-      if (!ticks.includes(dailyData[dailyData.length - 1].date)) {
-        ticks.push(dailyData[dailyData.length - 1].date);
+      if (!ticks.includes(zoomedDailyData[zoomedDailyData.length - 1].date)) {
+        ticks.push(zoomedDailyData[zoomedDailyData.length - 1].date);
       }
     }
 
     return ticks;
-  }, [dailyData, dataRangeInfo]);
+  }, [zoomedDailyData, dataRangeInfo]);
 
   // Simpler formatting now that ticks are positioned correctly
   const formatDailyXAxisTick = (dateStr: string): string => {
@@ -661,28 +678,28 @@ export default function ListeningCharts({
     return `${d.getDate()}. ${monthNames[month]}`;
   };
 
-  // Get year boundaries for ReferenceLine in daily chart
+  // Get year boundaries for ReferenceLine in daily chart (use zoomed data)
   const yearBoundariesDaily = useMemo(() => {
     const boundaries: string[] = [];
-    for (const item of dailyData) {
+    for (const item of zoomedDailyData) {
       const d = new Date(item.date);
       if (d.getMonth() === 0 && d.getDate() === 1) {
         boundaries.push(item.date);
       }
     }
     return boundaries;
-  }, [dailyData]);
+  }, [zoomedDailyData]);
 
-  // Get year boundaries for ReferenceLine in monthly chart
+  // Get year boundaries for ReferenceLine in monthly chart (use zoomed data)
   const yearBoundariesMonthly = useMemo(() => {
     const boundaries: string[] = [];
-    for (const item of monthlyData) {
+    for (const item of zoomedMonthlyData) {
       if (item.month.endsWith("-01")) {
         boundaries.push(item.month);
       }
     }
     return boundaries;
-  }, [monthlyData]);
+  }, [zoomedMonthlyData]);
 
   if (dailyData.length === 0) {
     return (
@@ -693,11 +710,11 @@ export default function ListeningCharts({
     );
   }
 
-  // Calculate appropriate intervals for monthly chart
+  // Calculate appropriate intervals for monthly chart (use zoomed data)
   const monthlyInterval =
-    monthlyData.length > 24
-      ? Math.floor(monthlyData.length / 12)
-      : monthlyData.length > 12
+    zoomedMonthlyData.length > 24
+      ? Math.floor(zoomedMonthlyData.length / 12)
+      : zoomedMonthlyData.length > 12
         ? 2
         : 0;
 
@@ -792,6 +809,39 @@ export default function ListeningCharts({
                   </button>
                 ),
               )}
+              <div className="chartZoomControl">
+                <label htmlFor="daily-zoom">
+                  {locale === "en" ? "Zoom:" : "Zoom:"}
+                </label>
+                <select
+                  id="daily-zoom"
+                  className="chartZoomSelect"
+                  value={dailyZoom}
+                  onChange={(e) =>
+                    setDailyZoom(
+                      e.target.value === "all"
+                        ? "all"
+                        : (parseInt(e.target.value, 10) as DailyZoom),
+                    )
+                  }
+                >
+                  <option value="all">
+                    {locale === "en" ? "All" : "Alle"}
+                  </option>
+                  <option value="365">
+                    {locale === "en" ? "1 year" : "1 år"}
+                  </option>
+                  <option value="180">
+                    {locale === "en" ? "6 months" : "6 mnd"}
+                  </option>
+                  <option value="90">
+                    {locale === "en" ? "90 days" : "90 dg"}
+                  </option>
+                  <option value="30">
+                    {locale === "en" ? "30 days" : "30 dg"}
+                  </option>
+                </select>
+              </div>
             </div>
             <p className="chartClickHint">
               {locale === "en"
@@ -799,7 +849,7 @@ export default function ListeningCharts({
                 : "💡 Klikk på eit datapunkt for å sjå detaljar"}
             </p>
             <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart data={dailyData} onClick={handleChartClick}>
+              <BarChart data={zoomedDailyData} onClick={handleChartClick}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={CHART_COLORS.grid}
@@ -916,13 +966,6 @@ export default function ListeningCharts({
                     strokeDasharray="4 4"
                   />
                 ))}
-                <Brush
-                  dataKey="date"
-                  height={25}
-                  stroke={CHART_COLORS.primary}
-                  fill="rgba(29, 185, 84, 0.1)"
-                  tickFormatter={formatDailyXAxisTick}
-                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -993,8 +1036,40 @@ export default function ListeningCharts({
         {/* Monthly chart */}
         {activeTab === "monthly" && (
           <div className="chartContainer">
+            <div className="chartMetricToggle">
+              <div className="chartZoomControl">
+                <label htmlFor="monthly-zoom">
+                  {locale === "en" ? "Zoom:" : "Zoom:"}
+                </label>
+                <select
+                  id="monthly-zoom"
+                  className="chartZoomSelect"
+                  value={monthlyZoom}
+                  onChange={(e) =>
+                    setMonthlyZoom(
+                      e.target.value === "all"
+                        ? "all"
+                        : (parseInt(e.target.value, 10) as MonthlyZoom),
+                    )
+                  }
+                >
+                  <option value="all">
+                    {locale === "en" ? "All" : "Alle"}
+                  </option>
+                  <option value="24">
+                    {locale === "en" ? "2 years" : "2 år"}
+                  </option>
+                  <option value="12">
+                    {locale === "en" ? "1 year" : "1 år"}
+                  </option>
+                  <option value="6">
+                    {locale === "en" ? "6 months" : "6 mnd"}
+                  </option>
+                </select>
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={chartHeight + 30}>
-              <LineChart data={monthlyData}>
+              <LineChart data={zoomedMonthlyData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={CHART_COLORS.grid}
@@ -1074,13 +1149,6 @@ export default function ListeningCharts({
                     strokeDasharray="4 4"
                   />
                 ))}
-                <Brush
-                  dataKey="month"
-                  height={25}
-                  stroke={CHART_COLORS.primary}
-                  fill="rgba(29, 185, 84, 0.1)"
-                  tickFormatter={formatMonthlyXAxis}
-                />
               </LineChart>
             </ResponsiveContainer>
           </div>

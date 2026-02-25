@@ -2930,6 +2930,41 @@ body {
   border-color: var(--accent);
 }
 
+/* Chart zoom control */
+.chartZoomControl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chartZoomControl label {
+  font-size: 0.85rem;
+  color: var(--textMuted);
+}
+
+.chartZoomSelect {
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bgCard);
+  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chartZoomSelect:hover {
+  border-color: var(--accent);
+}
+
+.chartZoomSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+}
+
 .chartTooltip {
   background: rgba(18, 18, 18, 0.95);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
