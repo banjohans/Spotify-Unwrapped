@@ -222,6 +222,16 @@ function safeStr(v: unknown, fallback = ""): string {
   return typeof v === "string" && v.trim() ? v.trim() : fallback;
 }
 
+/**
+ * Detekterer "ekte" autoplay ETTER at eit album/spilleliste er ferdig.
+ * Dette skjer når:
+ * 1. Førre låt enda med "endplay" (album/spilleliste ferdig)
+ * 2. Neste låt starta utan eksplisitt brukarhandling
+ * 3. Dei er i same økt (kort gap)
+ * 
+ * Dette er den mest problematiske passive lyttinga:
+ * Spotify serverer nytt innhald du ikkje ba om.
+ */
 function isAutoplayAfterEndplay(
   prev: SpotifyStreamRow,
   curr: SpotifyStreamRow,
@@ -231,48 +241,77 @@ function isAutoplayAfterEndplay(
   const prevEnd = (prev.reason_end ?? "").toLowerCase();
   const currStart = (curr.reason_start ?? "").toLowerCase();
 
+  // Førre låt enda (album/spilleliste ferdig)
   const ended = prevEnd === "endplay";
+  
+  // Neste låt starta utan eksplisitt brukarhandling
   const noExplicitClick =
-    currStart === "trackdone" || currStart === "unknown" || currStart === "";
+    currStart === "trackdone" || 
+    currStart === "unknown" || 
+    currStart === "" ||
+    currStart === "appload";
+  
+  // Same økt (kort gap mellom låtane)
   const sameSession = gapSeconds >= 0 && gapSeconds <= sessionGapSeconds;
 
+  // Autoplay = album enda + ingen eksplisitt handling + same økt
   return ended && noExplicitClick && sameSession;
 }
 
 /**
- * Heuristikk:
- * - "active": tydelege brukarhandlingar
- * - "passive": vidareføring / uklart
+ * Raffinert heuristikk for aktiv/passiv:
+ * 
+ * AKTIV lytting:
+ * - Eksplisitte brukarhandlingar (clickrow, playbtn, etc.)
+ * - trackdone: neste låt i album/spilleliste du valde = framleis ditt val
+ * - fwdbtn/backbtn: navigering innanfor valt innhald
+ * 
+ * PASSIV lytting (algoritmestyrt):
+ * - unknown: Spotify valde noko for deg
+ * - appload: Spotify bestemte kva som speler ved oppstart
+ * - remote: innhald pusha frå anna enheit
+ * - popup: truleg reklame eller prompts
+ * - (tom streng): ukjent/algoritme
+ * 
+ * Obs: autoplay etter album vert fanga av isAutoplayAfterEndplay()
  */
 export function classifyStart(
   reasonStartRaw: string | undefined,
 ): "active" | "passive" {
   const r = (reasonStartRaw ?? "").trim().toLowerCase();
 
+  // Eksplisitte brukarhandlingar = AKTIV
   const ACTIVE = new Set([
-    "clickrow",
-    "playbtn",
-    "fwdbtn",
-    "backbtn",
-    "search",
-    "artist",
-    "uriopen",
-    "clickside",
+    "clickrow",    // klikka på ei rad
+    "playbtn",     // trykte play
+    "fwdbtn",      // neste-knapp
+    "backbtn",     // tilbake-knapp
+    "search",      // fann via søk
+    "artist",      // navigerte via artist
+    "uriopen",     // opna via link/URI
+    "clickside",   // klikka i sidefeltet
+    "trackdone",   // neste låt i album/spilleliste du valde
   ]);
 
+  // Algoritmestyrte val = PASSIV
   const PASSIVE = new Set([
-    "trackdone",
-    "appload",
-    "popup",
-    "remote",
-    "unknown",
-    "endplay",
-    "",
+    "unknown",     // Spotify valde for deg (ofte autoplay)
+    "appload",     // app-oppstart, Spotify bestemte
+    "popup",       // reklame, prompts
+    "remote",      // pusha frå anna enheit
+    "endplay",     // sjølv om dette er reason_start
+    "",            // tom streng = ukjent
   ]);
 
   if (ACTIVE.has(r)) return "active";
   if (PASSIVE.has(r)) return "passive";
-  return "passive";
+  
+  // Ukjende verdiar: sjekk om dei ser aktive ut
+  if (r.includes("click") || r.includes("btn") || r.includes("play")) {
+    return "active";
+  }
+  
+  return "passive"; // Fallback: ukjende verdiar = passiv
 }
 
 export function analyze(
@@ -526,4 +565,216 @@ export function analyze(
 
     artists,
   };
+}
+
+// ─── Chart aggregation types ─────────────────────────────────────
+
+export type DayAggregation = {
+  date: string; // YYYY-MM-DD
+  streams: number;
+  msPlayed: number;
+  uniqueArtists: number;
+};
+
+export type HourAggregation = {
+  hour: number; // 0-23
+  streams: number;
+  msPlayed: number;
+};
+
+export type WeekdayAggregation = {
+  day: number; // 0=Sunday, 1=Monday, etc.
+  dayName: string;
+  streams: number;
+  msPlayed: number;
+  avgStreams: number;
+  avgMsPlayed: number;
+};
+
+export type MonthAggregation = {
+  month: string; // YYYY-MM
+  streams: number;
+  msPlayed: number;
+  uniqueArtists: number;
+};
+
+// ─── Chart aggregation functions ─────────────────────────────────
+
+export function aggregateByDay(
+  rows: SpotifyStreamRow[],
+  minMsPlayed = 30000,
+): DayAggregation[] {
+  const byDay = new Map<
+    string,
+    { streams: number; msPlayed: number; artists: Set<string> }
+  >();
+
+  for (const row of rows) {
+    const ms = getMsPlayed(row);
+    if (ms < minMsPlayed) continue;
+
+    const ts = row.ts;
+    if (!ts) continue;
+
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) continue;
+
+    const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
+    const artist = safeStr(row.master_metadata_album_artist_name);
+
+    if (!byDay.has(dayKey)) {
+      byDay.set(dayKey, { streams: 0, msPlayed: 0, artists: new Set() });
+    }
+
+    const d = byDay.get(dayKey)!;
+    d.streams++;
+    d.msPlayed += ms;
+    if (artist) d.artists.add(artist);
+  }
+
+  return Array.from(byDay.entries())
+    .map(([date, data]) => ({
+      date,
+      streams: data.streams,
+      msPlayed: data.msPlayed,
+      uniqueArtists: data.artists.size,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function aggregateByHour(
+  rows: SpotifyStreamRow[],
+  minMsPlayed = 30000,
+): HourAggregation[] {
+  const byHour = new Map<number, { streams: number; msPlayed: number }>();
+
+  // Initialize all hours
+  for (let h = 0; h < 24; h++) {
+    byHour.set(h, { streams: 0, msPlayed: 0 });
+  }
+
+  for (const row of rows) {
+    const ms = getMsPlayed(row);
+    if (ms < minMsPlayed) continue;
+
+    const ts = row.ts;
+    if (!ts) continue;
+
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) continue;
+
+    const hour = date.getHours();
+    const h = byHour.get(hour)!;
+    h.streams++;
+    h.msPlayed += ms;
+  }
+
+  return Array.from(byHour.entries())
+    .map(([hour, data]) => ({
+      hour,
+      streams: data.streams,
+      msPlayed: data.msPlayed,
+    }))
+    .sort((a, b) => a.hour - b.hour);
+}
+
+export function aggregateByWeekday(
+  rows: SpotifyStreamRow[],
+  minMsPlayed = 30000,
+  locale: Locale = "no",
+): WeekdayAggregation[] {
+  const byWeekday = new Map<
+    number,
+    { streams: number; msPlayed: number; dayCount: Set<string> }
+  >();
+
+  const dayNames =
+    locale === "en"
+      ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      : ["Søn", "Man", "Tir", "Ons", "Tor", "Fre", "Lør"];
+
+  // Initialize all days
+  for (let d = 0; d < 7; d++) {
+    byWeekday.set(d, { streams: 0, msPlayed: 0, dayCount: new Set() });
+  }
+
+  for (const row of rows) {
+    const ms = getMsPlayed(row);
+    if (ms < minMsPlayed) continue;
+
+    const ts = row.ts;
+    if (!ts) continue;
+
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) continue;
+
+    const weekday = date.getDay(); // 0 = Sunday
+    const dayKey = date.toISOString().slice(0, 10);
+
+    const w = byWeekday.get(weekday)!;
+    w.streams++;
+    w.msPlayed += ms;
+    w.dayCount.add(dayKey);
+  }
+
+  return Array.from(byWeekday.entries())
+    .map(([day, data]) => {
+      const numDays = Math.max(1, data.dayCount.size);
+      return {
+        day,
+        dayName: dayNames[day],
+        streams: data.streams,
+        msPlayed: data.msPlayed,
+        avgStreams: Math.round(data.streams / numDays),
+        avgMsPlayed: Math.round(data.msPlayed / numDays),
+      };
+    })
+    .sort((a, b) => {
+      // Reorder so Monday is first (more intuitive in Norway)
+      const orderA = a.day === 0 ? 7 : a.day;
+      const orderB = b.day === 0 ? 7 : b.day;
+      return orderA - orderB;
+    });
+}
+
+export function aggregateByMonth(
+  rows: SpotifyStreamRow[],
+  minMsPlayed = 30000,
+): MonthAggregation[] {
+  const byMonth = new Map<
+    string,
+    { streams: number; msPlayed: number; artists: Set<string> }
+  >();
+
+  for (const row of rows) {
+    const ms = getMsPlayed(row);
+    if (ms < minMsPlayed) continue;
+
+    const ts = row.ts;
+    if (!ts) continue;
+
+    const date = new Date(ts);
+    if (isNaN(date.getTime())) continue;
+
+    const monthKey = date.toISOString().slice(0, 7); // YYYY-MM
+    const artist = safeStr(row.master_metadata_album_artist_name);
+
+    if (!byMonth.has(monthKey)) {
+      byMonth.set(monthKey, { streams: 0, msPlayed: 0, artists: new Set() });
+    }
+
+    const m = byMonth.get(monthKey)!;
+    m.streams++;
+    m.msPlayed += ms;
+    if (artist) m.artists.add(artist);
+  }
+
+  return Array.from(byMonth.entries())
+    .map(([month, data]) => ({
+      month,
+      streams: data.streams,
+      msPlayed: data.msPlayed,
+      uniqueArtists: data.artists.size,
+    }))
+    .sort((a, b) => a.month.localeCompare(b.month));
 }

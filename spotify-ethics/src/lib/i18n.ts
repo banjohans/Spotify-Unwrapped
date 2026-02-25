@@ -265,7 +265,7 @@ const T = {
     no: "Kjapp status på materialet i vald periode.",
     en: "Quick summary of the data in selected period.",
   },
-  exportReport: { no: "📄 Eksporter rapport:", en: "📄 Export report:" },
+  exportReport: { no: "Eksporter rapport", en: "Export report" },
   totalListeningTime: { no: "Total lyttetid", en: "Total listening time" },
   rowsAnalyzed: { no: "Rader analysert", en: "Rows analyzed" },
   uniqueArtists: { no: "Unike artistar", en: "Unique artists" },
@@ -481,8 +481,8 @@ const T = {
 
   // Share
   shareResults: {
-    no: "📊 Del resultata dine",
-    en: "📊 Share your results",
+    no: "Del resultata dine",
+    en: "Share your results",
   },
   shareDownload: {
     no: "Last ned bilete",
@@ -511,6 +511,12 @@ const T = {
   shareTip: {
     no: "📱 På mobil deler du direkte med biletet. 💻 På PC vert biletet kopiert til utklippstavla — lim det rett inn i eit nytt innlegg.",
     en: "📱 On mobile, share directly with the image. 💻 On desktop, the image is copied to your clipboard — paste it right into a new post.",
+  },
+
+  // Total streams
+  totalStreams: {
+    no: "Totalt antal strøymingar",
+    en: "Total streams",
   },
 } as const;
 

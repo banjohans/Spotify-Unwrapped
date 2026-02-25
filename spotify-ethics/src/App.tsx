@@ -1,6 +1,8 @@
 import { useMemo, useState, useEffect } from "react";
 import { analyze, calcHistoricalSubscriptionCost } from "./lib/analyze";
 import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
+import ListeningCharts from "./components/ListeningCharts";
+import ArtistComparisonChart from "./components/ArtistComparisonChart";
 import {
   type Locale,
   PRICE_HISTORY,
@@ -1631,13 +1633,18 @@ export default function App() {
                 {t("overviewTitle", locale)}
                 {activeDateRange ? ` (${activeDateRange.label})` : ""}
               </h2>
-              <div className="subtle">
+              <p className="subtle">
                 {activeDateRange
                   ? t("overviewDescPeriod", locale)
                   : t("overviewDescUploaded", locale)}
-              </div>
-              <div className="exportDropdown">
-                <span className="exportLabel">{t("exportReport", locale)}</span>
+              </p>
+            </div>
+
+            <div className="overviewActions">
+              <div className="overviewActionsGroup">
+                <span className="overviewActionsLabel">
+                  {t("exportReport", locale)}
+                </span>
                 <div className="exportBtnGroup">
                   {(
                     [
@@ -1673,177 +1680,183 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <div className="shareGroup">
-                <button
-                  className="btnShare btnShareMain"
-                  onClick={async () => {
-                    const totalVal = result.artists.reduce(
-                      (s, a) => s + a.estValueNOK,
-                      0,
-                    );
-                    const blob = await generateShareImage({
-                      subCost: subscriptionEstimate?.activeCost ?? 0,
-                      artistValue: totalVal,
-                      artistCount: result.artists.length,
-                      hours: formatHrs(result.totalMsPlayed, locale),
-                      locale,
-                      heroSrc: heroImg,
-                    });
-                    const file = new File([blob], "spotify-unwrapped.png", {
-                      type: "image/png",
-                    });
 
-                    // 1) Try native Web Share API (mobile + some desktop browsers)
-                    //    This opens the OS share sheet and can share directly to
-                    //    Facebook, Instagram, Messenger, WhatsApp, etc.
-                    if (
-                      navigator.share &&
-                      navigator.canShare?.({ files: [file] })
-                    ) {
-                      try {
-                        await navigator.share({
-                          files: [file],
-                          title: "Spotify Unwrapped",
-                          text:
-                            t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        });
-                        return;
-                      } catch {
-                        /* user cancelled — fall through to clipboard/download */
-                      }
-                    }
-
-                    // 2) Desktop fallback: copy IMAGE to clipboard + download file
-                    let copiedImage = false;
-                    try {
-                      const item = new ClipboardItem({ "image/png": blob });
-                      await navigator.clipboard.write([item]);
-                      copiedImage = true;
-                    } catch {
-                      // Clipboard image write not supported — copy text instead
-                      try {
-                        await navigator.clipboard.writeText(
-                          t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        );
-                      } catch {
-                        /* clipboard not available */
-                      }
-                    }
-
-                    // Also download the image file
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "spotify-unwrapped.png";
-                    a.click();
-                    URL.revokeObjectURL(url);
-
-                    setShareToast(
-                      copiedImage
-                        ? t("shareCopiedImage", locale)
-                        : t("shareCopiedText", locale),
-                    );
-                    setTimeout(() => setShareToast(null), 8000);
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
-                    <polyline points="7 7 12 2 17 7" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
+              <div className="overviewActionsGroup">
+                <span className="overviewActionsLabel">
                   {t("shareResults", locale)}
-                </button>
-                <button
-                  className="btnShare btnShareFb"
-                  onClick={async () => {
-                    // Generate personalized image
-                    const totalVal = result.artists.reduce(
-                      (s, a) => s + a.estValueNOK,
-                      0,
-                    );
-                    const blob = await generateShareImage({
-                      subCost: subscriptionEstimate?.activeCost ?? 0,
-                      artistValue: totalVal,
-                      artistCount: result.artists.length,
-                      hours: formatHrs(result.totalMsPlayed, locale),
-                      locale,
-                      heroSrc: heroImg,
-                    });
+                </span>
+                <div className="shareGroup">
+                  <button
+                    className="btnShare btnShareMain"
+                    onClick={async () => {
+                      const totalVal = result.artists.reduce(
+                        (s, a) => s + a.estValueNOK,
+                        0,
+                      );
+                      const blob = await generateShareImage({
+                        subCost: subscriptionEstimate?.activeCost ?? 0,
+                        artistValue: totalVal,
+                        artistCount: result.artists.length,
+                        hours: formatHrs(result.totalMsPlayed, locale),
+                        locale,
+                        heroSrc: heroImg,
+                      });
+                      const file = new File([blob], "spotify-unwrapped.png", {
+                        type: "image/png",
+                      });
 
-                    // 1) Try Web Share API with file (mobile → opens FB app directly)
-                    const file = new File([blob], "spotify-unwrapped.png", {
-                      type: "image/png",
-                    });
-                    if (
-                      navigator.share &&
-                      navigator.canShare?.({ files: [file] })
-                    ) {
-                      try {
-                        await navigator.share({
-                          files: [file],
-                          title: "Spotify Unwrapped",
-                          text:
-                            t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        });
-                        return;
-                      } catch {
-                        /* user cancelled — fall through */
+                      // 1) Try native Web Share API (mobile + some desktop browsers)
+                      //    This opens the OS share sheet and can share directly to
+                      //    Facebook, Instagram, Messenger, WhatsApp, etc.
+                      if (
+                        navigator.share &&
+                        navigator.canShare?.({ files: [file] })
+                      ) {
+                        try {
+                          await navigator.share({
+                            files: [file],
+                            title: "Spotify Unwrapped",
+                            text:
+                              t("shareText", locale) +
+                              "https://banjohans.github.io/Spotify-Unwrapped/",
+                          });
+                          return;
+                        } catch {
+                          /* user cancelled — fall through to clipboard/download */
+                        }
                       }
-                    }
 
-                    // 2) Desktop: Copy image to clipboard + download + open Facebook
-                    try {
-                      const item = new ClipboardItem({ "image/png": blob });
-                      await navigator.clipboard.write([item]);
-                    } catch {
-                      /* clipboard image not supported */
-                    }
+                      // 2) Desktop fallback: copy IMAGE to clipboard + download file
+                      let copiedImage = false;
+                      try {
+                        const item = new ClipboardItem({ "image/png": blob });
+                        await navigator.clipboard.write([item]);
+                        copiedImage = true;
+                      } catch {
+                        // Clipboard image write not supported — copy text instead
+                        try {
+                          await navigator.clipboard.writeText(
+                            t("shareText", locale) +
+                              "https://banjohans.github.io/Spotify-Unwrapped/",
+                          );
+                        } catch {
+                          /* clipboard not available */
+                        }
+                      }
 
-                    // Download image file
-                    const dlUrl = URL.createObjectURL(blob);
-                    const dl = document.createElement("a");
-                    dl.href = dlUrl;
-                    dl.download = "spotify-unwrapped.png";
-                    dl.click();
-                    URL.revokeObjectURL(dlUrl);
+                      // Also download the image file
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "spotify-unwrapped.png";
+                      a.click();
+                      URL.revokeObjectURL(url);
 
-                    // Open Facebook — direct to homepage so user creates a photo post
-                    window.open(
-                      "https://www.facebook.com/",
-                      "_blank",
-                      "noopener",
-                    );
-
-                    setShareToast(t("shareFbToast", locale));
-                    setTimeout(() => setShareToast(null), 10000);
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
+                      setShareToast(
+                        copiedImage
+                          ? t("shareCopiedImage", locale)
+                          : t("shareCopiedText", locale),
+                      );
+                      setTimeout(() => setShareToast(null), 8000);
+                    }}
                   >
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  {t("shareFacebook", locale)}
-                </button>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+                      <polyline points="7 7 12 2 17 7" />
+                      <line x1="12" y1="2" x2="12" y2="15" />
+                    </svg>
+                    {t("shareResults", locale)}
+                  </button>
+                  <button
+                    className="btnShare btnShareFb"
+                    onClick={async () => {
+                      // Generate personalized image
+                      const totalVal = result.artists.reduce(
+                        (s, a) => s + a.estValueNOK,
+                        0,
+                      );
+                      const blob = await generateShareImage({
+                        subCost: subscriptionEstimate?.activeCost ?? 0,
+                        artistValue: totalVal,
+                        artistCount: result.artists.length,
+                        hours: formatHrs(result.totalMsPlayed, locale),
+                        locale,
+                        heroSrc: heroImg,
+                      });
+
+                      // 1) Try Web Share API with file (mobile → opens FB app directly)
+                      const file = new File([blob], "spotify-unwrapped.png", {
+                        type: "image/png",
+                      });
+                      if (
+                        navigator.share &&
+                        navigator.canShare?.({ files: [file] })
+                      ) {
+                        try {
+                          await navigator.share({
+                            files: [file],
+                            title: "Spotify Unwrapped",
+                            text:
+                              t("shareText", locale) +
+                              "https://banjohans.github.io/Spotify-Unwrapped/",
+                          });
+                          return;
+                        } catch {
+                          /* user cancelled — fall through */
+                        }
+                      }
+
+                      // 2) Desktop: Copy image to clipboard + download + open Facebook
+                      try {
+                        const item = new ClipboardItem({ "image/png": blob });
+                        await navigator.clipboard.write([item]);
+                      } catch {
+                        /* clipboard image not supported */
+                      }
+
+                      // Download image file
+                      const dlUrl = URL.createObjectURL(blob);
+                      const dl = document.createElement("a");
+                      dl.href = dlUrl;
+                      dl.download = "spotify-unwrapped.png";
+                      dl.click();
+                      URL.revokeObjectURL(dlUrl);
+
+                      // Open Facebook — direct to homepage so user creates a photo post
+                      window.open(
+                        "https://www.facebook.com/",
+                        "_blank",
+                        "noopener",
+                      );
+
+                      setShareToast(t("shareFbToast", locale));
+                      setTimeout(() => setShareToast(null), 10000);
+                    }}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                    </svg>
+                    {t("shareFacebook", locale)}
+                  </button>
+                </div>
+                <p className="shareTip">{t("shareTip", locale)}</p>
               </div>
-              <p className="shareTip">{t("shareTip", locale)}</p>
             </div>
 
             <div className="statsGrid">
@@ -1857,9 +1870,9 @@ export default function App() {
               </div>
 
               <div className="stat">
-                <div className="statLabel">{t("rowsAnalyzed", locale)}</div>
+                <div className="statLabel">{t("totalStreams", locale)}</div>
                 <div className="statValue">
-                  {result.countedRows.toLocaleString()}
+                  {formatNum(result.countedRows, locale)}
                 </div>
               </div>
 
@@ -2000,6 +2013,25 @@ export default function App() {
               className="subtle"
               style={{ marginTop: 10 }}
               dangerouslySetInnerHTML={{ __html: t("subPricingNote", locale) }}
+            />
+
+            {/* Listening Charts */}
+            <ListeningCharts
+              rows={dateFilteredRows}
+              result={result}
+              locale={locale}
+              minMsPlayed={cfg.minMsPlayedToCount}
+              availableYears={availableYears}
+              dateFilterMode={dateFilterMode}
+              dateFilterYear={dateFilterYear}
+              onDateFilterChange={(mode, year) => {
+                setDateFilterMode(mode);
+                if (mode === "year" && year) {
+                  setDateFilterYear(year);
+                } else if (mode === "all") {
+                  setDateFilterYear(null);
+                }
+              }}
             />
           </section>
 
@@ -2685,6 +2717,17 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Artist Comparison Chart */}
+      {result && result.artists.length > 0 && (
+        <ArtistComparisonChart
+          allRows={rows}
+          artists={result.artists}
+          locale={locale}
+          minMsPlayed={cfg.minMsPlayedToCount}
+          availableYears={availableYears}
+        />
       )}
 
       {/* Footer */}
