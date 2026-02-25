@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   Legend,
   Brush,
+  ReferenceLine,
 } from "recharts";
 import type { Locale } from "../lib/i18n";
 import type { SpotifyStreamRow, ArtistAgg } from "../lib/analyze";
@@ -25,6 +26,10 @@ interface ArtistComparisonChartProps {
   locale: Locale;
   minMsPlayed: number;
   availableYears: number[];
+  // Shared time filter props
+  dateFilterMode: DateFilterMode;
+  dateFilterYear: number | null;
+  onDateFilterChange: (mode: DateFilterMode, year?: number) => void;
 }
 
 // Rich color palette for comparing artists - distinct colors first
@@ -78,12 +83,13 @@ export default function ArtistComparisonChart({
   locale,
   minMsPlayed,
   availableYears,
+  dateFilterMode,
+  dateFilterYear,
+  onDateFilterChange,
 }: ArtistComparisonChartProps) {
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
-  const [dateFilterYear, setDateFilterYear] = useState<number | null>(null);
   const [chartMetric, setChartMetric] = useState<"streams" | "minutes">(
     "streams",
   );
@@ -123,7 +129,7 @@ export default function ArtistComparisonChart({
       subtitle:
         locale === "en"
           ? "Compare listening patterns across your favorite artists over time"
-          : "Samanlikn lyttemønster for favorittartistane dine over tid",
+          : "Samanlikn ditt lyttemønster til dine favorittartistar over tid",
       period: locale === "en" ? "Period:" : "Periode:",
       allTime: locale === "en" ? "All time" : "All tid",
       selectArtists:
@@ -163,8 +169,8 @@ export default function ArtistComparisonChart({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Export chart as PDF
-  const exportChartPDF = useCallback(async () => {
+  // Export chart as PNG
+  const exportChartPNG = useCallback(async () => {
     if (!chartContainerRef.current) {
       console.error("Chart container not found");
       return;
@@ -227,59 +233,12 @@ export default function ArtistComparisonChart({
       if (!imgData || imgData === "data:,") {
         throw new Error("Failed to generate image");
       }
-      const date = new Date().toLocaleDateString(
-        locale === "en" ? "en-US" : "nb-NO",
-        {
-          year: "numeric",
-          month: "short",
-          day: "numeric",
-        },
-      );
 
-      const artistNames =
-        selectedArtists.slice(0, 5).join(", ") +
-        (selectedArtists.length > 5 ? "..." : "");
-
-      const html = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Spotify Unwrapped - ${labels.title}</title>
-  <style>
-    @page { size: landscape; margin: 20mm; }
-    body { font-family: system-ui, sans-serif; background: #121212; color: #fff; margin: 0; padding: 40px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    h1 { font-size: 24px; margin: 0; color: #1DB954; }
-    .subtitle { color: #999; font-size: 14px; margin-top: 8px; }
-    .artists { color: #ccc; font-size: 12px; margin-top: 4px; }
-    .chart-img { display: block; max-width: 100%; margin: 0 auto; border-radius: 12px; }
-    .footer { text-align: center; margin-top: 24px; font-size: 11px; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🎵 ${labels.title}</h1>
-    <p class="subtitle">${locale === "en" ? "Generated" : "Generert"} ${date}</p>
-    <p class="artists">${artistNames}</p>
-  </div>
-  <img class="chart-img" src="${imgData}" />
-  <div class="footer">
-    <p>${locale === "en" ? "Generated from" : "Generert frå"} <b>Spotify Unwrapped</b> · banjohans.github.io/Spotify-Unwrapped</p>
-  </div>
-  <script>window.onload = () => { window.print(); }</script>
-</body>
-</html>`;
-
-      const w = window.open("", "_blank");
-      if (w) {
-        w.document.write(html);
-        w.document.close();
-      } else {
-        // Popup blocked - fallback to download
-        const link = document.createElement("a");
-        link.download = `spotify-artist-comparison-${Date.now()}.png`;
-        link.href = imgData;
-        link.click();
-      }
+      // Direct PNG download
+      const link = document.createElement("a");
+      link.download = `spotify-artist-comparison-${Date.now()}.png`;
+      link.href = imgData;
+      link.click();
     } catch (err) {
       console.error("Failed to export chart:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -289,7 +248,7 @@ export default function ArtistComparisonChart({
           : `Kunne ikkje eksportere graf: ${errorMsg}`,
       );
     }
-  }, [locale, labels.title, selectedArtists]);
+  }, [locale]);
 
   // Filter rows by selected time period
   const filteredRows = useMemo(() => {
@@ -391,17 +350,15 @@ export default function ArtistComparisonChart({
       .sort((a, b) => a.month.localeCompare(b.month));
   }, [filteredRows, selectedArtists, minMsPlayed, chartMetric]);
 
-  // Handle time filter change
+  // Handle time filter change - updates global state
   const handleTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
     if (value === "all") {
-      setDateFilterMode("all");
-      setDateFilterYear(null);
+      onDateFilterChange("all");
     } else {
       const year = parseInt(value, 10);
       if (!isNaN(year)) {
-        setDateFilterMode("year");
-        setDateFilterYear(year);
+        onDateFilterChange("year", year);
       }
     }
   };
@@ -422,12 +379,61 @@ export default function ArtistComparisonChart({
     setSelectedArtists((prev) => prev.filter((a) => a !== artist));
   };
 
-  // Format X-axis
+  // Format X-axis - show year prominently on January
   const formatXAxis = (monthStr: string): string => {
     const [year, monthNum] = monthStr.split("-");
     const monthIdx = parseInt(monthNum, 10) - 1;
-    return `${monthNames[monthIdx]} '${year.slice(2)}`;
+    // Show full year on January
+    if (monthIdx === 0) {
+      return year;
+    }
+    return monthNames[monthIdx];
   };
+
+  // Get year boundaries for ReferenceLine
+  const yearBoundaries = useMemo(() => {
+    const boundaries: string[] = [];
+    for (const item of chartData) {
+      if (item.month.endsWith("-01")) {
+        boundaries.push(item.month);
+      }
+    }
+    return boundaries;
+  }, [chartData]);
+
+  // Calculate custom tick positions for X-axis
+  const monthlyTicks = useMemo(() => {
+    if (chartData.length === 0) return [];
+
+    // Extract years from data
+    const years = new Set<number>();
+    chartData.forEach((item) => {
+      years.add(parseInt(item.month.slice(0, 4), 10));
+    });
+    const spanYears = years.size;
+
+    if (spanYears > 2) {
+      // Multi-year: show only January of each year
+      return chartData
+        .filter((item) => item.month.endsWith("-01"))
+        .map((item) => item.month);
+    } else if (spanYears >= 1 && chartData.length > 6) {
+      // 1-2 years with many months: show every 2-3 months
+      const tickIndices: number[] = [];
+      const interval = chartData.length > 12 ? 3 : 2;
+      for (let i = 0; i < chartData.length; i += interval) {
+        tickIndices.push(i);
+      }
+      // Always include last point
+      if (!tickIndices.includes(chartData.length - 1)) {
+        tickIndices.push(chartData.length - 1);
+      }
+      return tickIndices.map((i) => chartData[i].month);
+    } else {
+      // Short range: show all months
+      return chartData.map((item) => item.month);
+    }
+  }, [chartData]);
 
   // Format minutes for display
   const formatMinutes = (mins: number): string => {
@@ -458,14 +464,6 @@ export default function ArtistComparisonChart({
     );
   };
 
-  // Calculate interval for X-axis
-  const xAxisInterval =
-    chartData.length > 24
-      ? Math.floor(chartData.length / 12)
-      : chartData.length > 12
-        ? 2
-        : 0;
-
   return (
     <section className="card artistComparisonSection">
       <div className="artistComparisonHeader">
@@ -475,9 +473,9 @@ export default function ArtistComparisonChart({
         </div>
         <button
           className="btnExportChart"
-          onClick={exportChartPDF}
+          onClick={exportChartPNG}
           disabled={selectedArtists.length === 0}
-          title={locale === "en" ? "Export as PDF" : "Eksporter som PDF"}
+          title={locale === "en" ? "Export as PNG" : "Eksporter som PNG"}
         >
           <svg
             width="16"
@@ -493,7 +491,7 @@ export default function ArtistComparisonChart({
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          PDF
+          PNG
         </button>
       </div>
 
@@ -716,7 +714,7 @@ export default function ArtistComparisonChart({
                 stroke="rgba(255,255,255,0.7)"
                 tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }}
                 tickFormatter={formatXAxis}
-                interval={xAxisInterval}
+                ticks={monthlyTicks}
                 angle={-35}
                 textAnchor="end"
                 height={50}
@@ -759,6 +757,16 @@ export default function ArtistComparisonChart({
                     r: 4,
                     fill: ARTIST_COLORS[idx % ARTIST_COLORS.length],
                   }}
+                />
+              ))}
+              {/* Year boundary lines */}
+              {yearBoundaries.map((month) => (
+                <ReferenceLine
+                  key={month}
+                  x={month}
+                  stroke="rgba(255,255,255,0.3)"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
                 />
               ))}
               <Brush

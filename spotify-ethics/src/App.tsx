@@ -1,8 +1,9 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { analyze, calcHistoricalSubscriptionCost } from "./lib/analyze";
 import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
 import ListeningCharts from "./components/ListeningCharts";
 import ArtistComparisonChart from "./components/ArtistComparisonChart";
+import { LabelAnalytics } from "./components/LabelAnalytics";
 import {
   type Locale,
   PRICE_HISTORY,
@@ -36,8 +37,19 @@ async function generateShareImage(opts: {
   hours: string;
   locale: Locale;
   heroSrc: string;
+  activePercent?: number;
+  assistedPercent?: number;
 }): Promise<Blob> {
-  const { subCost, artistValue, artistCount, hours, locale, heroSrc } = opts;
+  const {
+    subCost,
+    artistValue,
+    artistCount,
+    hours,
+    locale,
+    heroSrc,
+    activePercent,
+    assistedPercent,
+  } = opts;
   const rest = Math.max(0, subCost - artistValue);
   const W = 1200,
     H = 630; // Facebook recommended
@@ -286,6 +298,44 @@ async function generateShareImage(opts: {
   ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   ctx.fillText(badge, badgeX + badgePad, badgeY + 25);
+
+  // Active/Assisted badge (if provided)
+  if (activePercent !== undefined && assistedPercent !== undefined) {
+    const activeBadge =
+      locale === "en"
+        ? `✅ ${activePercent}% active · 🤖 ${assistedPercent}% assisted`
+        : `✅ ${activePercent}% aktiv · 🤖 ${assistedPercent}% assistert`;
+    const activeBadgeW = ctx.measureText(activeBadge).width + badgePad * 2;
+    const activeBadgeY = badgeY + badgeH + 8;
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(badgeX, activeBadgeY, activeBadgeW, badgeH, 10);
+    } else {
+      const rr = 10;
+      ctx.moveTo(badgeX + rr, activeBadgeY);
+      ctx.arcTo(
+        badgeX + activeBadgeW,
+        activeBadgeY,
+        badgeX + activeBadgeW,
+        activeBadgeY + badgeH,
+        rr,
+      );
+      ctx.arcTo(
+        badgeX + activeBadgeW,
+        activeBadgeY + badgeH,
+        badgeX,
+        activeBadgeY + badgeH,
+        rr,
+      );
+      ctx.arcTo(badgeX, activeBadgeY + badgeH, badgeX, activeBadgeY, rr);
+      ctx.arcTo(badgeX, activeBadgeY, badgeX + activeBadgeW, activeBadgeY, rr);
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.6)";
+    ctx.fillText(activeBadge, badgeX + badgePad, activeBadgeY + 25);
+  }
 
   // ── Footer / CTA ──
   ctx.fillStyle = "rgba(255,255,255,0.25)";
@@ -764,6 +814,34 @@ ${
 }
 
 <div class="section">
+  <h2>${locale === "en" ? "Listening Patterns" : "Lyttemønster"}</h2>
+  <div class="stats-grid">
+    <div class="stat-box">
+      <div class="label">${locale === "en" ? "Active listening" : "Aktiv lytting"}</div>
+      <div class="value" style="color:#1DB954">${Math.round(result.activeShare * 100)}%</div>
+      <div class="hint">${fmtH(result.activeMsPlayed)}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${locale === "en" ? "Assisted listening" : "Assistert lytting"}</div>
+      <div class="value" style="color:#ee5a24">${Math.round(result.passiveShare * 100)}%</div>
+      <div class="hint">${fmtH(result.passiveMsPlayed)}</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">${locale === "en" ? "Unknown" : "Ukjent"}</div>
+      <div class="value" style="color:#888">${Math.round(result.unknownShare * 100)}%</div>
+      <div class="hint">${fmtH(result.unknownMsPlayed)}</div>
+    </div>
+  </div>
+  <div class="info-box">
+    ${
+      locale === "en"
+        ? `<b>Active listening</b> means you explicitly chose to play the music (play button, search, direct selection). <b>Assisted listening</b> includes auto-played content, algorithm suggestions, and background plays where Spotify chose the music for you.`
+        : `<b>Aktiv lytting</b> betyr at du eksplisitt valde å spele musikken (play-knapp, søk, direkte val). <b>Assistert lytting</b> inkluderer automatisk avspelt innhald, algoritmeforslag og bakgrunnsavspelingar der Spotify valde musikken for deg.`
+    }
+  </div>
+</div>
+
+<div class="section">
   <h2>${isAllArtists ? _allArtists : _topArtists}</h2>
   <table class="artist-table">
     <thead>
@@ -898,6 +976,8 @@ export default function App() {
   >({});
   const [plannedAlbumsOpen, setPlannedAlbumsOpen] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [methodologyInfoOpen, setMethodologyInfoOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
   const [shareToast, setShareToast] = useState<string | null>(null);
 
@@ -908,6 +988,17 @@ export default function App() {
   const [artistSearchQuery, setArtistSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(30);
+  const paginationRef = useRef<HTMLDivElement>(null);
+
+  // Helper to scroll to pagination after page change
+  const scrollToPagination = () => {
+    setTimeout(() => {
+      paginationRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 10);
+  };
   const [summaryTopN, setSummaryTopN] = useState<number | "all">(30);
   const [expandedAlbumArtists, setExpandedAlbumArtists] = useState<Set<string>>(
     new Set(),
@@ -1436,105 +1527,134 @@ export default function App() {
         )}
       </section>
 
-      <section className="card">
-        <div className="cardHeader">
-          <h2>{t("settingsTitle", locale)}</h2>
-          <div className="subtle">{t("settingsDesc", locale)}</div>
-        </div>
+      <section className="card settingsCard">
+        <button
+          className="settingsToggle"
+          onClick={() => setSettingsOpen(!settingsOpen)}
+          aria-expanded={settingsOpen}
+        >
+          <span className={`collapsibleChevron ${settingsOpen ? "open" : ""}`}>
+            ▾
+          </span>
+          <span className="settingsToggleTitle">
+            {t("settingsTitle", locale)}
+          </span>
+          <span className="settingsToggleHint">
+            {t("settingsDesc", locale)}
+          </span>
+        </button>
 
-        <div className="controlsGrid">
-          <label className="field">
-            <span>{t("albumPriceLabel", locale)}</span>
-            <input
-              type="number"
-              step="10"
-              value={cfg.albumPriceNOK}
-              onChange={(e) =>
-                setCfg({ ...cfg, albumPriceNOK: Number(e.target.value) })
-              }
-            />
-          </label>
+        {settingsOpen && (
+          <div className="settingsContent">
+            <div className="controlsInline">
+              <label className="fieldInline">
+                <span>{t("albumPriceLabel", locale)}</span>
+                <input
+                  type="number"
+                  step="10"
+                  value={cfg.albumPriceNOK}
+                  onChange={(e) =>
+                    setCfg({ ...cfg, albumPriceNOK: Number(e.target.value) })
+                  }
+                />
+              </label>
 
-          <label className="field">
-            <span>{t("minMsLabel", locale)}</span>
-            <input
-              type="number"
-              step="1000"
-              value={cfg.minMsPlayedToCount}
-              onChange={(e) =>
-                setCfg({ ...cfg, minMsPlayedToCount: Number(e.target.value) })
-              }
-            />
-          </label>
-        </div>
+              <label className="fieldInline">
+                <span>{t("minMsLabel", locale)}</span>
+                <input
+                  type="number"
+                  step="1000"
+                  value={cfg.minMsPlayedToCount}
+                  onChange={(e) =>
+                    setCfg({
+                      ...cfg,
+                      minMsPlayedToCount: Number(e.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
 
-        <div className="priceHistoryInfo">
-          <h4>{t("priceHistoryTitle", locale)}</h4>
-          <table className="priceHistoryTable">
-            <thead>
-              <tr>
-                <th>{t("periodCol", locale)}</th>
-                <th>{t("priceCol", locale)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {PRICE_HISTORY[locale].map((period, i) => {
-                const nextPeriod = PRICE_HISTORY[locale][i + 1];
-                const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
-                const toStr = nextPeriod
-                  ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                  : locale === "en"
-                    ? "now"
-                    : "no";
-                return (
-                  <tr key={i}>
-                    <td>
-                      {fromStr} → {toStr}
-                    </td>
-                    <td>{currencyPerMonth(period.price, locale)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
-            {t("priceHistoryNote", locale)}
-          </p>
-        </div>
+            {/* Price History Tables */}
+            <div className="priceHistorySection">
+              <div className="priceHistoryInfo">
+                <h4>{t("priceHistoryTitle", locale)}</h4>
+                <table className="priceHistoryTable">
+                  <thead>
+                    <tr>
+                      <th>{t("periodCol", locale)}</th>
+                      <th>{t("priceCol", locale)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PRICE_HISTORY[locale].map((period, i) => {
+                      const nextPeriod = PRICE_HISTORY[locale][i + 1];
+                      const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                      const toStr = nextPeriod
+                        ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                        : locale === "en"
+                          ? "now"
+                          : "no";
+                      return (
+                        <tr key={i}>
+                          <td>
+                            {fromStr} → {toStr}
+                          </td>
+                          <td>{currencyPerMonth(period.price, locale)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p
+                  className="subtle"
+                  style={{ marginTop: 6, fontSize: "0.85em" }}
+                >
+                  {t("priceHistoryNote", locale)}
+                </p>
+              </div>
 
-        <div className="priceHistoryInfo">
-          <h4>{t("royaltyHistoryTitle", locale)}</h4>
-          <table className="priceHistoryTable">
-            <thead>
-              <tr>
-                <th>{t("periodCol", locale)}</th>
-                <th>{t("ratePerStreamCol", locale)}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ROYALTY_HISTORY[locale].map((period, i) => {
-                const nextPeriod = ROYALTY_HISTORY[locale][i + 1];
-                const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
-                const toStr = nextPeriod
-                  ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                  : locale === "en"
-                    ? "now"
-                    : "no";
-                return (
-                  <tr key={i}>
-                    <td>
-                      {fromStr} → {toStr}
-                    </td>
-                    <td>{currencyPerStream(period.ratePerStream, locale)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <p className="subtle" style={{ marginTop: 6, fontSize: "0.85em" }}>
-            {t("royaltyHistoryNote", locale)}
-          </p>
-        </div>
+              <div className="priceHistoryInfo">
+                <h4>{t("royaltyHistoryTitle", locale)}</h4>
+                <table className="priceHistoryTable">
+                  <thead>
+                    <tr>
+                      <th>{t("periodCol", locale)}</th>
+                      <th>{t("ratePerStreamCol", locale)}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ROYALTY_HISTORY[locale].map((period, i) => {
+                      const nextPeriod = ROYALTY_HISTORY[locale][i + 1];
+                      const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                      const toStr = nextPeriod
+                        ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                        : locale === "en"
+                          ? "now"
+                          : "no";
+                      return (
+                        <tr key={i}>
+                          <td>
+                            {fromStr} → {toStr}
+                          </td>
+                          <td>
+                            {currencyPerStream(period.ratePerStream, locale)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <p
+                  className="subtle"
+                  style={{ marginTop: 6, fontSize: "0.85em" }}
+                >
+                  {t("royaltyHistoryNote", locale)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {rows.length > 0 && availableYears.length > 0 && (
@@ -1630,390 +1750,11 @@ export default function App() {
           <section className="card">
             <div className="cardHeader">
               <h2>
-                {t("overviewTitle", locale)}
+                {t("listeningPatternsTitle", locale)}
                 {activeDateRange ? ` (${activeDateRange.label})` : ""}
               </h2>
-              <p className="subtle">
-                {activeDateRange
-                  ? t("overviewDescPeriod", locale)
-                  : t("overviewDescUploaded", locale)}
-              </p>
+              <p className="subtle">{t("listeningPatternsDesc", locale)}</p>
             </div>
-
-            <div className="overviewActions">
-              <div className="overviewActionsGroup">
-                <span className="overviewActionsLabel">
-                  {t("exportReport", locale)}
-                </span>
-                <div className="exportBtnGroup">
-                  {(
-                    [
-                      [10, `${t("topPrefix", locale)} 10`],
-                      [30, `${t("topPrefix", locale)} 30`],
-                      [50, `${t("topPrefix", locale)} 50`],
-                      [100, `${t("topPrefix", locale)} 100`],
-                      [500, `${t("topPrefix", locale)} 500`],
-                      [
-                        "all",
-                        `${t("allLabel", locale)} (${result.artists.length})`,
-                      ],
-                    ] as [number | "all", string][]
-                  ).map(([n, label]) => (
-                    <button
-                      key={String(n)}
-                      className="btnExportPdf btnExportSmall"
-                      onClick={() =>
-                        exportFullReportPDF(
-                          result,
-                          cfg,
-                          subscriptionEstimate,
-                          activeDateRange,
-                          excludedArtists,
-                          plannedAlbums,
-                          n as number | "all",
-                          locale,
-                        )
-                      }
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="overviewActionsGroup">
-                <span className="overviewActionsLabel">
-                  {t("shareResults", locale)}
-                </span>
-                <div className="shareGroup">
-                  <button
-                    className="btnShare btnShareMain"
-                    onClick={async () => {
-                      const totalVal = result.artists.reduce(
-                        (s, a) => s + a.estValueNOK,
-                        0,
-                      );
-                      const blob = await generateShareImage({
-                        subCost: subscriptionEstimate?.activeCost ?? 0,
-                        artistValue: totalVal,
-                        artistCount: result.artists.length,
-                        hours: formatHrs(result.totalMsPlayed, locale),
-                        locale,
-                        heroSrc: heroImg,
-                      });
-                      const file = new File([blob], "spotify-unwrapped.png", {
-                        type: "image/png",
-                      });
-
-                      // 1) Try native Web Share API (mobile + some desktop browsers)
-                      //    This opens the OS share sheet and can share directly to
-                      //    Facebook, Instagram, Messenger, WhatsApp, etc.
-                      if (
-                        navigator.share &&
-                        navigator.canShare?.({ files: [file] })
-                      ) {
-                        try {
-                          await navigator.share({
-                            files: [file],
-                            title: "Spotify Unwrapped",
-                            text:
-                              t("shareText", locale) +
-                              "https://banjohans.github.io/Spotify-Unwrapped/",
-                          });
-                          return;
-                        } catch {
-                          /* user cancelled — fall through to clipboard/download */
-                        }
-                      }
-
-                      // 2) Desktop fallback: copy IMAGE to clipboard + download file
-                      let copiedImage = false;
-                      try {
-                        const item = new ClipboardItem({ "image/png": blob });
-                        await navigator.clipboard.write([item]);
-                        copiedImage = true;
-                      } catch {
-                        // Clipboard image write not supported — copy text instead
-                        try {
-                          await navigator.clipboard.writeText(
-                            t("shareText", locale) +
-                              "https://banjohans.github.io/Spotify-Unwrapped/",
-                          );
-                        } catch {
-                          /* clipboard not available */
-                        }
-                      }
-
-                      // Also download the image file
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "spotify-unwrapped.png";
-                      a.click();
-                      URL.revokeObjectURL(url);
-
-                      setShareToast(
-                        copiedImage
-                          ? t("shareCopiedImage", locale)
-                          : t("shareCopiedText", locale),
-                      );
-                      setTimeout(() => setShareToast(null), 8000);
-                    }}
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
-                      <polyline points="7 7 12 2 17 7" />
-                      <line x1="12" y1="2" x2="12" y2="15" />
-                    </svg>
-                    {t("shareResults", locale)}
-                  </button>
-                  <button
-                    className="btnShare btnShareFb"
-                    onClick={async () => {
-                      // Generate personalized image
-                      const totalVal = result.artists.reduce(
-                        (s, a) => s + a.estValueNOK,
-                        0,
-                      );
-                      const blob = await generateShareImage({
-                        subCost: subscriptionEstimate?.activeCost ?? 0,
-                        artistValue: totalVal,
-                        artistCount: result.artists.length,
-                        hours: formatHrs(result.totalMsPlayed, locale),
-                        locale,
-                        heroSrc: heroImg,
-                      });
-
-                      // 1) Try Web Share API with file (mobile → opens FB app directly)
-                      const file = new File([blob], "spotify-unwrapped.png", {
-                        type: "image/png",
-                      });
-                      if (
-                        navigator.share &&
-                        navigator.canShare?.({ files: [file] })
-                      ) {
-                        try {
-                          await navigator.share({
-                            files: [file],
-                            title: "Spotify Unwrapped",
-                            text:
-                              t("shareText", locale) +
-                              "https://banjohans.github.io/Spotify-Unwrapped/",
-                          });
-                          return;
-                        } catch {
-                          /* user cancelled — fall through */
-                        }
-                      }
-
-                      // 2) Desktop: Copy image to clipboard + download + open Facebook
-                      try {
-                        const item = new ClipboardItem({ "image/png": blob });
-                        await navigator.clipboard.write([item]);
-                      } catch {
-                        /* clipboard image not supported */
-                      }
-
-                      // Download image file
-                      const dlUrl = URL.createObjectURL(blob);
-                      const dl = document.createElement("a");
-                      dl.href = dlUrl;
-                      dl.download = "spotify-unwrapped.png";
-                      dl.click();
-                      URL.revokeObjectURL(dlUrl);
-
-                      // Open Facebook — direct to homepage so user creates a photo post
-                      window.open(
-                        "https://www.facebook.com/",
-                        "_blank",
-                        "noopener",
-                      );
-
-                      setShareToast(t("shareFbToast", locale));
-                      setTimeout(() => setShareToast(null), 10000);
-                    }}
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                    </svg>
-                    {t("shareFacebook", locale)}
-                  </button>
-                </div>
-                <p className="shareTip">{t("shareTip", locale)}</p>
-              </div>
-            </div>
-
-            <div className="statsGrid">
-              <div className="stat">
-                <div className="statLabel">
-                  {t("totalListeningTime", locale)}
-                </div>
-                <div className="statValue">
-                  {formatHrs(result.totalMsPlayed, locale)}
-                </div>
-              </div>
-
-              <div className="stat">
-                <div className="statLabel">{t("totalStreams", locale)}</div>
-                <div className="statValue">
-                  {formatNum(result.countedRows, locale)}
-                </div>
-              </div>
-
-              <div className="stat">
-                <div className="statLabel">{t("uniqueArtists", locale)}</div>
-                <div className="statValue">
-                  {result.artists.length.toLocaleString()}
-                  {excludedArtists.size > 0 ? (
-                    <span className="statHint">
-                      {" "}
-                      · {excludedArtists.size} {t("hidden", locale)}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {subscriptionEstimate && (
-                <div className="stat">
-                  <div className="statLabel">{t("estSubFull", locale)}</div>
-                  <div className="statValue">
-                    {formatCurrency(subscriptionEstimate.totalCost, locale)}
-                    <span className="statHint">
-                      {" "}
-                      · {subscriptionEstimate.months.toFixed(1)}{" "}
-                      {t("monthsAbbr", locale)}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {subscriptionEstimate && (
-                <div className="stat">
-                  <div className="statLabel">{t("subActiveOnly", locale)}</div>
-                  <div className="statValue">
-                    {formatCurrency(subscriptionEstimate.activeCost, locale)}
-                    <span className="statHint">
-                      {" "}
-                      · {subscriptionEstimate.activeMonths}{" "}
-                      {t("monthsAbbr", locale)}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="sectionSummary" style={{ marginTop: 14 }}>
-              <div className="summaryItem">
-                <span className="summaryLabel">
-                  {t("totalTheoValue", locale)}
-                </span>
-                <span className="summaryValue green">
-                  {formatCurrency(totalAllArtistsValue, locale)}
-                </span>
-              </div>
-              {subscriptionEstimate && (
-                <>
-                  <div className="summarySep" />
-                  <div className="summaryItem">
-                    <span className="summaryLabel">
-                      {t("estSubCost", locale)}
-                    </span>
-                    <span className="summaryValue">
-                      {formatCurrency(subscriptionEstimate.activeCost, locale)}
-                    </span>
-                  </div>
-                  <div className="summarySep" />
-                  <div className="summaryItem">
-                    <span className="summaryLabel">
-                      {t("difference", locale)}
-                    </span>
-                    <span
-                      className="summaryValue"
-                      style={{
-                        color:
-                          subscriptionEstimate.activeCost -
-                            totalAllArtistsValue >
-                          0
-                            ? "rgb(239, 68, 68)"
-                            : "rgb(30, 215, 96)",
-                      }}
-                    >
-                      {formatCurrency(
-                        subscriptionEstimate.activeCost - totalAllArtistsValue,
-                        locale,
-                      )}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {subscriptionEstimate && (
-              <p className="subtle" style={{ marginTop: 10 }}>
-                {t("periodCol", locale)}:{" "}
-                <b>
-                  {subscriptionEstimate.firstDate.toLocaleDateString(
-                    dateLocale(locale),
-                    {
-                      year: "numeric",
-                      month: "short",
-                    },
-                  )}
-                  {" – "}
-                  {subscriptionEstimate.lastDate.toLocaleDateString(
-                    dateLocale(locale),
-                    {
-                      year: "numeric",
-                      month: "short",
-                    },
-                  )}
-                </b>{" "}
-                · {t("weightedAvg", locale)}:{" "}
-                {formatCurrency(subscriptionEstimate.avgMonthlyPrice, locale)}/
-                {t("monthsAbbr", locale)}
-                <br />
-                {t("pricesUsed", locale)}:{" "}
-                {(() => {
-                  const prices = new Set(
-                    subscriptionEstimate.priceBreakdown.map(
-                      (m: { price: number }) => m.price,
-                    ),
-                  );
-                  return Array.from(prices)
-                    .sort((a, b) => a - b)
-                    .map((p) => formatCurrency(p, locale))
-                    .join(", ");
-                })()}
-              </p>
-            )}
-
-            <p
-              className="subtle"
-              style={{ marginTop: 10 }}
-              dangerouslySetInnerHTML={{ __html: t("proRataNote", locale) }}
-            />
-
-            <p
-              className="subtle"
-              style={{ marginTop: 10 }}
-              dangerouslySetInnerHTML={{ __html: t("subPricingNote", locale) }}
-            />
 
             {/* Listening Charts */}
             <ListeningCharts
@@ -2033,14 +1774,162 @@ export default function App() {
                 }
               }}
             />
+
+            {/* Stats Summary (below charts) */}
+            <div className="chartSummarySection">
+              {/* Key metrics row */}
+              <div className="keyMetricsRow">
+                <div className="keyMetric">
+                  <span className="keyMetricValue">
+                    {formatHrs(result.totalMsPlayed, locale)}
+                  </span>
+                  <span className="keyMetricLabel">
+                    {t("totalListeningTime", locale)}
+                  </span>
+                </div>
+                <div className="keyMetricSep">·</div>
+                <div className="keyMetric">
+                  <span className="keyMetricValue">
+                    {formatNum(result.countedRows, locale)}
+                  </span>
+                  <span className="keyMetricLabel">
+                    {t("totalStreams", locale)}
+                  </span>
+                </div>
+                <div className="keyMetricSep">·</div>
+                <div className="keyMetric">
+                  <span className="keyMetricValue">
+                    {result.artists.length.toLocaleString()}
+                  </span>
+                  <span className="keyMetricLabel">
+                    {t("uniqueArtists", locale)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Economic comparison box */}
+              {subscriptionEstimate && (
+                <div className="economicComparisonBox">
+                  <div className="economicRow">
+                    <div className="economicItem">
+                      <span className="economicLabel">
+                        {t("estSubCost", locale)}
+                      </span>
+                      <span className="economicValue">
+                        {formatCurrency(
+                          subscriptionEstimate.activeCost,
+                          locale,
+                        )}
+                      </span>
+                      <span className="economicHint">
+                        {subscriptionEstimate.activeMonths}{" "}
+                        {t("monthsAbbr", locale)}
+                      </span>
+                    </div>
+                    <div className="economicVs">vs</div>
+                    <div className="economicItem">
+                      <span className="economicLabel">
+                        {t("totalTheoValue", locale)}
+                      </span>
+                      <span className="economicValue green">
+                        {formatCurrency(totalAllArtistsValue, locale)}
+                      </span>
+                      <span className="economicHint">
+                        {locale === "en"
+                          ? "to your artists"
+                          : "til dine artistar"}
+                      </span>
+                    </div>
+                    <div className="economicEquals">=</div>
+                    <div className="economicItem economicDifference">
+                      <span className="economicLabel">
+                        {t("difference", locale)}
+                      </span>
+                      <span
+                        className="economicValue"
+                        style={{
+                          color:
+                            subscriptionEstimate.activeCost -
+                              totalAllArtistsValue >
+                            0
+                              ? "rgb(239, 68, 68)"
+                              : "rgb(30, 215, 96)",
+                        }}
+                      >
+                        {formatCurrency(
+                          subscriptionEstimate.activeCost -
+                            totalAllArtistsValue,
+                          locale,
+                        )}
+                      </span>
+                      <span className="economicHint">
+                        {locale === "en"
+                          ? "to other artists"
+                          : "til andre artistar"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="economicPeriod">
+                    {t("periodCol", locale)}:{" "}
+                    <b>
+                      {subscriptionEstimate.firstDate.toLocaleDateString(
+                        dateLocale(locale),
+                        { year: "numeric", month: "short" },
+                      )}
+                      {" – "}
+                      {subscriptionEstimate.lastDate.toLocaleDateString(
+                        dateLocale(locale),
+                        { year: "numeric", month: "short" },
+                      )}
+                    </b>
+                  </div>
+                </div>
+              )}
+
+              {/* Collapsible methodology info */}
+              <div className="methodologyToggle">
+                <button
+                  className="collapsibleToggle"
+                  onClick={() => setMethodologyInfoOpen(!methodologyInfoOpen)}
+                  aria-expanded={methodologyInfoOpen}
+                >
+                  <span
+                    className={`collapsibleChevron ${
+                      methodologyInfoOpen ? "open" : ""
+                    }`}
+                  >
+                    ▾
+                  </span>
+                  {locale === "en"
+                    ? "About these estimates"
+                    : "Om desse estimata"}
+                </button>
+                {methodologyInfoOpen && (
+                  <div className="methodologyContent">
+                    <p
+                      className="subtle"
+                      dangerouslySetInnerHTML={{
+                        __html: t("proRataNote", locale),
+                      }}
+                    />
+                    <p
+                      className="subtle"
+                      style={{ marginTop: 10 }}
+                      dangerouslySetInnerHTML={{
+                        __html: t("subPricingNote", locale),
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </section>
 
           <section className="card">
             <div className="cardHeader stickyHeader">
               <div>
                 <h2>
-                  3) {locale === "en" ? "Your" : "Dine"}{" "}
-                  {filteredArtists.length} {t("yourArtists", locale)} –{" "}
+                  {t("yourArtistsTitle", locale)} ({filteredArtists.length}) –{" "}
                   {allAlbumKeys.length} {t("uniqueAlbumsLabel", locale)}
                 </h2>
                 {subscriptionEstimate && (
@@ -2260,7 +2149,7 @@ export default function App() {
             </div>
 
             {/* Søk og paginering */}
-            <div className="paginationControls">
+            <div className="paginationControls" ref={paginationRef}>
               <div className="searchBox">
                 <input
                   type="text"
@@ -2295,14 +2184,20 @@ export default function App() {
               <div className="paginationNav">
                 <button
                   className="pageBtn"
-                  onClick={() => setCurrentPage(1)}
+                  onClick={() => {
+                    setCurrentPage(1);
+                    scrollToPagination();
+                  }}
                   disabled={currentPage === 1}
                 >
                   ««
                 </button>
                 <button
                   className="pageBtn"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={() => {
+                    setCurrentPage((p) => Math.max(1, p - 1));
+                    scrollToPagination();
+                  }}
                   disabled={currentPage === 1}
                 >
                   ‹
@@ -2313,16 +2208,20 @@ export default function App() {
                 </span>
                 <button
                   className="pageBtn"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={() => {
+                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                    scrollToPagination();
+                  }}
                   disabled={currentPage === totalPages}
                 >
                   ›
                 </button>
                 <button
                   className="pageBtn"
-                  onClick={() => setCurrentPage(totalPages)}
+                  onClick={() => {
+                    setCurrentPage(totalPages);
+                    scrollToPagination();
+                  }}
                   disabled={currentPage === totalPages}
                 >
                   »»
@@ -2337,6 +2236,7 @@ export default function App() {
                     onChange={(e) => {
                       setItemsPerPage(Number(e.target.value));
                       setCurrentPage(1);
+                      scrollToPagination();
                     }}
                   >
                     <option value={30}>30</option>
@@ -2480,6 +2380,81 @@ export default function App() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Pagination below artist list */}
+            <div className="paginationControls paginationBottom">
+              <div className="paginationInfo">
+                {t("showing", locale)} {startIndex + 1}–
+                {Math.min(endIndex, searchedArtists.length)}{" "}
+                {t("ofWord", locale)} {searchedArtists.length}
+              </div>
+
+              <div className="paginationNav">
+                <button
+                  className="pageBtn"
+                  onClick={() => {
+                    setCurrentPage(1);
+                    scrollToPagination();
+                  }}
+                  disabled={currentPage === 1}
+                >
+                  ««
+                </button>
+                <button
+                  className="pageBtn"
+                  onClick={() => {
+                    setCurrentPage((p) => Math.max(1, p - 1));
+                    scrollToPagination();
+                  }}
+                  disabled={currentPage === 1}
+                >
+                  ‹
+                </button>
+                <span className="pageNumbers">
+                  {t("pageLabel", locale)} {currentPage} {t("ofWord", locale)}{" "}
+                  {totalPages}
+                </span>
+                <button
+                  className="pageBtn"
+                  onClick={() => {
+                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                    scrollToPagination();
+                  }}
+                  disabled={currentPage === totalPages}
+                >
+                  ›
+                </button>
+                <button
+                  className="pageBtn"
+                  onClick={() => {
+                    setCurrentPage(totalPages);
+                    scrollToPagination();
+                  }}
+                  disabled={currentPage === totalPages}
+                >
+                  »»
+                </button>
+              </div>
+
+              <div className="perPageSelect">
+                <label>
+                  {t("perPage", locale)}
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                      scrollToPagination();
+                    }}
+                  >
+                    <option value={30}>30</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={250}>250</option>
+                  </select>
+                </label>
+              </div>
             </div>
 
             <div className="divider" />
@@ -2727,7 +2702,257 @@ export default function App() {
           locale={locale}
           minMsPlayed={cfg.minMsPlayedToCount}
           availableYears={availableYears}
+          dateFilterMode={dateFilterMode}
+          dateFilterYear={dateFilterYear}
+          onDateFilterChange={(mode, year) => {
+            setDateFilterMode(mode);
+            if (mode === "year" && year) {
+              setDateFilterYear(year);
+            } else if (mode === "all") {
+              setDateFilterYear(null);
+            }
+          }}
         />
+      )}
+
+      {/* Label Analytics Section */}
+      <LabelAnalytics
+        allRows={rows}
+        minMsPlayed={cfg.minMsPlayedToCount}
+        locale={locale}
+        availableYears={availableYears}
+        dateFilterMode={dateFilterMode}
+        dateFilterYear={dateFilterYear}
+        onDateFilterChange={(mode, year) => {
+          setDateFilterMode(mode);
+          if (mode === "year" && year) {
+            setDateFilterYear(year);
+          } else if (mode === "all") {
+            setDateFilterYear(null);
+          }
+        }}
+      />
+
+      {/* Summary & Export Section */}
+      {result && (
+        <section className="card summaryExportSection">
+          <div className="cardHeader">
+            <h2>{t("summaryExportTitle", locale)}</h2>
+            <p className="subtle">{t("summaryExportDesc", locale)}</p>
+          </div>
+
+          <div className="summaryExportContent">
+            <div className="overviewActionsGroup">
+              <span className="overviewActionsLabel">
+                {t("exportReport", locale)}
+              </span>
+              <div className="exportBtnGroup">
+                {(
+                  [
+                    [10, `${t("topPrefix", locale)} 10`],
+                    [30, `${t("topPrefix", locale)} 30`],
+                    [50, `${t("topPrefix", locale)} 50`],
+                    [100, `${t("topPrefix", locale)} 100`],
+                    [500, `${t("topPrefix", locale)} 500`],
+                    [
+                      "all",
+                      `${t("allLabel", locale)} (${result.artists.length})`,
+                    ],
+                  ] as [number | "all", string][]
+                ).map(([n, label]) => (
+                  <button
+                    key={String(n)}
+                    className="btnExportPdf btnExportSmall"
+                    onClick={() =>
+                      exportFullReportPDF(
+                        result,
+                        cfg,
+                        subscriptionEstimate,
+                        activeDateRange,
+                        excludedArtists,
+                        plannedAlbums,
+                        n as number | "all",
+                        locale,
+                      )
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overviewActionsGroup">
+              <span className="overviewActionsLabel">
+                {t("shareResults", locale)}
+              </span>
+              <div className="shareGroup">
+                <button
+                  className="btnShare btnShareMain"
+                  onClick={async () => {
+                    const totalVal = result.artists.reduce(
+                      (s, a) => s + a.estValueNOK,
+                      0,
+                    );
+                    const blob = await generateShareImage({
+                      subCost: subscriptionEstimate?.activeCost ?? 0,
+                      artistValue: totalVal,
+                      artistCount: result.artists.length,
+                      hours: formatHrs(result.totalMsPlayed, locale),
+                      locale,
+                      heroSrc: heroImg,
+                      activePercent: Math.round(result.activeShare * 100),
+                      assistedPercent: Math.round(result.passiveShare * 100),
+                    });
+                    const file = new File([blob], "spotify-unwrapped.png", {
+                      type: "image/png",
+                    });
+
+                    if (
+                      navigator.share &&
+                      navigator.canShare?.({ files: [file] })
+                    ) {
+                      try {
+                        await navigator.share({
+                          files: [file],
+                          title: "Spotify Unwrapped",
+                          text:
+                            t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        });
+                        return;
+                      } catch {
+                        /* user cancelled */
+                      }
+                    }
+
+                    let copiedImage = false;
+                    try {
+                      const item = new ClipboardItem({ "image/png": blob });
+                      await navigator.clipboard.write([item]);
+                      copiedImage = true;
+                    } catch {
+                      try {
+                        await navigator.clipboard.writeText(
+                          t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        );
+                      } catch {
+                        /* clipboard not available */
+                      }
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "spotify-unwrapped.png";
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    setShareToast(
+                      copiedImage
+                        ? t("shareCopiedImage", locale)
+                        : t("shareCopiedText", locale),
+                    );
+                    setTimeout(() => setShareToast(null), 8000);
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+                    <polyline points="7 7 12 2 17 7" />
+                    <line x1="12" y1="2" x2="12" y2="15" />
+                  </svg>
+                  {t("shareResults", locale)}
+                </button>
+                <button
+                  className="btnShare btnShareFb"
+                  onClick={async () => {
+                    const totalVal = result.artists.reduce(
+                      (s, a) => s + a.estValueNOK,
+                      0,
+                    );
+                    const blob = await generateShareImage({
+                      subCost: subscriptionEstimate?.activeCost ?? 0,
+                      artistValue: totalVal,
+                      artistCount: result.artists.length,
+                      hours: formatHrs(result.totalMsPlayed, locale),
+                      locale,
+                      heroSrc: heroImg,
+                      activePercent: Math.round(result.activeShare * 100),
+                      assistedPercent: Math.round(result.passiveShare * 100),
+                    });
+
+                    const file = new File([blob], "spotify-unwrapped.png", {
+                      type: "image/png",
+                    });
+                    if (
+                      navigator.share &&
+                      navigator.canShare?.({ files: [file] })
+                    ) {
+                      try {
+                        await navigator.share({
+                          files: [file],
+                          title: "Spotify Unwrapped",
+                          text:
+                            t("shareText", locale) +
+                            "https://banjohans.github.io/Spotify-Unwrapped/",
+                        });
+                        return;
+                      } catch {
+                        /* user cancelled */
+                      }
+                    }
+
+                    try {
+                      const item = new ClipboardItem({ "image/png": blob });
+                      await navigator.clipboard.write([item]);
+                    } catch {
+                      /* clipboard image not supported */
+                    }
+
+                    const dlUrl = URL.createObjectURL(blob);
+                    const dl = document.createElement("a");
+                    dl.href = dlUrl;
+                    dl.download = "spotify-unwrapped.png";
+                    dl.click();
+                    URL.revokeObjectURL(dlUrl);
+
+                    window.open(
+                      "https://www.facebook.com/",
+                      "_blank",
+                      "noopener",
+                    );
+
+                    setShareToast(t("shareFbToast", locale));
+                    setTimeout(() => setShareToast(null), 10000);
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                  {t("shareFacebook", locale)}
+                </button>
+              </div>
+              <p className="shareTip">{t("shareTip", locale)}</p>
+            </div>
+          </div>
+        </section>
       )}
 
       {/* Footer */}

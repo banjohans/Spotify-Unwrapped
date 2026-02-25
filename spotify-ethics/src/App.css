@@ -666,6 +666,257 @@ body {
   gap: 12px;
 }
 
+/* Settings card - collapsible */
+.settingsCard {
+  padding: 0 !important;
+}
+
+.settingsToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 20px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.settingsToggle:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.settingsToggleTitle {
+  font-weight: 600;
+  font-size: 1em;
+}
+
+.settingsToggleHint {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.settingsContent {
+  padding: 0 20px 20px;
+  animation: fadeIn 0.2s ease;
+}
+
+.controlsInline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.fieldInline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.fieldInline input {
+  width: 80px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.16);
+  color: var(--text);
+  outline: none;
+  font-size: 0.9em;
+}
+
+.fieldInline input:focus {
+  border-color: var(--accent);
+}
+
+.priceHistorySection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* Collapsible section styles */
+.collapsibleSection {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.collapsibleToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.9em;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.15s ease;
+}
+
+.collapsibleToggle:hover {
+  color: var(--text);
+}
+
+.collapsibleChevron {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  transform: rotate(-90deg);
+  font-size: 0.85em;
+}
+
+.collapsibleChevron.open {
+  transform: rotate(0deg);
+}
+
+.collapsibleContent {
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chart summary section (stats below charts) */
+.chartSummarySection {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+/* Key metrics row */
+.keyMetricsRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.keyMetric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.keyMetricValue {
+  font-size: 1.5em;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.keyMetricLabel {
+  font-size: 0.75em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.keyMetricSep {
+  color: var(--muted2);
+  font-size: 1.5em;
+  opacity: 0.5;
+}
+
+/* Economic comparison box */
+.economicComparisonBox {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+
+.economicRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.economicItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 100px;
+}
+
+.economicLabel {
+  font-size: 0.7em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.economicValue {
+  font-size: 1.4em;
+  font-weight: 750;
+  color: var(--text);
+}
+
+.economicValue.green {
+  color: rgb(30, 215, 96);
+}
+
+.economicHint {
+  font-size: 0.7em;
+  color: var(--muted2);
+}
+
+.economicVs,
+.economicEquals {
+  color: var(--muted2);
+  font-size: 1em;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
+.economicPeriod {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.8em;
+  color: var(--muted);
+}
+
+/* Methodology collapsible */
+.methodologyToggle {
+  margin-top: 8px;
+}
+
+.methodologyToggle .collapsibleToggle {
+  font-size: 0.85em;
+  padding: 8px 14px;
+}
+
+.methodologyContent {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  animation: fadeIn 0.2s ease;
+}
+
+.methodologyContent p {
+  margin: 0;
+}
+
 .priceHistoryInfo {
   margin-top: 16px;
   padding-top: 16px;
@@ -1228,7 +1479,8 @@ body {
 }
 
 /* Overview Actions Layout */
-.overviewActions {
+.overviewActions,
+.summaryExportContent {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
@@ -1237,6 +1489,10 @@ body {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.summaryExportSection .cardHeader {
+  margin-bottom: 16px;
 }
 
 .overviewActionsGroup {
@@ -2149,6 +2405,12 @@ body {
   margin-bottom: 8px;
 }
 
+.paginationControls.paginationBottom {
+  margin-top: 16px;
+  margin-bottom: 0;
+  justify-content: center;
+}
+
 .searchBox {
   position: relative;
   flex: 1;
@@ -2373,7 +2635,8 @@ body {
     width: 100%;
   }
 
-  .overviewActions {
+  .overviewActions,
+  .summaryExportContent {
     flex-direction: column;
     gap: 16px;
     padding: 12px 14px;
@@ -2702,6 +2965,19 @@ body {
   line-height: 1.5;
 }
 
+.chartWarning {
+  font-size: 0.82rem;
+  color: #f59e0b;
+  text-align: center;
+  max-width: 520px;
+  margin-top: 12px;
+  line-height: 1.5;
+  padding: 12px 16px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+}
+
 /* Click hint for charts */
 .chartClickHint {
   font-size: 0.75rem;
@@ -2898,6 +3174,63 @@ body {
   font-weight: 600;
   color: var(--accent);
   flex-shrink: 0;
+}
+
+/* Classification badges in drill-down */
+.drillDownClassification {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.classificationBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.classificationBadge.active {
+  background: #1db954;
+}
+
+.classificationBadge.assisted {
+  background: #ee5a24;
+}
+
+.classificationBadge.unknown {
+  background: #6b7280;
+}
+
+/* Classification legend in drill-down */
+.classificationLegend {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+  color: var(--textMuted);
+}
+
+.classificationLegend .legendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.classificationLegend .classificationBadge {
+  min-width: 12px;
+  height: 12px;
+  padding: 0;
+  font-size: 0;
+  border-radius: 50%;
 }
 
 @media (max-width: 600px) {
@@ -3645,6 +3978,39 @@ body {
   }
 }
 
+/* Responsive key metrics and economic comparison */
+@media (max-width: 600px) {
+  .keyMetricsRow {
+    gap: 12px;
+  }
+
+  .keyMetricValue {
+    font-size: 1.2em;
+  }
+
+  .keyMetricSep {
+    display: none;
+  }
+
+  .economicComparisonBox {
+    padding: 16px;
+  }
+
+  .economicRow {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .economicVs,
+  .economicEquals {
+    font-size: 0.85em;
+  }
+
+  .economicValue {
+    font-size: 1.2em;
+  }
+}
+
 /* Chart touch-friendly brush handles on mobile */
 @media (pointer: coarse) {
   .recharts-brush-slide {
@@ -3659,5 +4025,666 @@ body {
     width: 14px !important;
     rx: 4px;
     ry: 4px;
+  }
+}
+
+/* ===== Label Analytics ===== */
+.labelAnalytics {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.labelAnalyticsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.labelHeaderTitleSection {
+  flex: 1;
+  min-width: 200px;
+}
+
+.labelHeaderControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.labelTimeFilter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.labelTimeFilter label {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.labelTimeSelect {
+  padding: 6px 10px;
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.labelTimeSelect:hover {
+  border-color: var(--accent);
+}
+
+.labelTimeSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
+}
+
+.labelAnalytics h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  color: var(--text);
+}
+
+.labelDescription {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.labelInfoDropdown {
+  margin: 0 0 20px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bgCard);
+}
+
+.labelInfoDropdown summary {
+  padding: 10px 14px;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 500;
+  list-style: none;
+}
+
+.labelInfoDropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.labelInfoDropdown summary::before {
+  content: "▸ ";
+  font-size: 0.8rem;
+}
+
+.labelInfoDropdown[open] summary::before {
+  content: "▾ ";
+}
+
+.labelInfoContent {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.labelInfoContent h4 {
+  margin: 12px 0 8px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.labelInfoContent p {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.labelDisclaimer {
+  padding: 10px 12px;
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: 6px;
+  border-left: 3px solid #ffc107;
+  color: var(--text) !important;
+}
+
+.labelControls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.labelControls .primaryButton {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition:
+    transform 0.1s,
+    opacity 0.2s;
+}
+
+.labelControls .primaryButton:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.labelControls .secondaryButton {
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.labelControls .secondaryButton:hover {
+  background: var(--btnHover);
+}
+
+.labelControls .timeEstimate {
+  color: var(--muted2);
+  font-size: 0.85rem;
+}
+
+.cacheInfo {
+  margin: 0;
+  color: var(--muted2);
+  font-size: 0.85rem;
+}
+
+.labelNote {
+  margin: 0 0 20px 0;
+  padding: 12px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  color: rgba(255, 193, 7, 0.9);
+  font-size: 0.85rem;
+}
+
+/* Progress bar */
+.lookupProgress {
+  width: 100%;
+  max-width: 400px;
+}
+
+.progressBar {
+  height: 8px;
+  background: var(--panel2);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.progressInfo {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.progressTrack {
+  margin: 0 0 8px 0;
+  font-size: 0.75rem;
+  color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cancelButton {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 6px 14px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+/* Results */
+.labelResults {
+  margin-top: 24px;
+}
+
+.labelExportRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.coverageBox {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--panel2);
+  border-radius: 10px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+}
+
+.coverageBox strong {
+  color: var(--accent);
+  font-size: 1.1rem;
+}
+
+.coverageDetail {
+  color: var(--muted2);
+  font-size: 0.85rem;
+}
+
+.labelChartSection {
+  margin-bottom: 32px;
+}
+
+.labelChartSection h3 {
+  margin: 0 0 16px 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.labelPieChart,
+.labelBarChart {
+  background: var(--panel2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+/* Summary cards */
+.labelSummaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.labelCard {
+  background: var(--panel2);
+  border-radius: 12px;
+  padding: 16px;
+  border-left: 4px solid;
+}
+
+.labelCard h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.labelCardStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.labelCardStats > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.labelCardValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.labelCardLabel {
+  font-size: 0.75rem;
+  color: var(--muted2);
+}
+
+.labelCardBar {
+  display: flex;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.labelCardBarActive {
+  background: #1db954;
+}
+
+.labelCardBarAssisted {
+  background: #ee5a24;
+}
+
+/* Show more button */
+.showMoreButton {
+  display: block;
+  margin: 16px auto 0;
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 20px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.showMoreButton:hover {
+  background: var(--btnHover);
+}
+
+/* Label table */
+.labelTableWrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.labelTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.labelTable th {
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.labelTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.labelTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.labelName {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parentLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.parentDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .labelAnalytics {
+    padding: 16px;
+  }
+
+  .labelSummaryCards {
+    grid-template-columns: 1fr;
+  }
+
+  .labelTable {
+    font-size: 0.8rem;
+  }
+
+  .labelTable th,
+  .labelTable td {
+    padding: 8px 6px;
+  }
+
+  .labelName {
+    max-width: 120px;
+  }
+}
+
+/* Click hint */
+.clickHint {
+  margin: 0 0 12px 0;
+  color: var(--muted2);
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+/* Clickable table rows */
+.labelTable .clickableRow {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.labelTable .clickableRow:hover {
+  background: rgba(29, 185, 84, 0.1);
+}
+
+/* Label modal */
+.labelModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.labelModalContent {
+  background: var(--bgCard);
+  border-radius: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.labelModalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.labelModalHeader h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.modalCloseButton {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.8rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.modalCloseButton:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.labelModalStats {
+  display: flex;
+  gap: 24px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.labelModalStats span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.labelModalTableWrapper {
+  flex: 1;
+  overflow: auto;
+  padding: 0 24px;
+}
+
+.labelModalTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.labelModalTable th {
+  text-align: left;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--bgCard);
+}
+
+.labelModalTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.labelModalTable .trackName {
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modalCloseButtonBottom {
+  margin: 16px 24px 20px;
+  padding: 12px 24px;
+  background: var(--btn);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.modalCloseButtonBottom:hover {
+  background: var(--btnHover);
+}
+
+/* Source badges */
+.sourceBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.sourceBadge--musicbrainz {
+  background: rgba(186, 85, 211, 0.2);
+  color: #ba55d3;
+}
+
+.sourceBadge--discogs {
+  background: rgba(255, 136, 0, 0.2);
+  color: #ff8800;
+}
+
+.sourceBadge--estimated {
+  background: rgba(100, 149, 237, 0.2);
+  color: #6495ed;
+}
+
+.sourceBadge--cache {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+
+.sourceBadge--unknown {
+  background: rgba(107, 114, 128, 0.2);
+  color: #6b7280;
+}
+
+@media (max-width: 768px) {
+  .labelModal {
+    padding: 10px;
+  }
+
+  .labelModalContent {
+    max-height: 90vh;
+  }
+
+  .labelModalHeader {
+    padding: 16px;
+  }
+
+  .labelModalStats {
+    padding: 12px 16px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .labelModalTableWrapper {
+    padding: 0 16px;
+  }
+
+  .labelModalTable {
+    font-size: 0.8rem;
+  }
+
+  .modalCloseButtonBottom {
+    margin: 16px;
   }
 }

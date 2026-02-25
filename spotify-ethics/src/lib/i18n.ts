@@ -213,7 +213,7 @@ const T = {
   // Settings
   settingsTitle: { no: "Innstillingar", en: "Settings" },
   settingsDesc: {
-    no: "Justér anslaga utan å sende data nokon stad.",
+    no: "Få innsikt i, og justér anslaga.",
     en: "Adjust estimates without sending data anywhere.",
   },
   albumPriceLabel: {
@@ -511,6 +511,32 @@ const T = {
   shareTip: {
     no: "📱 På mobil deler du direkte med biletet. 💻 På PC vert biletet kopiert til utklippstavla — lim det rett inn i eit nytt innlegg.",
     en: "📱 On mobile, share directly with the image. 💻 On desktop, the image is copied to your clipboard — paste it right into a new post.",
+  },
+
+  // Listening patterns section
+  listeningPatternsTitle: {
+    no: "Lyttevanar",
+    en: "Listening patterns",
+  },
+  listeningPatternsDesc: {
+    no: "Sjå korleis du lyttar – dag for dag, time for time, og kva type lytting det er.",
+    en: "See how you listen – day by day, hour by hour, and what type of listening it is.",
+  },
+
+  // Artist section
+  yourArtistsTitle: {
+    no: "Dine artistar",
+    en: "Your artists",
+  },
+
+  // Summary & Export section
+  summaryExportTitle: {
+    no: "Samandrag og deling",
+    en: "Summary & sharing",
+  },
+  summaryExportDesc: {
+    no: "No har du sett gjennom dataene dine. Eksporter ein PDF-rapport eller del resultata på sosiale medium.",
+    en: "You've now reviewed your data. Export a PDF report or share your results on social media.",
   },
 
   // Total streams

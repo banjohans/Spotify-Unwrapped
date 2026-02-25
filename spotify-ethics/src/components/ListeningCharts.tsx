@@ -1,6 +1,7 @@
 // src/components/ListeningCharts.tsx
 
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import html2canvas from "html2canvas";
 import {
   BarChart,
   Bar,
@@ -16,6 +17,7 @@ import {
   ResponsiveContainer,
   Legend,
   Brush,
+  ReferenceLine,
 } from "recharts";
 import type { Locale } from "../lib/i18n";
 import type { SpotifyStreamRow, AnalysisResult } from "../lib/analyze";
@@ -24,6 +26,7 @@ import {
   aggregateByHour,
   aggregateByWeekday,
   aggregateByMonth,
+  classifyStart,
 } from "../lib/analyze";
 import { formatNum } from "../lib/i18n";
 
@@ -48,7 +51,8 @@ const CHART_COLORS = {
   primary: "#1DB954", // Spotify green
   secondary: "#60a5fa", // Blue for unique artists
   tertiary: "#169c46",
-  passive: "#ee5a24",
+  assisted: "#ee5a24", // Assisted listening (algorithm-driven)
+  unknown: "#6b7280", // Gray - data without classification info
   grid: "rgba(255,255,255,0.1)",
   text: "rgba(255,255,255,0.7)",
   background: "#121212",
@@ -107,6 +111,9 @@ export default function ListeningCharts({
       artist: string;
       plays: number;
       ms: number;
+      activeCount: number;
+      assistedCount: number;
+      unknownCount: number;
     }>;
     topArtists: Array<{ artist: string; plays: number; ms: number }>;
   } | null>(null);
@@ -140,17 +147,27 @@ export default function ListeningCharts({
   // Get drill-down data for a specific date
   const getDrillDownForDate = useCallback(
     (dateStr: string) => {
-      const targetDate = new Date(dateStr);
+      // IMPORTANT: Use same date matching as aggregateByDay (ISO format, UTC-based)
       const dayRows = rows.filter((r) => {
         if (!r.ts || (r.ms_played ?? 0) < minMsPlayed) return false;
         const d = new Date(r.ts);
-        return d.toDateString() === targetDate.toDateString();
+        if (isNaN(d.getTime())) return false;
+        const rowDateKey = d.toISOString().slice(0, 10); // YYYY-MM-DD (UTC)
+        return rowDateKey === dateStr;
       });
 
-      // Aggregate tracks
+      // Aggregate tracks with classification counts
       const trackMap = new Map<
         string,
-        { track: string; artist: string; plays: number; ms: number }
+        {
+          track: string;
+          artist: string;
+          plays: number;
+          ms: number;
+          activeCount: number;
+          assistedCount: number;
+          unknownCount: number;
+        }
       >();
       const artistMap = new Map<
         string,
@@ -162,6 +179,7 @@ export default function ListeningCharts({
         const artistKey = row.master_metadata_album_artist_name || "Unknown";
         const trackName = row.master_metadata_track_name || "Unknown";
         const msPlayed = row.ms_played ?? 0;
+        const classification = classifyStart(row.reason_start);
 
         // Track aggregation
         if (!trackMap.has(trackKey)) {
@@ -170,11 +188,17 @@ export default function ListeningCharts({
             artist: artistKey,
             plays: 0,
             ms: 0,
+            activeCount: 0,
+            assistedCount: 0,
+            unknownCount: 0,
           });
         }
         const t = trackMap.get(trackKey)!;
         t.plays++;
         t.ms += msPlayed;
+        if (classification === "active") t.activeCount++;
+        else if (classification === "passive") t.assistedCount++;
+        else t.unknownCount++;
 
         // Artist aggregation
         if (!artistMap.has(artistKey)) {
@@ -185,18 +209,20 @@ export default function ListeningCharts({
         a.ms += msPlayed;
       }
 
-      const topTracks = [...trackMap.values()]
-        .sort((a, b) => b.plays - a.plays)
-        .slice(0, 10);
-      const topArtists = [...artistMap.values()]
-        .sort((a, b) => b.plays - a.plays)
-        .slice(0, 10);
+      const topTracks = [...trackMap.values()].sort(
+        (a, b) => b.plays - a.plays,
+      );
+      const topArtists = [...artistMap.values()].sort(
+        (a, b) => b.plays - a.plays,
+      );
       const totalMs = dayRows.reduce((sum, r) => sum + (r.ms_played ?? 0), 0);
       const uniqueArtists = new Set(
         dayRows.map((r) => r.master_metadata_album_artist_name),
       ).size;
 
-      const formattedDate = targetDate.toLocaleDateString(
+      // Parse ISO date for display (add time to avoid timezone offset issues)
+      const displayDate = new Date(dateStr + "T12:00:00");
+      const formattedDate = displayDate.toLocaleDateString(
         locale === "en" ? "en-US" : "nb-NO",
         {
           weekday: "long",
@@ -236,122 +262,83 @@ export default function ListeningCharts({
     [activeTab, getDrillDownForDate],
   );
 
-  // Export chart as image - using SVG capture instead of html2canvas
-  const exportChartPDF = useCallback(async () => {
+  // Export chart as PNG using html2canvas
+  const exportChartPNG = useCallback(async () => {
     if (!chartContainerRef.current) {
       console.error("Chart container not found");
       return;
     }
 
     try {
-      // Find the SVG element inside the chart container
-      const svgElement = chartContainerRef.current.querySelector("svg");
-      if (!svgElement) {
-        throw new Error("No chart SVG found");
+      const container = chartContainerRef.current;
+
+      // Force a small delay to ensure chart is fully rendered
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const canvas = await html2canvas(container, {
+        backgroundColor: "#121212",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        onclone: (clonedDoc) => {
+          // Replace color-mix() values that html2canvas can't parse
+          const style = clonedDoc.createElement("style");
+          style.textContent = `
+            * {
+              --accent: #1DB954 !important;
+              --text: #ffffff !important;
+              --muted: #999999 !important;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+
+          // Remove elements with color-mix in their computed styles
+          const allElements = clonedDoc.querySelectorAll("*");
+          allElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const computed = clonedDoc.defaultView?.getComputedStyle(htmlEl);
+            if (computed) {
+              if (
+                computed.backgroundColor.includes("color-mix") ||
+                computed.backgroundColor.includes("color(")
+              ) {
+                htmlEl.style.backgroundColor = "transparent";
+              }
+              if (
+                computed.borderColor.includes("color-mix") ||
+                computed.borderColor.includes("color(")
+              ) {
+                htmlEl.style.borderColor = "transparent";
+              }
+            }
+          });
+        },
+      });
+
+      // Validate canvas has content
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error("Canvas is empty");
       }
 
-      // Clone the SVG
-      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement;
+      const imgData = canvas.toDataURL("image/png");
 
-      // Add background
-      const rect = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "rect",
-      );
-      rect.setAttribute("width", "100%");
-      rect.setAttribute("height", "100%");
-      rect.setAttribute("fill", "#121212");
-      clonedSvg.insertBefore(rect, clonedSvg.firstChild);
+      if (!imgData || imgData === "data:,") {
+        throw new Error("Failed to generate image");
+      }
 
-      // Serialize SVG
-      const serializer = new XMLSerializer();
-      const svgString = serializer.serializeToString(clonedSvg);
-      const svgBlob = new Blob([svgString], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      const svgUrl = URL.createObjectURL(svgBlob);
-
-      // Convert SVG to canvas
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const scale = 2;
-        canvas.width = img.width * scale;
-        canvas.height = img.height * scale;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          throw new Error("Could not get canvas context");
-        }
-
-        ctx.fillStyle = "#121212";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.scale(scale, scale);
-        ctx.drawImage(img, 0, 0);
-
-        URL.revokeObjectURL(svgUrl);
-
-        const imgData = canvas.toDataURL("image/png");
-
-        const tabLabels: Record<ChartTab, Record<"no" | "en", string>> = {
-          daily: { no: "Dagleg", en: "Daily" },
-          hourly: { no: "Timevis", en: "Hourly" },
-          weekday: { no: "Vekedag", en: "Weekday" },
-          monthly: { no: "Månadleg", en: "Monthly" },
-          activePassive: { no: "Aktiv/Passiv", en: "Active/Passive" },
-        };
-
-        const date = new Date().toLocaleDateString(
-          locale === "en" ? "en-US" : "nb-NO",
-          { year: "numeric", month: "short", day: "numeric" },
-        );
-
-        const html = `<!DOCTYPE html>
-<html>
-<head>
-  <title>Spotify Unwrapped - ${tabLabels[activeTab][locale]} Chart</title>
-  <style>
-    @page { size: landscape; margin: 20mm; }
-    body { font-family: system-ui, sans-serif; background: #121212; color: #fff; margin: 0; padding: 40px; }
-    .header { text-align: center; margin-bottom: 24px; }
-    h1 { font-size: 24px; margin: 0; color: #1DB954; }
-    .subtitle { color: #999; font-size: 14px; margin-top: 8px; }
-    .chart-img { display: block; max-width: 100%; margin: 0 auto; border-radius: 12px; }
-    .footer { text-align: center; margin-top: 24px; font-size: 11px; color: #666; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🎵 Spotify Unwrapped - ${tabLabels[activeTab][locale]}</h1>
-    <p class="subtitle">${locale === "en" ? "Generated" : "Generert"} ${date}</p>
-  </div>
-  <img class="chart-img" src="${imgData}" />
-  <div class="footer">
-    <p>${locale === "en" ? "Generated from" : "Generert frå"} <b>Spotify Unwrapped</b> · banjohans.github.io/Spotify-Unwrapped</p>
-  </div>
-  <script>window.onload = () => { window.print(); }</script>
-</body>
-</html>`;
-
-        const w = window.open("", "_blank");
-        if (w) {
-          w.document.write(html);
-          w.document.close();
-        } else {
-          // Popup blocked - fallback to download
-          const link = document.createElement("a");
-          link.download = `spotify-chart-${activeTab}-${Date.now()}.png`;
-          link.href = imgData;
-          link.click();
-        }
+      const tabLabels: Record<ChartTab, Record<"no" | "en", string>> = {
+        daily: { no: "Dagleg", en: "Daily" },
+        hourly: { no: "Timevis", en: "Hourly" },
+        weekday: { no: "Vekedag", en: "Weekday" },
+        monthly: { no: "Månadleg", en: "Monthly" },
+        activePassive: { no: "Aktiv/Assistert", en: "Active/Assisted" },
       };
 
-      img.onerror = () => {
-        URL.revokeObjectURL(svgUrl);
-        throw new Error("Failed to load SVG image");
-      };
-
-      img.src = svgUrl;
+      // Direct PNG download
+      const link = document.createElement("a");
+      link.download = `spotify-${tabLabels[activeTab].en.toLowerCase()}-${Date.now()}.png`;
+      link.href = imgData;
+      link.click();
     } catch (err) {
       console.error("Failed to export chart:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -397,23 +384,37 @@ export default function ListeningCharts({
     [rows, minMsPlayed],
   );
 
-  // Active/Passive pie data
+  // Active/Assisted pie data (including unknown category)
   const activePassiveData = useMemo(() => {
     const activeLabel = locale === "en" ? "Active listening" : "Aktiv lytting";
-    const passiveLabel =
-      locale === "en" ? "Passive listening" : "Passiv lytting";
-    return [
+    const assistedLabel =
+      locale === "en" ? "Assisted listening" : "Assistert lytting";
+    const unknownLabel =
+      locale === "en" ? "Unknown (old data)" : "Ukjent (eldre data)";
+
+    const data = [
       {
         name: activeLabel,
         value: result.activeShare * 100,
         color: CHART_COLORS.primary,
       },
       {
-        name: passiveLabel,
+        name: assistedLabel,
         value: result.passiveShare * 100,
-        color: CHART_COLORS.passive,
+        color: CHART_COLORS.assisted,
       },
     ];
+
+    // Only show unknown slice if it's significant (>1%)
+    if (result.unknownShare > 0.01) {
+      data.push({
+        name: unknownLabel,
+        value: result.unknownShare * 100,
+        color: CHART_COLORS.unknown,
+      });
+    }
+
+    return data;
   }, [result, locale]);
 
   // Labels by locale
@@ -424,7 +425,7 @@ export default function ListeningCharts({
       hourly: locale === "en" ? "By hour" : "Per time",
       weekday: locale === "en" ? "Weekday" : "Vekedag",
       monthly: locale === "en" ? "Monthly" : "Månadleg",
-      activePassive: locale === "en" ? "Active/Passive" : "Aktiv/Passiv",
+      activePassive: locale === "en" ? "Active/Assisted" : "Aktiv/Assistert",
       streams: locale === "en" ? "Streams" : "Strøymingar",
       minutes: locale === "en" ? "Minutes" : "Minutt",
       artists: locale === "en" ? "Artists" : "Artistar",
@@ -466,13 +467,71 @@ export default function ListeningCharts({
   // Custom tooltip - with clear units
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;
+
+    // Calculate totals for stacked bars
+    let totalStreams = 0;
+    let totalMs = 0;
+    const isStackedStreams = payload.some(
+      (e: any) =>
+        e.dataKey === "activeStreams" ||
+        e.dataKey === "passiveStreams" ||
+        e.dataKey === "unknownStreams",
+    );
+    const isStackedMinutes = payload.some(
+      (e: any) =>
+        e.dataKey === "activeMsPlayed" ||
+        e.dataKey === "passiveMsPlayed" ||
+        e.dataKey === "unknownMsPlayed",
+    );
+
+    if (isStackedStreams) {
+      totalStreams = payload.reduce(
+        (sum: number, e: any) =>
+          e.dataKey === "activeStreams" ||
+          e.dataKey === "passiveStreams" ||
+          e.dataKey === "unknownStreams"
+            ? sum + (e.value || 0)
+            : sum,
+        0,
+      );
+    }
+    if (isStackedMinutes) {
+      totalMs = payload.reduce(
+        (sum: number, e: any) =>
+          e.dataKey === "activeMsPlayed" ||
+          e.dataKey === "passiveMsPlayed" ||
+          e.dataKey === "unknownMsPlayed"
+            ? sum + (e.value || 0)
+            : sum,
+        0,
+      );
+    }
+
     return (
       <div className="chartTooltip">
         <p className="chartTooltipLabel">{label}</p>
+        {/* Show total first for stacked charts */}
+        {isStackedStreams && (
+          <p style={{ color: CHART_COLORS.text, fontWeight: 600 }}>
+            {locale === "en" ? "Total" : "Totalt"}:{" "}
+            {formatNum(totalStreams, locale)} {labels.streamsUnit}
+          </p>
+        )}
+        {isStackedMinutes && (
+          <p style={{ color: CHART_COLORS.text, fontWeight: 600 }}>
+            {locale === "en" ? "Total" : "Totalt"}: {formatMinutes(totalMs)}
+          </p>
+        )}
         {payload.map((entry: any, idx: number) => {
           const dataKey = entry.dataKey || "";
-          const isMinutes = dataKey === "msPlayed" || dataKey.includes("Ms");
-          const isStreams = dataKey === "streams" || dataKey === "avgStreams";
+          const isMinutes =
+            dataKey === "msPlayed" ||
+            dataKey.includes("Ms") ||
+            dataKey.includes("MsPlayed");
+          const isStreams =
+            dataKey === "streams" ||
+            dataKey === "avgStreams" ||
+            dataKey.includes("Streams");
 
           let formattedValue: string;
           if (isMinutes) {
@@ -493,29 +552,137 @@ export default function ListeningCharts({
     );
   };
 
-  // Format daily X-axis - show abbreviated month name only
-  const formatDailyXAxis = (dateStr: string): string => {
-    const d = new Date(dateStr);
-    const day = d.getDate();
-    const month = monthNames[d.getMonth()];
-    // Show month name on 1st of each month
-    if (day === 1) {
-      return month;
-    }
-    return `${day}.`;
-  };
+  // Calculate data range to determine best axis format
+  const dataRangeInfo = useMemo(() => {
+    if (dailyData.length === 0) return { years: 0, months: 0 };
+    const first = new Date(dailyData[0].date);
+    const last = new Date(dailyData[dailyData.length - 1].date);
+    const years =
+      (last.getTime() - first.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    const months = years * 12;
+    return { years, months };
+  }, [dailyData]);
 
-  // Format monthly X-axis - show year on quarterly months (Jan, Apr, Jul, Oct)
+  // Format monthly X-axis - show year prominently on January
   const formatMonthlyXAxis = (monthStr: string): string => {
     const parts = monthStr.split("-");
     if (parts.length < 2) return monthStr;
+    const year = parts[0];
     const monthIdx = parseInt(parts[1], 10) - 1;
-    // Show year on quarterly months: Jan (0), Apr (3), Jul (6), Oct (9)
-    if (monthIdx === 0 || monthIdx === 3 || monthIdx === 6 || monthIdx === 9) {
-      return `${monthNames[monthIdx]} '${parts[0].slice(2)}`;
+    // Show full year on January
+    if (monthIdx === 0) {
+      return year;
     }
     return monthNames[monthIdx];
   };
+
+  // Generate meaningful tick positions for daily chart
+  const dailyTicks = useMemo(() => {
+    if (dailyData.length === 0) return [];
+
+    const dataDateSet = new Set(dailyData.map((d) => d.date));
+    const ticks: string[] = [];
+
+    // Multi-year: show years
+    if (dataRangeInfo.years > 2) {
+      // Find all January 1st dates in the data
+      for (const item of dailyData) {
+        const d = new Date(item.date);
+        if (d.getMonth() === 0 && d.getDate() === 1) {
+          ticks.push(item.date);
+        }
+      }
+      // If no Jan 1st found, find closest to Jan 1st for each year
+      if (ticks.length === 0) {
+        const yearsSeen = new Set<number>();
+        for (const item of dailyData) {
+          const d = new Date(item.date);
+          const year = d.getFullYear();
+          if (!yearsSeen.has(year)) {
+            yearsSeen.add(year);
+            ticks.push(item.date);
+          }
+        }
+      }
+    }
+    // 1-2 years: show months
+    else if (dataRangeInfo.years > 0.5) {
+      const monthsSeen = new Set<string>();
+      for (const item of dailyData) {
+        const d = new Date(item.date);
+        const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+        if (!monthsSeen.has(monthKey)) {
+          monthsSeen.add(monthKey);
+          // Prefer 1st of month if available
+          const firstOfMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+          if (dataDateSet.has(firstOfMonth)) {
+            ticks.push(firstOfMonth);
+          } else {
+            ticks.push(item.date);
+          }
+        }
+      }
+    }
+    // Short range: show every few days
+    else {
+      const step = Math.max(1, Math.floor(dailyData.length / 10));
+      for (let i = 0; i < dailyData.length; i += step) {
+        ticks.push(dailyData[i].date);
+      }
+      // Always include last
+      if (!ticks.includes(dailyData[dailyData.length - 1].date)) {
+        ticks.push(dailyData[dailyData.length - 1].date);
+      }
+    }
+
+    return ticks;
+  }, [dailyData, dataRangeInfo]);
+
+  // Simpler formatting now that ticks are positioned correctly
+  const formatDailyXAxisTick = (dateStr: string): string => {
+    const d = new Date(dateStr);
+    const month = d.getMonth();
+    const year = d.getFullYear();
+
+    // Multi-year: show year
+    if (dataRangeInfo.years > 2) {
+      return `${year}`;
+    }
+
+    // 1-2 years: show month + year for Jan, just month otherwise
+    if (dataRangeInfo.years > 0.5) {
+      if (month === 0) {
+        return `${year}`;
+      }
+      return monthNames[month];
+    }
+
+    // Short range: show day.month
+    return `${d.getDate()}. ${monthNames[month]}`;
+  };
+
+  // Get year boundaries for ReferenceLine in daily chart
+  const yearBoundariesDaily = useMemo(() => {
+    const boundaries: string[] = [];
+    for (const item of dailyData) {
+      const d = new Date(item.date);
+      if (d.getMonth() === 0 && d.getDate() === 1) {
+        boundaries.push(item.date);
+      }
+    }
+    return boundaries;
+  }, [dailyData]);
+
+  // Get year boundaries for ReferenceLine in monthly chart
+  const yearBoundariesMonthly = useMemo(() => {
+    const boundaries: string[] = [];
+    for (const item of monthlyData) {
+      if (item.month.endsWith("-01")) {
+        boundaries.push(item.month);
+      }
+    }
+    return boundaries;
+  }, [monthlyData]);
 
   if (dailyData.length === 0) {
     return (
@@ -526,15 +693,7 @@ export default function ListeningCharts({
     );
   }
 
-  // Calculate appropriate intervals based on data
-  const dailyInterval =
-    dailyData.length > 60
-      ? Math.floor(dailyData.length / 12)
-      : dailyData.length > 30
-        ? Math.floor(dailyData.length / 8)
-        : dailyData.length > 14
-          ? 2
-          : 0;
+  // Calculate appropriate intervals for monthly chart
   const monthlyInterval =
     monthlyData.length > 24
       ? Math.floor(monthlyData.length / 12)
@@ -549,8 +708,8 @@ export default function ListeningCharts({
         <div className="chartsHeaderRight">
           <button
             className="btnExportChart"
-            onClick={exportChartPDF}
-            title={locale === "en" ? "Export as PDF" : "Eksporter som PDF"}
+            onClick={exportChartPNG}
+            title={locale === "en" ? "Export as PNG" : "Eksporter som PNG"}
           >
             <svg
               width="16"
@@ -566,7 +725,7 @@ export default function ListeningCharts({
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            PDF
+            PNG
           </button>
           <div className="chartsTimeFilter">
             <label htmlFor="charts-time-filter">
@@ -649,8 +808,8 @@ export default function ListeningCharts({
                   dataKey="date"
                   stroke={CHART_COLORS.text}
                   tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
-                  tickFormatter={formatDailyXAxis}
-                  interval={dailyInterval}
+                  tickFormatter={formatDailyXAxisTick}
+                  ticks={dailyTicks}
                   angle={-35}
                   textAnchor="end"
                   height={50}
@@ -677,23 +836,66 @@ export default function ListeningCharts({
                   width={dailyMetric === "minutes" ? 60 : 50}
                 />
                 <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  wrapperStyle={{ paddingTop: 10 }}
+                  iconType="square"
+                  iconSize={10}
+                />
                 {dailyMetric === "streams" && (
-                  <Bar
-                    dataKey="streams"
-                    name={labels.streams}
-                    fill={CHART_COLORS.primary}
-                    isAnimationActive={false}
-                    cursor="pointer"
-                  />
+                  <>
+                    <Bar
+                      dataKey="activeStreams"
+                      name={locale === "en" ? "Active" : "Aktiv"}
+                      stackId="streams"
+                      fill={CHART_COLORS.primary}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                    <Bar
+                      dataKey="passiveStreams"
+                      name={locale === "en" ? "Assisted" : "Assistert"}
+                      stackId="streams"
+                      fill={CHART_COLORS.assisted}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                    <Bar
+                      dataKey="unknownStreams"
+                      name={locale === "en" ? "Unknown" : "Ukjent"}
+                      stackId="streams"
+                      fill={CHART_COLORS.unknown}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                  </>
                 )}
                 {dailyMetric === "minutes" && (
-                  <Bar
-                    dataKey="msPlayed"
-                    name={labels.listeningTime}
-                    fill={CHART_COLORS.primary}
-                    isAnimationActive={false}
-                    cursor="pointer"
-                  />
+                  <>
+                    <Bar
+                      dataKey="activeMsPlayed"
+                      name={locale === "en" ? "Active" : "Aktiv"}
+                      stackId="minutes"
+                      fill={CHART_COLORS.primary}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                    <Bar
+                      dataKey="passiveMsPlayed"
+                      name={locale === "en" ? "Assisted" : "Assistert"}
+                      stackId="minutes"
+                      fill={CHART_COLORS.assisted}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                    <Bar
+                      dataKey="unknownMsPlayed"
+                      name={locale === "en" ? "Unknown" : "Ukjent"}
+                      stackId="minutes"
+                      fill={CHART_COLORS.unknown}
+                      isAnimationActive={false}
+                      cursor="pointer"
+                    />
+                  </>
                 )}
                 {dailyMetric === "artists" && (
                   <Bar
@@ -704,12 +906,22 @@ export default function ListeningCharts({
                     cursor="pointer"
                   />
                 )}
+                {/* Year boundary lines */}
+                {yearBoundariesDaily.map((date) => (
+                  <ReferenceLine
+                    key={date}
+                    x={date}
+                    stroke="rgba(255,255,255,0.3)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                ))}
                 <Brush
                   dataKey="date"
                   height={25}
                   stroke={CHART_COLORS.primary}
                   fill="rgba(29, 185, 84, 0.1)"
-                  tickFormatter={formatDailyXAxis}
+                  tickFormatter={formatDailyXAxisTick}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -852,6 +1064,16 @@ export default function ListeningCharts({
                   dot={{ fill: CHART_COLORS.secondary, r: 3 }}
                   isAnimationActive={false}
                 />
+                {/* Year boundary lines */}
+                {yearBoundariesMonthly.map((month) => (
+                  <ReferenceLine
+                    key={month}
+                    x={month}
+                    stroke="rgba(255,255,255,0.3)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                ))}
                 <Brush
                   dataKey="month"
                   height={25}
@@ -864,7 +1086,7 @@ export default function ListeningCharts({
           </div>
         )}
 
-        {/* Active/Passive pie chart */}
+        {/* Active/Assisted pie chart */}
         {activeTab === "activePassive" && (
           <div className="chartContainer pieChartContainer">
             <ResponsiveContainer width="100%" height={chartHeight - 50}>
@@ -892,9 +1114,17 @@ export default function ListeningCharts({
             </ResponsiveContainer>
             <p className="chartDescription">
               {locale === "en"
-                ? "Active = you played, navigated, or continued an album/playlist. Passive = Spotify chose for you (autoplay after album ends, recommendations, app startup)."
-                : "Aktiv = du spelte, navigerte, eller fortsette eit album/spilleliste. Passiv = Spotify valde for deg (autoplay etter albumet er ferdig, anbefalingar, app-oppstart)."}
+                ? "Active = you played, navigated, or continued an album/playlist. Passive = Spotify chose for you (autoplay after album ends, recommendations, app startup). Unknown = ambiguous data (e.g. older exports where the start reason field has unclear semantics)."
+                : "Aktiv = du spelte, navigerte, eller fortsette eit album/spilleliste. Passiv = Spotify valde for deg (autoplay etter albumet er ferdig, anbefalingar, app-oppstart). Ukjent = tvetydig data (t.d. eldre eksportar der reason_start-feltet har uklar historisk betydning)."}
             </p>
+            {result.unknownShare > 0.05 && (
+              <p className="chartWarning">
+                ⚠️{" "}
+                {locale === "en"
+                  ? `${Math.round(result.unknownShare * 100)}% of your listening data cannot be reliably classified as active or passive. This is often due to older exports where the data format differs. The active/passive statistics should be interpreted with caution.`
+                  : `${Math.round(result.unknownShare * 100)}% av lyttedataene dine kan ikkje klassifiserast påliteleg som aktiv eller passiv. Dette skuldast ofte eldre eksportar der dataformatet er annleis. Aktiv/passiv-statistikken bør tolkast med forsiktigheit.`}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -943,7 +1173,25 @@ export default function ListeningCharts({
 
             <div className="drillDownSections">
               <div className="drillDownSection">
-                <h4>{locale === "en" ? "Top Tracks" : "Topp låtar"}</h4>
+                <h4>
+                  {locale === "en"
+                    ? `All Tracks (${drillDownData.topTracks.length})`
+                    : `Alle låtar (${drillDownData.topTracks.length})`}
+                </h4>
+                <div className="classificationLegend">
+                  <span className="legendItem">
+                    <span className="classificationBadge active">●</span>
+                    {locale === "en" ? "Active" : "Aktiv"}
+                  </span>
+                  <span className="legendItem">
+                    <span className="classificationBadge assisted">●</span>
+                    {locale === "en" ? "Assisted" : "Assistert"}
+                  </span>
+                  <span className="legendItem">
+                    <span className="classificationBadge unknown">●</span>
+                    {locale === "en" ? "Unknown" : "Ukjent"}
+                  </span>
+                </div>
                 <ul className="drillDownList">
                   {drillDownData.topTracks.map((t, i) => (
                     <li key={i} className="drillDownItem">
@@ -952,14 +1200,55 @@ export default function ListeningCharts({
                         <span className="drillDownTrack">{t.track}</span>
                         <span className="drillDownArtist">{t.artist}</span>
                       </div>
-                      <span className="drillDownPlays">{t.plays}×</span>
+                      <div className="drillDownClassification">
+                        {t.activeCount > 0 && (
+                          <span
+                            className="classificationBadge active"
+                            title={
+                              locale === "en"
+                                ? `${t.activeCount} active`
+                                : `${t.activeCount} aktiv`
+                            }
+                          >
+                            {t.activeCount}
+                          </span>
+                        )}
+                        {t.assistedCount > 0 && (
+                          <span
+                            className="classificationBadge assisted"
+                            title={
+                              locale === "en"
+                                ? `${t.assistedCount} assisted`
+                                : `${t.assistedCount} assistert`
+                            }
+                          >
+                            {t.assistedCount}
+                          </span>
+                        )}
+                        {t.unknownCount > 0 && (
+                          <span
+                            className="classificationBadge unknown"
+                            title={
+                              locale === "en"
+                                ? `${t.unknownCount} unknown`
+                                : `${t.unknownCount} ukjent`
+                            }
+                          >
+                            {t.unknownCount}
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
               </div>
 
               <div className="drillDownSection">
-                <h4>{locale === "en" ? "Top Artists" : "Topp artistar"}</h4>
+                <h4>
+                  {locale === "en"
+                    ? `All Artists (${drillDownData.topArtists.length})`
+                    : `Alle artistar (${drillDownData.topArtists.length})`}
+                </h4>
                 <ul className="drillDownList">
                   {drillDownData.topArtists.map((a, i) => (
                     <li key={i} className="drillDownItem">

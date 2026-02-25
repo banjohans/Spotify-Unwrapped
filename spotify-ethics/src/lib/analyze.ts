@@ -188,12 +188,15 @@ export type AnalysisResult = {
 
   activeMsPlayed: number;
   passiveMsPlayed: number;
+  unknownMsPlayed: number; // Data uten reason_start felt / tvetydig
 
   activeShare: number;
   passiveShare: number;
+  unknownShare: number; // Andel der me ikkje kan klassifisera
 
   activeEstStreams: number;
   passiveEstStreams: number;
+  unknownEstStreams: number;
 
   activeEstValueNOK: number;
   passiveEstValueNOK: number;
@@ -276,9 +279,21 @@ function isAutoplayAfterEndplay(
  * Obs: autoplay etter album vert fanga av isAutoplayAfterEndplay()
  */
 export function classifyStart(
-  reasonStartRaw: string | undefined,
-): "active" | "passive" {
-  const r = (reasonStartRaw ?? "").trim().toLowerCase();
+  reasonStartRaw: string | undefined | null,
+): "active" | "passive" | "unknown" {
+  // CRITICAL: If field doesn't exist at all, we can't know
+  // Old data (pre-2018) often lacks this field entirely
+  if (reasonStartRaw === undefined || reasonStartRaw === null) {
+    return "unknown";
+  }
+
+  const r = reasonStartRaw.trim().toLowerCase();
+
+  // Empty string is ambiguous but Spotify sometimes uses it for algorithm picks
+  // We classify it as passive with low confidence
+  if (r === "") {
+    return "passive";
+  }
 
   // Eksplisitte brukarhandlingar = AKTIV
   const ACTIVE = new Set([
@@ -293,25 +308,33 @@ export function classifyStart(
     "trackdone", // neste låt i album/spilleliste du valde
   ]);
 
-  // Algoritmestyrte val = PASSIV
+  // Algoritmestyrte val = PASSIV (kun når me VET det er algoritme)
+  // NB: Desse verdiane må være ukontroversielle - kun ting som HEILT KLART
+  // er algoritmestyrte utan brukarhandling
   const PASSIVE = new Set([
-    "unknown", // Spotify valde for deg (ofte autoplay)
-    "appload", // app-oppstart, Spotify bestemte
-    "popup", // reklame, prompts
-    "remote", // pusha frå anna enheit
-    "endplay", // sjølv om dette er reason_start
-    "", // tom streng = ukjent
+    "unknown", // Spotify eksplisitt seier "unknown" = algoritme valde
+    "appload", // app-oppstart, Spotify bestemte (ingen brukarhandling)
+    "remote", // pusha frå anna enheit (ikkje aktiv handling på denne enheten)
+    "endplay", // slutt på kø, algoritme tek over
+  ]);
+
+  // Verdiar som er tvetydige historisk - kan ikkje klassifiserast trygt
+  // "popup" kunne i gamle dagar være albumførehandsvisning brukaren klikka på
+  const AMBIGUOUS = new Set([
+    "popup", // historisk uklar meining
   ]);
 
   if (ACTIVE.has(r)) return "active";
   if (PASSIVE.has(r)) return "passive";
+  if (AMBIGUOUS.has(r)) return "unknown";
 
   // Ukjende verdiar: sjekk om dei ser aktive ut
   if (r.includes("click") || r.includes("btn") || r.includes("play")) {
     return "active";
   }
 
-  return "passive"; // Fallback: ukjende verdiar = passiv
+  // For andre ukjende verdiar, ver konservativ - me veit ikkje
+  return "unknown";
 }
 
 export function analyze(
@@ -356,8 +379,10 @@ export function analyze(
 
   let activeMsPlayed = 0;
   let passiveMsPlayed = 0;
+  let unknownMsPlayed = 0;
   let activePlays = 0;
   let passivePlays = 0;
+  let unknownPlays = 0;
   let activeEstValueNOKAccum = 0;
   let passiveEstValueNOKAccum = 0;
   let autoplayEstValueNOKAccum = 0;
@@ -433,16 +458,22 @@ export function analyze(
     a.plays += 1;
     a.estValueNOK += rowRate;
 
+    // Only count active/passive for streams where we KNOW the classification
+    // "unknown" streams (old data or ambiguous) are tracked separately
     if (cls === "active") {
       a.activeMs += ms;
       activeMsPlayed += ms;
       activePlays++;
       activeEstValueNOKAccum += rowRate;
-    } else {
+    } else if (cls === "passive") {
       a.passiveMs += ms;
       passiveMsPlayed += ms;
       passivePlays++;
       passiveEstValueNOKAccum += rowRate;
+    } else {
+      // cls === "unknown"
+      unknownMsPlayed += ms;
+      unknownPlays++;
     }
 
     if (!a.byAlbum.has(album)) a.byAlbum.set(album, { msPlayed: 0, plays: 0 });
@@ -461,7 +492,11 @@ export function analyze(
         .map(([album, v]) => ({ album, msPlayed: v.msPlayed, plays: v.plays }))
         .sort((x, y) => y.msPlayed - x.msPlayed);
 
-      const activeShare = a.msPlayed > 0 ? a.activeMs / a.msPlayed : 0;
+      // activeShare only meaningful when we have classification data
+      // Use (activeMs + passiveMs) as denominator, not total msPlayed
+      const knownClassified = a.activeMs + a.passiveMs;
+      const activeShare =
+        knownClassified > 0 ? a.activeMs / knownClassified : 0;
 
       return {
         artist,
@@ -480,13 +515,16 @@ export function analyze(
 
   artists.sort((x, y) => y.estValueNOK - x.estValueNOK);
 
-  const totalCounted = Math.max(1, countedMsPlayed);
-  const activeShare = activeMsPlayed / totalCounted;
-  const passiveShare = passiveMsPlayed / totalCounted;
+  // For active/passive share: calculate based on ALL counted ms, with unknown as separate category
+  const totalCountedMs = Math.max(1, countedMsPlayed);
+  const activeShare = activeMsPlayed / totalCountedMs;
+  const passiveShare = passiveMsPlayed / totalCountedMs;
+  const unknownShare = unknownMsPlayed / totalCountedMs;
 
   // Kvar kvalifiserande rad (ms_played >= terskel) = 1 stream
   const activeEstStreams = activePlays;
   const passiveEstStreams = passivePlays;
+  const unknownEstStreams = unknownPlays;
 
   const activeEstValueNOK = activeEstValueNOKAccum;
   const passiveEstValueNOK = passiveEstValueNOKAccum;
@@ -545,11 +583,14 @@ export function analyze(
 
     activeMsPlayed,
     passiveMsPlayed,
+    unknownMsPlayed,
     activeShare,
     passiveShare,
+    unknownShare,
 
     activeEstStreams,
     passiveEstStreams,
+    unknownEstStreams,
 
     activeEstValueNOK,
     passiveEstValueNOK,
@@ -574,6 +615,14 @@ export type DayAggregation = {
   streams: number;
   msPlayed: number;
   uniqueArtists: number;
+  // Active/passive split (only for data with reason_start)
+  activeStreams: number;
+  passiveStreams: number;
+  activeMsPlayed: number;
+  passiveMsPlayed: number;
+  // Unknown = data where we can't classify (old data lacks reason_start)
+  unknownStreams: number;
+  unknownMsPlayed: number;
 };
 
 export type HourAggregation = {
@@ -606,7 +655,17 @@ export function aggregateByDay(
 ): DayAggregation[] {
   const byDay = new Map<
     string,
-    { streams: number; msPlayed: number; artists: Set<string> }
+    {
+      streams: number;
+      msPlayed: number;
+      artists: Set<string>;
+      activeStreams: number;
+      passiveStreams: number;
+      activeMsPlayed: number;
+      passiveMsPlayed: number;
+      unknownStreams: number;
+      unknownMsPlayed: number;
+    }
   >();
 
   for (const row of rows) {
@@ -621,15 +680,38 @@ export function aggregateByDay(
 
     const dayKey = date.toISOString().slice(0, 10); // YYYY-MM-DD
     const artist = safeStr(row.master_metadata_album_artist_name);
+    const classification = classifyStart(row.reason_start);
 
     if (!byDay.has(dayKey)) {
-      byDay.set(dayKey, { streams: 0, msPlayed: 0, artists: new Set() });
+      byDay.set(dayKey, {
+        streams: 0,
+        msPlayed: 0,
+        artists: new Set(),
+        activeStreams: 0,
+        passiveStreams: 0,
+        activeMsPlayed: 0,
+        passiveMsPlayed: 0,
+        unknownStreams: 0,
+        unknownMsPlayed: 0,
+      });
     }
 
     const d = byDay.get(dayKey)!;
     d.streams++;
     d.msPlayed += ms;
     if (artist) d.artists.add(artist);
+
+    if (classification === "active") {
+      d.activeStreams++;
+      d.activeMsPlayed += ms;
+    } else if (classification === "passive") {
+      d.passiveStreams++;
+      d.passiveMsPlayed += ms;
+    } else {
+      // "unknown" - data without reason_start field
+      d.unknownStreams++;
+      d.unknownMsPlayed += ms;
+    }
   }
 
   return Array.from(byDay.entries())
@@ -638,6 +720,12 @@ export function aggregateByDay(
       streams: data.streams,
       msPlayed: data.msPlayed,
       uniqueArtists: data.artists.size,
+      activeStreams: data.activeStreams,
+      passiveStreams: data.passiveStreams,
+      activeMsPlayed: data.activeMsPlayed,
+      passiveMsPlayed: data.passiveMsPlayed,
+      unknownStreams: data.unknownStreams,
+      unknownMsPlayed: data.unknownMsPlayed,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
