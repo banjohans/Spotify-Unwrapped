@@ -91,6 +91,29 @@ export default function ArtistComparisonChart({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
+  // Responsive chart height based on orientation
+  const [chartHeight, setChartHeight] = useState(450);
+  useEffect(() => {
+    const updateHeight = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobile = window.innerHeight < 600;
+      if (isLandscape && isMobile) {
+        setChartHeight(280);
+      } else if (isMobile) {
+        setChartHeight(350);
+      } else {
+        setChartHeight(450);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, []);
+
   const monthNames = locale === "en" ? MONTH_NAMES_EN : MONTH_NAMES_NO;
 
   // Labels
@@ -659,7 +682,7 @@ export default function ArtistComparisonChart({
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={450}>
+          <ResponsiveContainer width="100%" height={chartHeight}>
             <AreaChart data={chartData}>
               <defs>
                 {selectedArtists.map((artist, idx) => (

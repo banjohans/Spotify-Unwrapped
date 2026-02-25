@@ -3385,3 +3385,107 @@ body {
     flex: 1;
   }
 }
+
+/* Landscape mobile: reduce sticky header height */
+@media (orientation: landscape) and (max-height: 500px) {
+  .stickyHeader {
+    padding: 6px 10px;
+    top: 2px;
+    gap: 4px;
+  }
+
+  .stickyHeader h2 {
+    font-size: 11px;
+    line-height: 1.2;
+    margin: 0;
+  }
+
+  .stickySubtitle {
+    font-size: 0.65em;
+    margin-top: 1px;
+  }
+
+  .headerActions {
+    gap: 4px;
+  }
+
+  .headerActions .btn,
+  .headerActions .btnGhost {
+    font-size: 10px;
+    padding: 5px 8px;
+  }
+
+  .stickyHeader .plannedDropdownToggle {
+    font-size: 0.7em;
+    padding: 4px 6px;
+  }
+
+  .stickyHeader .albumBudgetBar {
+    margin-top: 2px;
+    gap: 2px;
+  }
+
+  .stickyHeader .albumBudgetText {
+    font-size: 0.62em;
+  }
+
+  .stickyHeader .albumBudgetProgress {
+    height: 3px;
+  }
+
+  /* Charts in landscape - more horizontal space */
+  .chartContainer {
+    margin: 8px 0;
+  }
+
+  .chartTabs {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .chartTabs button {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+
+  .chartMetricSelector {
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .chartMetricSelector button {
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+
+  .listeningCharts .card {
+    padding: 10px;
+  }
+
+  .chartTitle {
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .chartClickHint {
+    font-size: 0.7rem;
+    margin-bottom: 4px;
+  }
+}
+
+/* Chart touch-friendly brush handles on mobile */
+@media (pointer: coarse) {
+  .recharts-brush-slide {
+    fill-opacity: 0.3;
+  }
+
+  .recharts-brush-traveller {
+    cursor: grab;
+  }
+
+  .recharts-brush-traveller rect {
+    width: 14px !important;
+    rx: 4px;
+    ry: 4px;
+  }
+}

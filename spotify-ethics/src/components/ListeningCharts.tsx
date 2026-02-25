@@ -1,9 +1,7 @@
 // src/components/ListeningCharts.tsx
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import {
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   LineChart,
@@ -113,6 +111,29 @@ export default function ListeningCharts({
     topArtists: Array<{ artist: string; plays: number; ms: number }>;
   } | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  // Responsive chart height based on orientation
+  const [chartHeight, setChartHeight] = useState(350);
+  useEffect(() => {
+    const updateHeight = () => {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isMobile = window.innerHeight < 600;
+      if (isLandscape && isMobile) {
+        setChartHeight(220);
+      } else if (isMobile) {
+        setChartHeight(280);
+      } else {
+        setChartHeight(350);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    window.addEventListener("orientationchange", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      window.removeEventListener("orientationchange", updateHeight);
+    };
+  }, []);
 
   const monthNames = locale === "en" ? MONTH_NAMES_EN : MONTH_NAMES_NO;
 
@@ -618,28 +639,8 @@ export default function ListeningCharts({
                 ? "💡 Click on a data point to see details"
                 : "💡 Klikk på eit datapunkt for å sjå detaljar"}
             </p>
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={dailyData} onClick={handleChartClick}>
-                <defs>
-                  <linearGradient
-                    id="colorGradient"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor={CHART_COLORS.primary}
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={CHART_COLORS.primary}
-                      stopOpacity={0.1}
-                    />
-                  </linearGradient>
-                </defs>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart data={dailyData} onClick={handleChartClick}>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={CHART_COLORS.grid}
@@ -677,54 +678,30 @@ export default function ListeningCharts({
                 />
                 <Tooltip content={<CustomTooltip />} />
                 {dailyMetric === "streams" && (
-                  <Area
-                    type="monotone"
+                  <Bar
                     dataKey="streams"
                     name={labels.streams}
-                    stroke={CHART_COLORS.primary}
-                    fill="url(#colorGradient)"
+                    fill={CHART_COLORS.primary}
                     isAnimationActive={false}
-                    activeDot={{
-                      r: 6,
-                      fill: CHART_COLORS.primary,
-                      stroke: "#fff",
-                      strokeWidth: 2,
-                      cursor: "pointer",
-                    }}
+                    cursor="pointer"
                   />
                 )}
                 {dailyMetric === "minutes" && (
-                  <Area
-                    type="monotone"
+                  <Bar
                     dataKey="msPlayed"
                     name={labels.listeningTime}
-                    stroke={CHART_COLORS.primary}
-                    fill="url(#colorGradient)"
+                    fill={CHART_COLORS.primary}
                     isAnimationActive={false}
-                    activeDot={{
-                      r: 6,
-                      fill: CHART_COLORS.primary,
-                      stroke: "#fff",
-                      strokeWidth: 2,
-                      cursor: "pointer",
-                    }}
+                    cursor="pointer"
                   />
                 )}
                 {dailyMetric === "artists" && (
-                  <Area
-                    type="monotone"
+                  <Bar
                     dataKey="uniqueArtists"
                     name={labels.uniqueArtists}
-                    stroke={CHART_COLORS.secondary}
-                    fill="url(#colorGradient)"
+                    fill={CHART_COLORS.secondary}
                     isAnimationActive={false}
-                    activeDot={{
-                      r: 6,
-                      fill: CHART_COLORS.secondary,
-                      stroke: "#fff",
-                      strokeWidth: 2,
-                      cursor: "pointer",
-                    }}
+                    cursor="pointer"
                   />
                 )}
                 <Brush
@@ -734,7 +711,7 @@ export default function ListeningCharts({
                   fill="rgba(29, 185, 84, 0.1)"
                   tickFormatter={formatDailyXAxis}
                 />
-              </AreaChart>
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -742,7 +719,7 @@ export default function ListeningCharts({
         {/* Hourly chart */}
         {activeTab === "hourly" && (
           <div className="chartContainer">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={chartHeight - 50}>
               <BarChart data={hourlyData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -774,7 +751,7 @@ export default function ListeningCharts({
         {/* Weekday chart */}
         {activeTab === "weekday" && (
           <div className="chartContainer">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={chartHeight - 50}>
               <BarChart data={weekdayData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -804,7 +781,7 @@ export default function ListeningCharts({
         {/* Monthly chart */}
         {activeTab === "monthly" && (
           <div className="chartContainer">
-            <ResponsiveContainer width="100%" height={380}>
+            <ResponsiveContainer width="100%" height={chartHeight + 30}>
               <LineChart data={monthlyData}>
                 <CartesianGrid
                   strokeDasharray="3 3"
@@ -890,7 +867,7 @@ export default function ListeningCharts({
         {/* Active/Passive pie chart */}
         {activeTab === "activePassive" && (
           <div className="chartContainer pieChartContainer">
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={chartHeight - 50}>
               <PieChart>
                 <Pie
                   data={activePassiveData}
