@@ -41,6 +41,7 @@ interface LabelAnalyticsProps {
   dateFilterMode: DateFilterMode;
   dateFilterYear: number | null;
   onDateFilterChange: (mode: DateFilterMode, year?: number) => void;
+  excludedArtists?: Set<string>;
 }
 
 const COLORS = {
@@ -69,6 +70,7 @@ export function LabelAnalytics({
   dateFilterMode,
   dateFilterYear,
   onDateFilterChange,
+  excludedArtists,
 }: LabelAnalyticsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState<{
@@ -93,17 +95,24 @@ export function LabelAnalytics({
   const abortControllerRef = useRef<AbortController | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  // Filter rows based on date filter
+  // Filter rows based on date filter and excluded artists
   const rows = useMemo(() => {
-    if (dateFilterMode === "all" || !dateFilterYear) {
-      return allRows;
+    let filtered = allRows;
+    if (dateFilterMode !== "all" && dateFilterYear) {
+      filtered = filtered.filter((r) => {
+        if (!r.ts) return false;
+        const d = new Date(r.ts);
+        return d.getFullYear() === dateFilterYear;
+      });
     }
-    return allRows.filter((r) => {
-      if (!r.ts) return false;
-      const d = new Date(r.ts);
-      return d.getFullYear() === dateFilterYear;
-    });
-  }, [allRows, dateFilterMode, dateFilterYear]);
+    if (excludedArtists && excludedArtists.size > 0) {
+      filtered = filtered.filter((r) => {
+        const artist = r.master_metadata_album_artist_name;
+        return !artist || !excludedArtists.has(artist);
+      });
+    }
+    return filtered;
+  }, [allRows, dateFilterMode, dateFilterYear, excludedArtists]);
 
   // Handle time filter change
   const handleTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

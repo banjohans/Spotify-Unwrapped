@@ -2277,6 +2277,13 @@ export default function App() {
                         <span className="dot">•</span>
                         <span className="metaItem">
                           <span className="metaLabel">
+                            {t("streamsLabel", locale)}
+                          </span>{" "}
+                          <b>{formatNum(a.estStreams, locale)}</b>
+                        </span>
+                        <span className="dot">•</span>
+                        <span className="metaItem">
+                          <span className="metaLabel">
                             {t("theorValue", locale)}
                           </span>{" "}
                           <b>{formatCurrency(a.estValueNOK, locale)}</b>
@@ -2289,6 +2296,33 @@ export default function App() {
                           <b>{a.albumEquivalent.toFixed(2)}</b>
                         </span>
                       </div>
+                      {a.loyaltyScore > 0 && (
+                        <div
+                          className="loyaltyBadge"
+                          title={
+                            a.firstListen
+                              ? `${t("loyaltySince", locale)} ${a.firstListen} · ${a.distinctMonths} ${t("loyaltyMonths", locale)}`
+                              : ""
+                          }
+                        >
+                          <span className="loyaltyBar">
+                            <span
+                              className="loyaltyFill"
+                              style={{ width: `${a.loyaltyScore}%` }}
+                            />
+                          </span>
+                          <span className="loyaltyText">
+                            {t("loyaltyLabel", locale)} {a.loyaltyScore}%
+                            {a.firstListen && (
+                              <span className="loyaltySince">
+                                {" · "}
+                                {t("loyaltySince", locale)}{" "}
+                                {a.firstListen.slice(0, 7)}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div
@@ -2723,6 +2757,7 @@ export default function App() {
         availableYears={availableYears}
         dateFilterMode={dateFilterMode}
         dateFilterYear={dateFilterYear}
+        excludedArtists={excludedArtists}
         onDateFilterChange={(mode, year) => {
           setDateFilterMode(mode);
           if (mode === "year" && year) {

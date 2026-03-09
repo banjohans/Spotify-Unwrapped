@@ -2965,6 +2965,158 @@ body {
   box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2);
 }
 
+/* Chart range slider */
+.chartRangeSlider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 6px;
+  margin-top: 4px;
+}
+
+.chartRangeSlider .rangeLabel {
+  font-size: 0.75rem;
+  color: var(--muted2);
+  min-width: 48px;
+  white-space: nowrap;
+}
+
+.chartRangeSlider .rangeLabel:first-of-type {
+  text-align: right;
+}
+
+.rangeSliderTrack {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+.rangeSliderFill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #48c981);
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.rangeSliderInput {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  cursor: pointer;
+}
+
+.rangeSliderInput::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.rangeSliderInput::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  margin-top: -5px;
+  transition: transform 0.1s ease;
+}
+
+.rangeSliderInput::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.rangeSliderInput::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+}
+
+.rangeSliderInput::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  background: transparent;
+  border-radius: 3px;
+}
+
+.rangeSliderInput::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  border-radius: 50%;
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.rangeSliderInput::-moz-range-thumb:hover {
+  transform: scale(1.15);
+}
+
+.rangeResetBtn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 4px;
+}
+
+.rangeResetBtn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Handle position labels */
+.rangeHandleLabel {
+  position: absolute;
+  top: -22px;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: rgba(18, 18, 18, 0.9);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  border: 1px solid rgba(30, 215, 96, 0.3);
+}
+
+.rangeHandleLabelStart {
+  transform: translateX(-50%);
+}
+
+.rangeHandleLabelEnd {
+  transform: translateX(-50%);
+}
+
+/* Hide handle labels when handles are at the edges or close together */
+.chartRangeSlider:not(:has(.rangeResetBtn)) .rangeHandleLabel {
+  display: none;
+}
+
 .chartTooltip {
   background: rgba(18, 18, 18, 0.95);
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
@@ -3055,7 +3207,9 @@ body {
   max-width: 700px;
   width: 100%;
   max-height: 85vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideUp 0.2s ease;
@@ -3101,12 +3255,14 @@ body {
   color: var(--accent);
   margin: 0 0 20px 0;
   padding-right: 40px;
+  flex-shrink: 0;
 }
 
 .drillDownStats {
   display: flex;
   gap: 16px;
   margin-bottom: 24px;
+  flex-shrink: 0;
 }
 
 .drillDownStat {
@@ -3138,6 +3294,9 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .drillDownSection h4 {
@@ -4722,4 +4881,122 @@ body {
   .modalCloseButtonBottom {
     margin: 16px;
   }
+}
+
+/* ─── Loyalty Badge ─────────────────────────────────────────────── */
+
+.loyaltyBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.loyaltyBar {
+  display: inline-block;
+  width: 48px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.loyaltyFill {
+  display: block;
+  height: 100%;
+  background: #1db954;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.loyaltyText {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+}
+
+.loyaltySince {
+  opacity: 0.7;
+}
+
+/* ─── Heatmap Calendar ──────────────────────────────────────────── */
+
+.heatmapWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.heatmapYearSel {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.heatmapYearBtn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.heatmapYearBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.heatmapYearBtn.active {
+  background: #1db954;
+  color: #000;
+  border-color: #1db954;
+  font-weight: 600;
+}
+
+.heatmapScroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+
+.heatmapSvg {
+  display: block;
+}
+
+.heatmapLegend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.heatmapLegendTxt {
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.45);
+  margin: 0 2px;
+}
+
+.heatmapLegendCell {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.heatmapTooltip {
+  pointer-events: none;
+  z-index: 1000;
+  background: #282828;
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }

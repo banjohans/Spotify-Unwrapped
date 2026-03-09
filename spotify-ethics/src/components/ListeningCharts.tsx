@@ -27,14 +27,18 @@ import {
   aggregateByMonth,
   classifyStart,
 } from "../lib/analyze";
-import { formatNum } from "../lib/i18n";
+import { formatNum, t } from "../lib/i18n";
 
-type ChartTab = "daily" | "hourly" | "weekday" | "monthly" | "activePassive";
+type ChartTab =
+  | "daily"
+  | "hourly"
+  | "weekday"
+  | "monthly"
+  | "heatmap"
+  | "activePassive";
 
 type DailyMetric = "streams" | "minutes" | "artists";
 type DateFilterMode = "all" | "year" | "custom";
-type DailyZoom = "all" | 365 | 180 | 90 | 30;
-type MonthlyZoom = "all" | 24 | 12 | 6;
 
 interface ListeningChartsProps {
   rows: SpotifyStreamRow[];
@@ -89,6 +93,242 @@ const MONTH_NAMES_EN = [
   "Dec",
 ];
 
+/* ─── Heatmap Calendar (GitHub-style) ───────────────────────────── */
+
+type HeatmapCell = {
+  date: string;
+  streams: number;
+  dayOfWeek: number;
+  inYear: boolean;
+};
+
+function HeatmapCalendar({
+  dailyData,
+  locale,
+  monthNames,
+  onDayClick,
+}: {
+  dailyData: { date: string; streams: number; msPlayed: number }[];
+  locale: Locale;
+  monthNames: string[];
+  onDayClick?: (dateStr: string) => void;
+}) {
+  const CELL = 13;
+  const GAP = 2;
+  const STEP = CELL + GAP;
+  const DAY_W = 28;
+
+  const dataMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of dailyData) m.set(d.date, d.streams);
+    return m;
+  }, [dailyData]);
+
+  const years = useMemo(() => {
+    if (!dailyData.length) return [];
+    const s = new Set<number>();
+    for (const d of dailyData)
+      s.add(new Date(d.date + "T12:00:00").getFullYear());
+    return Array.from(s).sort((a, b) => b - a);
+  }, [dailyData]);
+
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const activeYear = selectedYear ?? years[0] ?? new Date().getFullYear();
+
+  const maxStreams = useMemo(() => {
+    let mx = 0;
+    for (const d of dailyData) if (d.streams > mx) mx = d.streams;
+    return mx || 1;
+  }, [dailyData]);
+
+  const { weeks, monthLabels } = useMemo(() => {
+    const start = new Date(activeYear, 0, 1);
+    const end = new Date(activeYear, 11, 31);
+    const s = new Date(start);
+    s.setDate(s.getDate() - s.getDay()); // back to Sunday
+
+    const weeks: HeatmapCell[][] = [];
+    const monthLabels: { month: number; weekIdx: number }[] = [];
+    let cur = new Date(s);
+    let week: HeatmapCell[] = [];
+    let lastMo = -1;
+
+    while (cur <= end || week.length > 0) {
+      const dow = cur.getDay();
+      const ds = cur.toISOString().slice(0, 10);
+      const inYear = cur.getFullYear() === activeYear;
+      const streams = (inYear ? dataMap.get(ds) : undefined) ?? 0;
+      week.push({ date: ds, streams, dayOfWeek: dow, inYear });
+
+      if (inYear && cur.getMonth() !== lastMo && cur.getDate() <= 7) {
+        monthLabels.push({ month: cur.getMonth(), weekIdx: weeks.length });
+        lastMo = cur.getMonth();
+      }
+
+      if (dow === 6) {
+        weeks.push(week);
+        week = [];
+        if (cur > end) break;
+      }
+      cur = new Date(cur);
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (week.length) weeks.push(week);
+    return { weeks, monthLabels };
+  }, [activeYear, dataMap]);
+
+  const color = (streams: number, inYear: boolean) => {
+    if (!inYear) return "rgba(255,255,255,0.02)";
+    if (streams === 0) return "rgba(255,255,255,0.06)";
+    const r = Math.min(1, streams / (maxStreams * 0.6));
+    if (r < 0.25) return "rgba(29,185,84,0.25)";
+    if (r < 0.5) return "rgba(29,185,84,0.50)";
+    if (r < 0.75) return "rgba(29,185,84,0.75)";
+    return "#1DB954";
+  };
+
+  const dayLabels =
+    locale === "en"
+      ? ["", "Mon", "", "Wed", "", "Fri", ""]
+      : ["", "man", "", "ons", "", "fre", ""];
+
+  const svgW = DAY_W + weeks.length * STEP + 4;
+  const svgH = 7 * STEP + 30;
+
+  const [tip, setTip] = useState<{
+    x: number;
+    y: number;
+    date: string;
+    streams: number;
+  } | null>(null);
+
+  return (
+    <div className="heatmapWrap">
+      {years.length > 1 && (
+        <div className="heatmapYearSel">
+          {years.map((y) => (
+            <button
+              key={y}
+              className={`heatmapYearBtn${y === activeYear ? " active" : ""}`}
+              onClick={() => setSelectedYear(y)}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="heatmapScroll">
+        <svg
+          width={svgW}
+          height={svgH}
+          className="heatmapSvg"
+          onMouseLeave={() => setTip(null)}
+        >
+          {monthLabels.map(({ month, weekIdx }) => (
+            <text
+              key={month}
+              x={DAY_W + weekIdx * STEP}
+              y={10}
+              fill="rgba(255,255,255,0.5)"
+              fontSize={10}
+              fontFamily="inherit"
+            >
+              {monthNames[month]}
+            </text>
+          ))}
+
+          {dayLabels.map((l, i) =>
+            l ? (
+              <text
+                key={i}
+                x={0}
+                y={20 + i * STEP + CELL - 2}
+                fill="rgba(255,255,255,0.4)"
+                fontSize={9}
+                fontFamily="inherit"
+              >
+                {l}
+              </text>
+            ) : null,
+          )}
+
+          {weeks.map((wk, wi) =>
+            wk.map((c) => (
+              <rect
+                key={c.date}
+                x={DAY_W + wi * STEP}
+                y={20 + c.dayOfWeek * STEP}
+                width={CELL}
+                height={CELL}
+                rx={2}
+                fill={color(c.streams, c.inYear)}
+                onClick={() => {
+                  if (c.inYear && c.streams > 0 && onDayClick) onDayClick(c.date);
+                }}
+                onMouseEnter={(e) => {
+                  if (!c.inYear) return;
+                  const r = (
+                    e.target as SVGRectElement
+                  ).getBoundingClientRect();
+                  setTip({
+                    x: r.left + r.width / 2,
+                    y: r.top,
+                    date: c.date,
+                    streams: c.streams,
+                  });
+                }}
+                onMouseLeave={() => setTip(null)}
+                style={{ cursor: c.inYear && c.streams > 0 ? "pointer" : "default" }}
+              />
+            )),
+          )}
+        </svg>
+      </div>
+
+      <div className="heatmapLegend">
+        <span className="heatmapLegendTxt">{t("heatmapLess", locale)}</span>
+        {[
+          "rgba(255,255,255,0.06)",
+          "rgba(29,185,84,0.25)",
+          "rgba(29,185,84,0.50)",
+          "rgba(29,185,84,0.75)",
+          "#1DB954",
+        ].map((bg) => (
+          <span
+            key={bg}
+            className="heatmapLegendCell"
+            style={{ background: bg }}
+          />
+        ))}
+        <span className="heatmapLegendTxt">{t("heatmapMore", locale)}</span>
+      </div>
+
+      {tip && (
+        <div
+          className="heatmapTooltip"
+          style={{
+            position: "fixed",
+            left: tip.x,
+            top: tip.y - 40,
+            transform: "translateX(-50%)",
+          }}
+        >
+          <strong>{tip.streams}</strong>{" "}
+          {locale === "en" ? "streams" : "strøymingar"}
+          <br />
+          <span style={{ opacity: 0.7 }}>
+            {new Date(tip.date + "T12:00:00").toLocaleDateString(
+              locale === "en" ? "en-US" : "nb-NO",
+              { month: "short", day: "numeric", year: "numeric" },
+            )}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ListeningCharts({
   rows,
   result,
@@ -101,8 +341,9 @@ export default function ListeningCharts({
 }: ListeningChartsProps) {
   const [activeTab, setActiveTab] = useState<ChartTab>("daily");
   const [dailyMetric, setDailyMetric] = useState<DailyMetric>("streams");
-  const [dailyZoom, setDailyZoom] = useState<DailyZoom>("all");
-  const [monthlyZoom, setMonthlyZoom] = useState<MonthlyZoom>("all");
+  // Range sliders - only update chart on mouse release
+  const [dailyRange, setDailyRange] = useState<[number, number]>([0, 100]); // percentage
+  const [monthlyRange, setMonthlyRange] = useState<[number, number]>([0, 100]); // percentage
   const [drillDownData, setDrillDownData] = useState<{
     date: string;
     label: string;
@@ -334,6 +575,7 @@ export default function ListeningCharts({
         hourly: { no: "Timevis", en: "Hourly" },
         weekday: { no: "Vekedag", en: "Weekday" },
         monthly: { no: "Månadleg", en: "Monthly" },
+        heatmap: { no: "Kalender", en: "Calendar" },
         activePassive: { no: "Aktiv/Assistert", en: "Active/Assisted" },
       };
 
@@ -372,12 +614,14 @@ export default function ListeningCharts({
     [rows, minMsPlayed],
   );
 
-  // Zoomed daily data - filter to last N days
+  // Zoomed daily data - filter based on range slider percentage
   const zoomedDailyData = useMemo(() => {
-    if (dailyZoom === "all" || dailyData.length === 0) return dailyData;
-    const daysToShow = dailyZoom;
-    return dailyData.slice(-daysToShow);
-  }, [dailyData, dailyZoom]);
+    if (dailyData.length === 0) return dailyData;
+    if (dailyRange[0] === 0 && dailyRange[1] === 100) return dailyData;
+    const startIdx = Math.floor((dailyRange[0] / 100) * dailyData.length);
+    const endIdx = Math.ceil((dailyRange[1] / 100) * dailyData.length);
+    return dailyData.slice(startIdx, endIdx);
+  }, [dailyData, dailyRange]);
 
   const hourlyData = useMemo(
     () => aggregateByHour(rows, minMsPlayed),
@@ -394,12 +638,14 @@ export default function ListeningCharts({
     [rows, minMsPlayed],
   );
 
-  // Zoomed monthly data - filter to last N months
+  // Zoomed monthly data - filter based on range slider percentage
   const zoomedMonthlyData = useMemo(() => {
-    if (monthlyZoom === "all" || monthlyData.length === 0) return monthlyData;
-    const monthsToShow = monthlyZoom;
-    return monthlyData.slice(-monthsToShow);
-  }, [monthlyData, monthlyZoom]);
+    if (monthlyData.length === 0) return monthlyData;
+    if (monthlyRange[0] === 0 && monthlyRange[1] === 100) return monthlyData;
+    const startIdx = Math.floor((monthlyRange[0] / 100) * monthlyData.length);
+    const endIdx = Math.ceil((monthlyRange[1] / 100) * monthlyData.length);
+    return monthlyData.slice(startIdx, endIdx);
+  }, [monthlyData, monthlyRange]);
 
   // Active/Assisted pie data (including unknown category)
   const activePassiveData = useMemo(() => {
@@ -442,6 +688,7 @@ export default function ListeningCharts({
       hourly: locale === "en" ? "By hour" : "Per time",
       weekday: locale === "en" ? "Weekday" : "Vekedag",
       monthly: locale === "en" ? "Monthly" : "Månadleg",
+      heatmap: t("heatmapTab", locale),
       activePassive: locale === "en" ? "Active/Assisted" : "Aktiv/Assistert",
       streams: locale === "en" ? "Streams" : "Strøymingar",
       minutes: locale === "en" ? "Minutes" : "Minutt",
@@ -779,6 +1026,7 @@ export default function ListeningCharts({
             "hourly",
             "weekday",
             "monthly",
+            "heatmap",
             "activePassive",
           ] as ChartTab[]
         ).map((tab) => (
@@ -809,39 +1057,6 @@ export default function ListeningCharts({
                   </button>
                 ),
               )}
-              <div className="chartZoomControl">
-                <label htmlFor="daily-zoom">
-                  {locale === "en" ? "Zoom:" : "Zoom:"}
-                </label>
-                <select
-                  id="daily-zoom"
-                  className="chartZoomSelect"
-                  value={dailyZoom}
-                  onChange={(e) =>
-                    setDailyZoom(
-                      e.target.value === "all"
-                        ? "all"
-                        : (parseInt(e.target.value, 10) as DailyZoom),
-                    )
-                  }
-                >
-                  <option value="all">
-                    {locale === "en" ? "All" : "Alle"}
-                  </option>
-                  <option value="365">
-                    {locale === "en" ? "1 year" : "1 år"}
-                  </option>
-                  <option value="180">
-                    {locale === "en" ? "6 months" : "6 mnd"}
-                  </option>
-                  <option value="90">
-                    {locale === "en" ? "90 days" : "90 dg"}
-                  </option>
-                  <option value="30">
-                    {locale === "en" ? "30 days" : "30 dg"}
-                  </option>
-                </select>
-              </div>
             </div>
             <p className="chartClickHint">
               {locale === "en"
@@ -968,6 +1183,132 @@ export default function ListeningCharts({
                 ))}
               </BarChart>
             </ResponsiveContainer>
+            {/* Range slider for zooming */}
+            {dailyData.length > 30 && (
+              <div className="chartRangeSlider">
+                <span className="rangeLabel">
+                  {dailyData.length > 0 &&
+                    new Date(dailyData[0].date).toLocaleDateString(
+                      locale === "en" ? "en-US" : "nb-NO",
+                      { month: "short", year: "2-digit" },
+                    )}
+                </span>
+                <div className="rangeSliderTrack">
+                  <div
+                    className="rangeSliderFill"
+                    style={{
+                      left: `${dailyRange[0]}%`,
+                      width: `${dailyRange[1] - dailyRange[0]}%`,
+                    }}
+                  />
+                  {/* Handle position labels */}
+                  {dailyData.length > 0 && (
+                    <>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelStart"
+                        style={{ left: `${dailyRange[0]}%` }}
+                      >
+                        {new Date(
+                          dailyData[
+                            Math.min(
+                              Math.floor(
+                                (dailyRange[0] / 100) * dailyData.length,
+                              ),
+                              dailyData.length - 1,
+                            )
+                          ].date,
+                        ).toLocaleDateString(
+                          locale === "en" ? "en-US" : "nb-NO",
+                          {
+                            month: "short",
+                            year: "2-digit",
+                          },
+                        )}
+                      </span>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelEnd"
+                        style={{ left: `${dailyRange[1]}%` }}
+                      >
+                        {new Date(
+                          dailyData[
+                            Math.min(
+                              Math.ceil(
+                                (dailyRange[1] / 100) * dailyData.length,
+                              ) - 1,
+                              dailyData.length - 1,
+                            )
+                          ].date,
+                        ).toLocaleDateString(
+                          locale === "en" ? "en-US" : "nb-NO",
+                          {
+                            month: "short",
+                            year: "2-digit",
+                          },
+                        )}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    key={`daily-start-${dailyRange[0]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={dailyRange[0]}
+                    className="rangeSliderInput rangeSliderStart"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < dailyRange[1] - 5) {
+                        setDailyRange([val, dailyRange[1]]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < dailyRange[1] - 5) {
+                        setDailyRange([val, dailyRange[1]]);
+                      }
+                    }}
+                  />
+                  <input
+                    key={`daily-end-${dailyRange[1]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={dailyRange[1]}
+                    className="rangeSliderInput rangeSliderEnd"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > dailyRange[0] + 5) {
+                        setDailyRange([dailyRange[0], val]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > dailyRange[0] + 5) {
+                        setDailyRange([dailyRange[0], val]);
+                      }
+                    }}
+                  />
+                </div>
+                <span className="rangeLabel">
+                  {dailyData.length > 0 &&
+                    new Date(
+                      dailyData[dailyData.length - 1].date,
+                    ).toLocaleDateString(locale === "en" ? "en-US" : "nb-NO", {
+                      month: "short",
+                      year: "2-digit",
+                    })}
+                </span>
+                {(dailyRange[0] > 0 || dailyRange[1] < 100) && (
+                  <button
+                    className="rangeResetBtn"
+                    onClick={() => setDailyRange([0, 100])}
+                    title={locale === "en" ? "Reset zoom" : "Nullstill zoom"}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1036,38 +1377,6 @@ export default function ListeningCharts({
         {/* Monthly chart */}
         {activeTab === "monthly" && (
           <div className="chartContainer">
-            <div className="chartMetricToggle">
-              <div className="chartZoomControl">
-                <label htmlFor="monthly-zoom">
-                  {locale === "en" ? "Zoom:" : "Zoom:"}
-                </label>
-                <select
-                  id="monthly-zoom"
-                  className="chartZoomSelect"
-                  value={monthlyZoom}
-                  onChange={(e) =>
-                    setMonthlyZoom(
-                      e.target.value === "all"
-                        ? "all"
-                        : (parseInt(e.target.value, 10) as MonthlyZoom),
-                    )
-                  }
-                >
-                  <option value="all">
-                    {locale === "en" ? "All" : "Alle"}
-                  </option>
-                  <option value="24">
-                    {locale === "en" ? "2 years" : "2 år"}
-                  </option>
-                  <option value="12">
-                    {locale === "en" ? "1 year" : "1 år"}
-                  </option>
-                  <option value="6">
-                    {locale === "en" ? "6 months" : "6 mnd"}
-                  </option>
-                </select>
-              </div>
-            </div>
             <ResponsiveContainer width="100%" height={chartHeight + 30}>
               <LineChart data={zoomedMonthlyData}>
                 <CartesianGrid
@@ -1151,6 +1460,174 @@ export default function ListeningCharts({
                 ))}
               </LineChart>
             </ResponsiveContainer>
+            {/* Range slider for zooming */}
+            {monthlyData.length > 12 && (
+              <div className="chartRangeSlider">
+                <span className="rangeLabel">
+                  {monthlyData.length > 0 &&
+                    (() => {
+                      const [year, month] = monthlyData[0].month.split("-");
+                      const d = new Date(
+                        parseInt(year),
+                        parseInt(month) - 1,
+                        1,
+                      );
+                      return d.toLocaleDateString(
+                        locale === "en" ? "en-US" : "nb-NO",
+                        { month: "short", year: "2-digit" },
+                      );
+                    })()}
+                </span>
+                <div className="rangeSliderTrack">
+                  <div
+                    className="rangeSliderFill"
+                    style={{
+                      left: `${monthlyRange[0]}%`,
+                      width: `${monthlyRange[1] - monthlyRange[0]}%`,
+                    }}
+                  />
+                  {/* Handle position labels */}
+                  {monthlyData.length > 0 && (
+                    <>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelStart"
+                        style={{ left: `${monthlyRange[0]}%` }}
+                      >
+                        {(() => {
+                          const idx = Math.min(
+                            Math.floor(
+                              (monthlyRange[0] / 100) * monthlyData.length,
+                            ),
+                            monthlyData.length - 1,
+                          );
+                          const [year, month] =
+                            monthlyData[idx].month.split("-");
+                          const d = new Date(
+                            parseInt(year),
+                            parseInt(month) - 1,
+                            1,
+                          );
+                          return d.toLocaleDateString(
+                            locale === "en" ? "en-US" : "nb-NO",
+                            {
+                              month: "short",
+                              year: "2-digit",
+                            },
+                          );
+                        })()}
+                      </span>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelEnd"
+                        style={{ left: `${monthlyRange[1]}%` }}
+                      >
+                        {(() => {
+                          const idx = Math.min(
+                            Math.ceil(
+                              (monthlyRange[1] / 100) * monthlyData.length,
+                            ) - 1,
+                            monthlyData.length - 1,
+                          );
+                          const [year, month] =
+                            monthlyData[idx].month.split("-");
+                          const d = new Date(
+                            parseInt(year),
+                            parseInt(month) - 1,
+                            1,
+                          );
+                          return d.toLocaleDateString(
+                            locale === "en" ? "en-US" : "nb-NO",
+                            {
+                              month: "short",
+                              year: "2-digit",
+                            },
+                          );
+                        })()}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    key={`monthly-start-${monthlyRange[0]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={monthlyRange[0]}
+                    className="rangeSliderInput rangeSliderStart"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < monthlyRange[1] - 5) {
+                        setMonthlyRange([val, monthlyRange[1]]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < monthlyRange[1] - 5) {
+                        setMonthlyRange([val, monthlyRange[1]]);
+                      }
+                    }}
+                  />
+                  <input
+                    key={`monthly-end-${monthlyRange[1]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={monthlyRange[1]}
+                    className="rangeSliderInput rangeSliderEnd"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > monthlyRange[0] + 5) {
+                        setMonthlyRange([monthlyRange[0], val]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > monthlyRange[0] + 5) {
+                        setMonthlyRange([monthlyRange[0], val]);
+                      }
+                    }}
+                  />
+                </div>
+                <span className="rangeLabel">
+                  {monthlyData.length > 0 &&
+                    (() => {
+                      const [year, month] =
+                        monthlyData[monthlyData.length - 1].month.split("-");
+                      const d = new Date(
+                        parseInt(year),
+                        parseInt(month) - 1,
+                        1,
+                      );
+                      return d.toLocaleDateString(
+                        locale === "en" ? "en-US" : "nb-NO",
+                        { month: "short", year: "2-digit" },
+                      );
+                    })()}
+                </span>
+                {(monthlyRange[0] > 0 || monthlyRange[1] < 100) && (
+                  <button
+                    className="rangeResetBtn"
+                    onClick={() => setMonthlyRange([0, 100])}
+                    title={locale === "en" ? "Reset zoom" : "Nullstill zoom"}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Listening Heatmap (GitHub-style calendar) */}
+        {activeTab === "heatmap" && (
+          <div className="chartContainer">
+            <HeatmapCalendar
+              dailyData={dailyData}
+              locale={locale}
+              monthNames={monthNames}
+              onDayClick={(dateStr) => {
+                const drillDown = getDrillDownForDate(dateStr);
+                setDrillDownData(drillDown);
+              }}
+            />
           </div>
         )}
 

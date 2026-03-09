@@ -177,6 +177,12 @@ export type ArtistAgg = {
   activeShare: number;
 
   topAlbums: Array<{ album: string; msPlayed: number; plays: number }>;
+
+  // Loyalty score fields
+  firstListen: string | null; // ISO date string YYYY-MM-DD
+  lastListen: string | null;
+  distinctMonths: number; // number of unique year-month combos
+  loyaltyScore: number; // 0-100
 };
 
 export type AnalysisResult = {
@@ -360,6 +366,9 @@ export function analyze(
       passiveMs: number;
       estValueNOK: number;
       byAlbum: Map<string, { msPlayed: number; plays: number }>;
+      firstListen: string | null;
+      lastListen: string | null;
+      months: Set<string>;
     }
   >();
 
@@ -450,6 +459,9 @@ export function analyze(
         passiveMs: 0,
         estValueNOK: 0,
         byAlbum: new Map(),
+        firstListen: null,
+        lastListen: null,
+        months: new Set(),
       });
     }
 
@@ -457,6 +469,15 @@ export function analyze(
     a.msPlayed += ms;
     a.plays += 1;
     a.estValueNOK += rowRate;
+
+    // Track loyalty data
+    if (!isNaN(rowDate.getTime())) {
+      const dateStr = rowDate.toISOString().slice(0, 10);
+      const monthStr = rowDate.toISOString().slice(0, 7);
+      if (!a.firstListen || dateStr < a.firstListen) a.firstListen = dateStr;
+      if (!a.lastListen || dateStr > a.lastListen) a.lastListen = dateStr;
+      a.months.add(monthStr);
+    }
 
     // Only count active/passive for streams where we KNOW the classification
     // "unknown" streams (old data or ambiguous) are tracked separately
@@ -498,6 +519,26 @@ export function analyze(
       const activeShare =
         knownClassified > 0 ? a.activeMs / knownClassified : 0;
 
+      // Loyalty score: combination of span (how long) and consistency (how often)
+      const distinctMonths = a.months.size;
+      let spanMonths = 0;
+      if (a.firstListen && a.lastListen) {
+        const first = new Date(a.firstListen);
+        const last = new Date(a.lastListen);
+        spanMonths =
+          (last.getFullYear() - first.getFullYear()) * 12 +
+          (last.getMonth() - first.getMonth()) +
+          1;
+      }
+      // consistency = what fraction of possible months had activity
+      const consistency = spanMonths > 0 ? distinctMonths / spanMonths : 0;
+      // spanScore: longer span = higher score (diminishing returns)
+      const spanScore = Math.min(1, spanMonths / 48); // 4 years = max
+      // Combine: 60% span, 40% consistency
+      const loyaltyScore = Math.round(
+        (spanScore * 0.6 + consistency * 0.4) * 100,
+      );
+
       return {
         artist,
         msPlayed: a.msPlayed,
@@ -509,6 +550,10 @@ export function analyze(
         albumEquivalent,
         activeShare,
         topAlbums,
+        firstListen: a.firstListen,
+        lastListen: a.lastListen,
+        distinctMonths,
+        loyaltyScore,
       };
     },
   );

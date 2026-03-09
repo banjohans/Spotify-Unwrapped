@@ -544,6 +544,19 @@ const T = {
     no: "Totalt antal strøymingar",
     en: "Total streams",
   },
+
+  // Streams label (artist list)
+  streamsLabel: { no: "Streams", en: "Streams" },
+
+  // Loyalty score
+  loyaltyLabel: { no: "Lojalitet", en: "Loyalty" },
+  loyaltySince: { no: "sidan", en: "since" },
+  loyaltyMonths: { no: "mnd", en: "mo" },
+
+  // Heatmap
+  heatmapTab: { no: "Kalender", en: "Calendar" },
+  heatmapLess: { no: "Mindre", en: "Less" },
+  heatmapMore: { no: "Meir", en: "More" },
 } as const;
 
 export type TKey = keyof typeof T;

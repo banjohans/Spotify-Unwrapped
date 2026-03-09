@@ -11,7 +11,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Brush,
   ReferenceLine,
 } from "recharts";
 import type { Locale } from "../lib/i18n";
@@ -89,6 +88,7 @@ export default function ArtistComparisonChart({
 }: ArtistComparisonChartProps) {
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [zoomRange, setZoomRange] = useState<[number, number]>([0, 100]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [chartMetric, setChartMetric] = useState<"streams" | "minutes">(
     "streams",
@@ -350,6 +350,15 @@ export default function ArtistComparisonChart({
       .sort((a, b) => a.month.localeCompare(b.month));
   }, [filteredRows, selectedArtists, minMsPlayed, chartMetric]);
 
+  // Apply zoom range to chart data
+  const zoomedChartData = useMemo(() => {
+    if (chartData.length === 0) return chartData;
+    if (zoomRange[0] === 0 && zoomRange[1] === 100) return chartData;
+    const startIdx = Math.floor((zoomRange[0] / 100) * chartData.length);
+    const endIdx = Math.ceil((zoomRange[1] / 100) * chartData.length);
+    return chartData.slice(startIdx, endIdx);
+  }, [chartData, zoomRange]);
+
   // Handle time filter change - updates global state
   const handleTimeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
@@ -393,47 +402,47 @@ export default function ArtistComparisonChart({
   // Get year boundaries for ReferenceLine
   const yearBoundaries = useMemo(() => {
     const boundaries: string[] = [];
-    for (const item of chartData) {
+    for (const item of zoomedChartData) {
       if (item.month.endsWith("-01")) {
         boundaries.push(item.month);
       }
     }
     return boundaries;
-  }, [chartData]);
+  }, [zoomedChartData]);
 
   // Calculate custom tick positions for X-axis
   const monthlyTicks = useMemo(() => {
-    if (chartData.length === 0) return [];
+    if (zoomedChartData.length === 0) return [];
 
     // Extract years from data
     const years = new Set<number>();
-    chartData.forEach((item) => {
+    zoomedChartData.forEach((item) => {
       years.add(parseInt(item.month.slice(0, 4), 10));
     });
     const spanYears = years.size;
 
     if (spanYears > 2) {
       // Multi-year: show only January of each year
-      return chartData
+      return zoomedChartData
         .filter((item) => item.month.endsWith("-01"))
         .map((item) => item.month);
-    } else if (spanYears >= 1 && chartData.length > 6) {
+    } else if (spanYears >= 1 && zoomedChartData.length > 6) {
       // 1-2 years with many months: show every 2-3 months
       const tickIndices: number[] = [];
-      const interval = chartData.length > 12 ? 3 : 2;
-      for (let i = 0; i < chartData.length; i += interval) {
+      const interval = zoomedChartData.length > 12 ? 3 : 2;
+      for (let i = 0; i < zoomedChartData.length; i += interval) {
         tickIndices.push(i);
       }
       // Always include last point
-      if (!tickIndices.includes(chartData.length - 1)) {
-        tickIndices.push(chartData.length - 1);
+      if (!tickIndices.includes(zoomedChartData.length - 1)) {
+        tickIndices.push(zoomedChartData.length - 1);
       }
-      return tickIndices.map((i) => chartData[i].month);
+      return tickIndices.map((i) => zoomedChartData[i].month);
     } else {
       // Short range: show all months
-      return chartData.map((item) => item.month);
+      return zoomedChartData.map((item) => item.month);
     }
-  }, [chartData]);
+  }, [zoomedChartData]);
 
   // Format minutes for display
   const formatMinutes = (mins: number): string => {
@@ -680,104 +689,224 @@ export default function ArtistComparisonChart({
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={chartHeight}>
-            <AreaChart data={chartData}>
-              <defs>
-                {selectedArtists.map((artist, idx) => (
-                  <linearGradient
-                    key={artist}
-                    id={`gradient-${idx}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
-                    <stop
-                      offset="5%"
-                      stopColor={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
-                      stopOpacity={0.6}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
-                      stopOpacity={0.05}
-                    />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="rgba(255,255,255,0.1)"
-              />
-              <XAxis
-                dataKey="month"
-                stroke="rgba(255,255,255,0.7)"
-                tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }}
-                tickFormatter={formatXAxis}
-                ticks={monthlyTicks}
-                angle={-35}
-                textAnchor="end"
-                height={50}
-              />
-              <YAxis
-                stroke="rgba(255,255,255,0.7)"
-                tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }}
-                label={{
-                  value:
-                    chartMetric === "streams" ? labels.streams : labels.minutes,
-                  angle: -90,
-                  position: "insideLeft",
-                  style: { fill: "rgba(255,255,255,0.7)", fontSize: 11 },
-                  offset: 0,
-                }}
-                width={70}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                verticalAlign="top"
-                wrapperStyle={{ paddingBottom: "15px" }}
-                formatter={(value) => (
-                  <span style={{ color: "rgba(255,255,255,0.85)" }}>
-                    {value}
-                  </span>
-                )}
-              />
-              {selectedArtists.map((artist, idx) => (
-                <Area
-                  key={artist}
-                  type="monotone"
-                  dataKey={artist}
-                  name={artist}
-                  stroke={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
-                  fill={`url(#gradient-${idx})`}
-                  strokeWidth={2}
-                  dot={false}
-                  isAnimationActive={false}
-                  activeDot={{
-                    r: 4,
-                    fill: ARTIST_COLORS[idx % ARTIST_COLORS.length],
+          <>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <AreaChart data={zoomedChartData}>
+                <defs>
+                  {selectedArtists.map((artist, idx) => (
+                    <linearGradient
+                      key={artist}
+                      id={`gradient-${idx}`}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
+                        stopOpacity={0.6}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
+                        stopOpacity={0.05}
+                      />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="rgba(255,255,255,0.1)"
+                />
+                <XAxis
+                  dataKey="month"
+                  stroke="rgba(255,255,255,0.7)"
+                  tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }}
+                  tickFormatter={formatXAxis}
+                  ticks={monthlyTicks}
+                  angle={-35}
+                  textAnchor="end"
+                  height={50}
+                />
+                <YAxis
+                  stroke="rgba(255,255,255,0.7)"
+                  tick={{ fill: "rgba(255,255,255,0.7)", fontSize: 11 }}
+                  label={{
+                    value:
+                      chartMetric === "streams" ? labels.streams : labels.minutes,
+                    angle: -90,
+                    position: "insideLeft",
+                    style: { fill: "rgba(255,255,255,0.7)", fontSize: 11 },
+                    offset: 0,
                   }}
+                  width={70}
                 />
-              ))}
-              {/* Year boundary lines */}
-              {yearBoundaries.map((month) => (
-                <ReferenceLine
-                  key={month}
-                  x={month}
-                  stroke="rgba(255,255,255,0.3)"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
+                <Tooltip content={<CustomTooltip />} />
+                <Legend
+                  verticalAlign="top"
+                  wrapperStyle={{ paddingBottom: "15px" }}
+                  formatter={(value) => (
+                    <span style={{ color: "rgba(255,255,255,0.85)" }}>
+                      {value}
+                    </span>
+                  )}
                 />
-              ))}
-              <Brush
-                dataKey="month"
-                height={25}
-                stroke="#1DB954"
-                fill="rgba(29, 185, 84, 0.1)"
-                tickFormatter={formatXAxis}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+                {selectedArtists.map((artist, idx) => (
+                  <Area
+                    key={artist}
+                    type="monotone"
+                    dataKey={artist}
+                    name={artist}
+                    stroke={ARTIST_COLORS[idx % ARTIST_COLORS.length]}
+                    fill={`url(#gradient-${idx})`}
+                    strokeWidth={2}
+                    dot={false}
+                    isAnimationActive={false}
+                    activeDot={{
+                      r: 4,
+                      fill: ARTIST_COLORS[idx % ARTIST_COLORS.length],
+                    }}
+                  />
+                ))}
+                {/* Year boundary lines */}
+                {yearBoundaries.map((month) => (
+                  <ReferenceLine
+                    key={month}
+                    x={month}
+                    stroke="rgba(255,255,255,0.3)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+            {/* Range slider for zooming */}
+            {chartData.length > 12 && (
+              <div className="chartRangeSlider">
+                <span className="rangeLabel">
+                  {chartData.length > 0 &&
+                    (() => {
+                      const [year, month] = chartData[0].month.split("-");
+                      const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+                      return d.toLocaleDateString(
+                        locale === "en" ? "en-US" : "nb-NO",
+                        { month: "short", year: "2-digit" }
+                      );
+                    })()}
+                </span>
+                <div className="rangeSliderTrack">
+                  <div
+                    className="rangeSliderFill"
+                    style={{
+                      left: `${zoomRange[0]}%`,
+                      width: `${zoomRange[1] - zoomRange[0]}%`,
+                    }}
+                  />
+                  {/* Handle position labels */}
+                  {chartData.length > 0 && (
+                    <>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelStart"
+                        style={{ left: `${zoomRange[0]}%` }}
+                      >
+                        {(() => {
+                          const idx = Math.min(
+                            Math.floor((zoomRange[0] / 100) * chartData.length),
+                            chartData.length - 1
+                          );
+                          const [year, month] = chartData[idx].month.split("-");
+                          const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+                          return d.toLocaleDateString(
+                            locale === "en" ? "en-US" : "nb-NO",
+                            { month: "short", year: "2-digit" }
+                          );
+                        })()}
+                      </span>
+                      <span
+                        className="rangeHandleLabel rangeHandleLabelEnd"
+                        style={{ left: `${zoomRange[1]}%` }}
+                      >
+                        {(() => {
+                          const idx = Math.min(
+                            Math.ceil((zoomRange[1] / 100) * chartData.length) - 1,
+                            chartData.length - 1
+                          );
+                          const [year, month] = chartData[idx].month.split("-");
+                          const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+                          return d.toLocaleDateString(
+                            locale === "en" ? "en-US" : "nb-NO",
+                            { month: "short", year: "2-digit" }
+                          );
+                        })()}
+                      </span>
+                    </>
+                  )}
+                  <input
+                    key={`artist-start-${zoomRange[0]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={zoomRange[0]}
+                    className="rangeSliderInput rangeSliderStart"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < zoomRange[1] - 5) {
+                        setZoomRange([val, zoomRange[1]]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val < zoomRange[1] - 5) {
+                        setZoomRange([val, zoomRange[1]]);
+                      }
+                    }}
+                  />
+                  <input
+                    key={`artist-end-${zoomRange[1]}`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    defaultValue={zoomRange[1]}
+                    className="rangeSliderInput rangeSliderEnd"
+                    onMouseUp={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > zoomRange[0] + 5) {
+                        setZoomRange([zoomRange[0], val]);
+                      }
+                    }}
+                    onTouchEnd={(e) => {
+                      const val = Number((e.target as HTMLInputElement).value);
+                      if (val > zoomRange[0] + 5) {
+                        setZoomRange([zoomRange[0], val]);
+                      }
+                    }}
+                  />
+                </div>
+                <span className="rangeLabel">
+                  {chartData.length > 0 &&
+                    (() => {
+                      const [year, month] =
+                        chartData[chartData.length - 1].month.split("-");
+                      const d = new Date(parseInt(year), parseInt(month) - 1, 1);
+                      return d.toLocaleDateString(
+                        locale === "en" ? "en-US" : "nb-NO",
+                        { month: "short", year: "2-digit" }
+                      );
+                    })()}
+                </span>
+                {(zoomRange[0] > 0 || zoomRange[1] < 100) && (
+                  <button
+                    className="rangeResetBtn"
+                    onClick={() => setZoomRange([0, 100])}
+                    title={locale === "en" ? "Reset zoom" : "Nullstill zoom"}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>
