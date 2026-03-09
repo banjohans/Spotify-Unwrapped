@@ -264,7 +264,8 @@ function HeatmapCalendar({
                 rx={2}
                 fill={color(c.streams, c.inYear)}
                 onClick={() => {
-                  if (c.inYear && c.streams > 0 && onDayClick) onDayClick(c.date);
+                  if (c.inYear && c.streams > 0 && onDayClick)
+                    onDayClick(c.date);
                 }}
                 onMouseEnter={(e) => {
                   if (!c.inYear) return;
@@ -279,7 +280,9 @@ function HeatmapCalendar({
                   });
                 }}
                 onMouseLeave={() => setTip(null)}
-                style={{ cursor: c.inYear && c.streams > 0 ? "pointer" : "default" }}
+                style={{
+                  cursor: c.inYear && c.streams > 0 ? "pointer" : "default",
+                }}
               />
             )),
           )}

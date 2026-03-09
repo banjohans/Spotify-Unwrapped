@@ -917,6 +917,153 @@ body {
   margin: 0;
 }
 
+/* ─── Subscription History Timeline Builder ──────────────────────── */
+
+.subHistorySection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.subHistorySection h4 {
+  margin: 0 0 4px;
+  font-size: 0.95em;
+  color: var(--text);
+}
+
+.subPresets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.btnSmall {
+  font-size: 0.8em;
+  padding: 5px 12px;
+  border-radius: 8px;
+}
+
+.btnTiny {
+  font-size: 0.75em;
+  padding: 2px 6px;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.subSegmentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subSegmentRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+}
+
+.subTierSelect {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85em;
+  min-width: 160px;
+}
+
+.subDateField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.75em;
+  color: var(--muted);
+}
+
+.subDateField input[type="month"] {
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1em;
+}
+
+.subToField {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.subTierWarning {
+  width: 100%;
+  font-size: 0.78em;
+  color: #e8a735;
+  padding: 4px 0 0;
+}
+
+/* ─── Tier Impact Display ──────────────────────────────────────── */
+
+.tierImpactBox {
+  margin: 14px 0 8px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid var(--muted2);
+}
+
+.tierImpactTitle {
+  margin: 0 0 6px;
+  font-size: 0.85em;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tierImpactText {
+  margin: 0 0 4px;
+  font-size: 0.88em;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.tierImpactDelta {
+  margin: 0;
+  font-size: 0.88em;
+  color: #e06c5a;
+  font-weight: 600;
+}
+
+.tierImpactAllPaid {
+  margin: 0;
+  font-size: 0.88em;
+  color: rgb(30, 215, 96);
+}
+
+.tierImpactNote {
+  margin: 6px 0 0;
+  font-size: 0.8em;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.tierImpactMethodology {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  font-size: 0.82em;
+  color: var(--muted);
+  line-height: 1.55;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+}
+
 .priceHistoryInfo {
   margin-top: 16px;
   padding-top: 16px;

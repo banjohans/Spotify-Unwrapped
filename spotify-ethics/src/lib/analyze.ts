@@ -1,7 +1,11 @@
 // src/lib/analyze.ts
 
-import type { Locale } from "./i18n";
-import { getRatePerStream, getMonthlyPrice } from "./i18n";
+import type { Locale, SubscriptionTier } from "./i18n";
+import {
+  getRatePerStream,
+  getMonthlyPrice,
+  getRoyaltyMultiplier,
+} from "./i18n";
 
 /**
  * Historisk Spotify Premium Individual-pris i Noreg (NOK/månad).
@@ -91,23 +95,84 @@ export function getMonthlyPriceNOK(year: number, month: number): number {
  * Reknar ut total abonnementskostnad for eit sett med månadar,
  * ved å bruke historisk pris for kvar einskild månad.
  */
+export type SubscriptionSegment = {
+  tier: SubscriptionTier;
+  from: [number, number]; // [year, month]
+  to: [number, number] | null; // null = ongoing
+};
+
+function getTierForMonth(
+  year: number,
+  month: number,
+  segments: SubscriptionSegment[],
+): SubscriptionTier {
+  // Walk segments in order; last matching segment wins
+  let tier: SubscriptionTier = "individual"; // default
+  for (const seg of segments) {
+    const [fy, fm] = seg.from;
+    const fromOk = year > fy || (year === fy && month >= fm);
+    if (!fromOk) continue;
+    if (seg.to) {
+      const [ty, tm] = seg.to;
+      const toOk = year < ty || (year === ty && month <= tm);
+      if (!toOk) continue;
+    }
+    tier = seg.tier;
+  }
+  // "unknown" maps to individual
+  return tier === "unknown" ? "individual" : tier;
+}
+
+export type TierBreakdown = Record<
+  SubscriptionTier,
+  { months: number; cost: number }
+>;
+
 export function calcHistoricalSubscriptionCost(
   uniqueMonths: Array<{ year: number; month: number }>,
   locale: Locale = "no",
+  segments?: SubscriptionSegment[],
 ): {
   totalCost: number;
   weightedAvgPrice: number;
-  monthDetails: Array<{ year: number; month: number; price: number }>;
+  monthDetails: Array<{
+    year: number;
+    month: number;
+    price: number;
+    tier: SubscriptionTier;
+  }>;
+  tierBreakdown: TierBreakdown;
 } {
-  const monthDetails = uniqueMonths.map(({ year, month }) => ({
-    year,
-    month,
-    price: getMonthlyPrice(year, month, locale),
-  }));
+  const monthDetails = uniqueMonths.map(({ year, month }) => {
+    const tier =
+      segments && segments.length > 0
+        ? getTierForMonth(year, month, segments)
+        : "individual";
+    return {
+      year,
+      month,
+      price: getMonthlyPrice(year, month, locale, tier),
+      tier,
+    };
+  });
   const totalCost = monthDetails.reduce((sum, m) => sum + m.price, 0);
   const weightedAvgPrice =
     monthDetails.length > 0 ? totalCost / monthDetails.length : 0;
-  return { totalCost, weightedAvgPrice, monthDetails };
+
+  const tierBreakdown: TierBreakdown = {
+    free: { months: 0, cost: 0 },
+    individual: { months: 0, cost: 0 },
+    student: { months: 0, cost: 0 },
+    duo: { months: 0, cost: 0 },
+    family: { months: 0, cost: 0 },
+    unknown: { months: 0, cost: 0 },
+  };
+  for (const m of monthDetails) {
+    tierBreakdown[m.tier].months++;
+    tierBreakdown[m.tier].cost += m.price;
+  }
+
+  return { totalCost, weightedAvgPrice, monthDetails, tierBreakdown };
 }
 
 export type SpotifyStreamRow = {
@@ -138,6 +203,7 @@ export type AnalysisConfig = {
   minMsPlayedToCount: number;
   sessionGapSeconds: number;
   locale: Locale;
+  subscriptionSegments?: SubscriptionSegment[];
 };
 
 export type ReasonBreakdownRow = {
@@ -216,6 +282,11 @@ export type AnalysisResult = {
   autoplayTopTracks: AutoplayTrack[];
   autoplayReasonBreakdown: ReasonBreakdownRow[];
   autoplayEventsCount: number;
+
+  // Tier impact:
+  freeMonths: number;
+  premiumMonths: number;
+  tierImpactDelta: number; // per-stream value difference: subscription-funded rate minus ad-funded rate
 
   // Lister:
   artists: ArtistAgg[];
@@ -395,6 +466,10 @@ export function analyze(
   let activeEstValueNOKAccum = 0;
   let passiveEstValueNOKAccum = 0;
   let autoplayEstValueNOKAccum = 0;
+  let tierImpactDeltaAccum = 0; // sum of per-stream value difference (subscription-funded vs ad-funded)
+  const tierMonthSet = new Set<string>(); // "free:2023-5" etc.
+
+  const segments = cfg.subscriptionSegments;
 
   for (let i = 0; i < sorted.length; i++) {
     const r = sorted[i];
@@ -410,7 +485,23 @@ export function analyze(
     const rowDate = new Date(r.ts ?? "");
     const rowYear = isNaN(rowDate.getTime()) ? 2024 : rowDate.getFullYear();
     const rowMonth = isNaN(rowDate.getTime()) ? 1 : rowDate.getMonth() + 1;
-    const rowRate = getRatePerStream(rowYear, rowMonth, cfg.locale);
+    const baseRate = getRatePerStream(rowYear, rowMonth, cfg.locale);
+
+    // Apply tier multiplier if segments are configured
+    const rowTier =
+      segments && segments.length > 0
+        ? getTierForMonth(rowYear, rowMonth, segments)
+        : "individual";
+    const multiplier = getRoyaltyMultiplier(rowTier);
+    const rowRate = baseRate * multiplier;
+
+    // Track tier impact: difference between premium rate and actual rate
+    if (multiplier < 1.0) {
+      tierImpactDeltaAccum += baseRate - rowRate;
+      tierMonthSet.add(`free:${rowYear}-${rowMonth}`);
+    } else {
+      tierMonthSet.add(`paid:${rowYear}-${rowMonth}`);
+    }
 
     // Autoplay etter endplay
     if (i > 0) {
@@ -648,6 +739,12 @@ export function analyze(
     autoplayTopTracks,
     autoplayReasonBreakdown,
     autoplayEventsCount,
+
+    freeMonths: Array.from(tierMonthSet).filter((k) => k.startsWith("free:"))
+      .length,
+    premiumMonths: Array.from(tierMonthSet).filter((k) => k.startsWith("paid:"))
+      .length,
+    tierImpactDelta: tierImpactDeltaAccum,
 
     artists,
   };

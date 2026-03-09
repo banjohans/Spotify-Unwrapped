@@ -2,6 +2,14 @@
 
 export type Locale = "no" | "en";
 
+export type SubscriptionTier =
+  | "free"
+  | "individual"
+  | "student"
+  | "duo"
+  | "family"
+  | "unknown";
+
 // ─── Price & Royalty Data per locale ─────────────────────────────
 
 export type PriceEntry = { from: [number, number]; price: number };
@@ -59,6 +67,114 @@ export const DEFAULT_ALBUM_PRICE: Record<Locale, number> = {
   en: 15,
 };
 
+// ─── Multi-tier pricing ──────────────────────────────────────────
+
+/**
+ * Subscription prices per tier per locale.
+ * Free = 0. Student ≈ 50% of Individual. Duo = total/2. Family = total/6.
+ */
+export const PRICE_HISTORY_BY_TIER: Record<
+  Locale,
+  Record<SubscriptionTier, PriceEntry[]>
+> = {
+  no: {
+    free: [{ from: [2009, 1], price: 0 }],
+    individual: [
+      { from: [2009, 1], price: 99 },
+      { from: [2021, 2], price: 119 },
+      { from: [2023, 7], price: 129 },
+      { from: [2025, 6], price: 139 },
+    ],
+    student: [
+      { from: [2014, 3], price: 49 },
+      { from: [2021, 2], price: 59 },
+      { from: [2023, 7], price: 69 },
+      { from: [2025, 6], price: 79 },
+    ],
+    duo: [
+      // Per-user share: total / 2
+      { from: [2020, 7], price: 69.5 }, // 139/2
+      { from: [2021, 2], price: 79.5 }, // 159/2
+      { from: [2023, 7], price: 89.5 }, // 179/2
+      { from: [2025, 6], price: 99.5 }, // 199/2
+    ],
+    family: [
+      // Per-user share: total / 6
+      { from: [2014, 10], price: 24.83 }, // 149/6
+      { from: [2021, 2], price: 29.83 }, // 179/6
+      { from: [2023, 7], price: 33.17 }, // 199/6
+      { from: [2025, 6], price: 38.17 }, // 229/6
+    ],
+    unknown: [
+      { from: [2009, 1], price: 99 },
+      { from: [2021, 2], price: 119 },
+      { from: [2023, 7], price: 129 },
+      { from: [2025, 6], price: 139 },
+    ],
+  },
+  en: {
+    free: [{ from: [2009, 1], price: 0 }],
+    individual: [
+      { from: [2009, 1], price: 9.99 },
+      { from: [2023, 7], price: 10.99 },
+      { from: [2024, 6], price: 11.99 },
+    ],
+    student: [
+      { from: [2014, 3], price: 4.99 },
+      { from: [2023, 7], price: 5.99 },
+      { from: [2024, 6], price: 6.99 },
+    ],
+    duo: [
+      // Per-user share: total / 2
+      { from: [2020, 7], price: 6.995 }, // 13.99/2
+      { from: [2023, 7], price: 7.495 }, // 14.99/2
+      { from: [2024, 6], price: 8.495 }, // 16.99/2
+    ],
+    family: [
+      // Per-user share: total / 6
+      { from: [2014, 10], price: 2.498 }, // 14.99/6
+      { from: [2023, 7], price: 2.748 }, // 16.49/6
+      { from: [2024, 6], price: 2.998 }, // 17.99/6
+    ],
+    unknown: [
+      { from: [2009, 1], price: 9.99 },
+      { from: [2023, 7], price: 10.99 },
+      { from: [2024, 6], price: 11.99 },
+    ],
+  },
+};
+
+/**
+ * Per-stream royalty multiplier by tier.
+ * Free-tier streams are funded by ad revenue, which yields ~35% of the
+ * per-stream value compared to subscription-funded streams.
+ * All paid tiers contribute equally to the royalty pool.
+ */
+export const TIER_ROYALTY_MULTIPLIER: Record<SubscriptionTier, number> = {
+  free: 0.35,
+  individual: 1.0,
+  student: 1.0,
+  duo: 1.0,
+  family: 1.0,
+  unknown: 1.0,
+};
+
+/**
+ * Tier launch dates — tiers cannot be selected before these dates.
+ * Individual and Free existed from launch.
+ */
+export const TIER_LAUNCH_DATES: Partial<
+  Record<SubscriptionTier, [number, number]>
+> = {
+  student: [2014, 3],
+  family: [2014, 10],
+  duo: [2020, 7],
+};
+
+export function getRoyaltyMultiplier(tier: SubscriptionTier): number {
+  return TIER_ROYALTY_MULTIPLIER[tier];
+}
+
 // ─── Lookup helpers ──────────────────────────────────────────────
 
 export function getRatePerStream(
@@ -81,8 +197,9 @@ export function getMonthlyPrice(
   year: number,
   month: number,
   locale: Locale,
+  tier: SubscriptionTier = "individual",
 ): number {
-  const history = PRICE_HISTORY[locale];
+  const history = PRICE_HISTORY_BY_TIER[locale][tier];
   let price = history[0].price;
   for (const entry of history) {
     const [fy, fm] = entry.from;
@@ -295,8 +412,8 @@ const T = {
     en: "Note: Spotify uses a <b>pro-rata pooling model</b>. This means your subscription payments don't go directly to the artists you listen to – they go into a shared pool and are distributed based on each artist's share of <i>all</i> streams on the platform. Estimates here show a theoretical value based on average stream rate × listening time, not what the artist actually received from you.",
   },
   subPricingNote: {
-    no: "<b>Om abonnementsprising:</b> Spotify sin GDPR-dataeksport inneheld ikkje informasjon om abonnementstype eller betalingshistorikk. Feltet <code>Payments.json</code> er tomt, og <code>Userdata.json</code> har berre grunnleggande kontoinformasjon. Difor tek modellen utgangspunkt i standard <b>Premium Individual-abonnement</b>, med historiske prisar verifisert via Wayback Machine.<br/><br/>Grunnen til at Premium er valt som utgangspunkt er at andre abonnementstypar gir <em>mindre pålitelege data</em>: gratisbrukarar får reklame i staden for full betaling, noko som endrar inntektsmodellen; Duo- og Family-plan har lågare pris per brukar; og Student-rabattar gir annan prisstruktur. Premium-modellen gir det <em>mest konservative og pålitelege estimatet</em>, fordi brukaren betaler full pris utan reklameavbrot, og all lytting tel likt.",
-    en: "<b>About subscription pricing:</b> Spotify's GDPR data export does not include subscription type or payment history. The <code>Payments.json</code> field is empty, and <code>Userdata.json</code> only contains basic account info. The model therefore uses the standard <b>Premium Individual subscription</b> price, based on historical prices verified via the Wayback Machine.<br/><br/>Premium is used as the baseline because other subscription types produce <em>less reliable data</em>: free-tier users receive ads instead of paying full price, which changes the revenue model; Duo and Family plans have a lower per-user cost; and Student discounts have a different price structure. The Premium model gives the <em>most conservative and reliable estimate</em>, since the user pays full price without ad interruptions and all listening counts equally.",
+    no: "<b>Om abonnementsprising:</b> Spotify sin GDPR-dataeksport inneheld ikkje informasjon om abonnementstype eller betalingshistorikk. Feltet <code>Payments.json</code> er tomt, og <code>Userdata.json</code> har berre grunnleggande kontoinformasjon.<br/><br/>Du kan konfigurere abonnementshistorikken din under <em>Innstillingar → Abonnementshistorikk</em>. Utan eigne innstillingar brukar modellen <b>Premium Individual</b> som standard. Dei ulike abonnementstypane påverkar utrekninga slik:<ul><li><b>Premium (Individual/Duo/Family/Student):</b> Alle betalande abonnement bidreg til same inntektspott. Per-stream-verdien er lik, men prisen du betalar varierer.</li><li><b>Gratis (reklamefinansiert):</b> Artistar får framleis betalt, men inntektene kjem frå reklame i staden for abonnement. Reklameinntekt per brukar er vesentleg lågare enn abonnementsinntekt – bransjetal viser at per-stream-verdien for reklamefinansierte streams er ca. 30–40 % av abonnementsfinansierte streams.</li><li><b>Student:</b> Same per-stream-verdi som Premium, men du betalar lågare pris.</li></ul>Historiske prisar er verifiserte via Wayback Machine. Duo-pris er delt på 2, Family-pris delt på 6.",
+    en: "<b>About subscription pricing:</b> Spotify's GDPR data export does not include subscription type or payment history. The <code>Payments.json</code> field is empty, and <code>Userdata.json</code> only contains basic account info.<br/><br/>You can configure your subscription history under <em>Settings → Subscription history</em>. Without custom settings, the model defaults to <b>Premium Individual</b>. The different subscription types affect the estimates as follows:<ul><li><b>Premium (Individual/Duo/Family/Student):</b> All paid subscriptions contribute to the same revenue pool. The per-stream value is the same, but the price you pay varies.</li><li><b>Free (ad-funded):</b> Artists still get paid, but revenue comes from advertising instead of subscriptions. Ad revenue per user is significantly lower than subscription revenue – industry data shows per-stream value for ad-funded streams is approximately 30–40% of subscription-funded streams.</li><li><b>Student:</b> Same per-stream value as Premium, but you pay a lower price.</li></ul>Historical prices verified via the Wayback Machine. Duo price divided by 2, Family price divided by 6.",
   },
 
   // Section 3 – Artists
@@ -557,6 +674,59 @@ const T = {
   heatmapTab: { no: "Kalender", en: "Calendar" },
   heatmapLess: { no: "Mindre", en: "Less" },
   heatmapMore: { no: "Meir", en: "More" },
+
+  // Subscription tier
+  subHistoryTitle: {
+    no: "Abonnementshistorikk",
+    en: "Subscription history",
+  },
+  subHistoryDesc: {
+    no: "Legg til periodane dine for meir nøyaktige estimat. Standard er Premium Individual.",
+    en: "Add your subscription periods for more accurate estimates. Defaults to Premium Individual.",
+  },
+  tierFree: { no: "Gratis", en: "Free" },
+  tierIndividual: { no: "Premium Individual", en: "Premium Individual" },
+  tierStudent: { no: "Premium Student", en: "Premium Student" },
+  tierDuo: { no: "Premium Duo", en: "Premium Duo" },
+  tierFamily: { no: "Premium Family", en: "Premium Family" },
+  tierUnknown: { no: "Veit ikkje", en: "Don't know" },
+  tierLabel: { no: "Abonnementstype", en: "Subscription tier" },
+  segmentFrom: { no: "Frå", en: "From" },
+  segmentTo: { no: "Til", en: "To" },
+  segmentOngoing: { no: "Pågåande", en: "Ongoing" },
+  addSegment: { no: "Legg til periode", en: "Add period" },
+  removeSegment: { no: "Fjern", en: "Remove" },
+  tierNotAvailable: {
+    no: "Denne abonnementstypen var ikkje tilgjengeleg før {date}",
+    en: "This tier was not available before {date}",
+  },
+  tierImpactTitle: {
+    no: "Effekt av abonnementstype",
+    en: "Subscription tier impact",
+  },
+  tierImpactFree: {
+    no: "I {months} månad(ar) på gratisabonnement kom artistinntektene frå reklamefinansiering i staden for abonnement. Reklamefinansierte streams har ein estimert per-stream-verdi på ~35 % av abonnementsfinansierte streams.",
+    en: "During {months} month(s) on the Free tier, artist earnings came from ad revenue instead of subscription fees. Ad-funded streams have an estimated per-stream value of ~35% compared to subscription-funded streams.",
+  },
+  tierImpactFreeDelta: {
+    no: "Estimert skilnad i per-stream-verdi: {amount} (reklamefinansiert vs. abonnementsfinansiert).",
+    en: "Estimated per-stream value difference: {amount} (ad-funded vs. subscription-funded).",
+  },
+  tierImpactAllPaid: {
+    no: "All lyttinga di var med eit betalt abonnement — artistane mottok full per-stream-verdi.",
+    en: "All your listening was on a paid plan — artists received full per-stream value.",
+  },
+  tierStudentNote: {
+    no: "Student-abonnement betalar same per-stream-verdi som Premium, men kostar deg mindre.",
+    en: "Student plans pay the same per-stream value as Premium but cost you less.",
+  },
+  tierMethodologyNote: {
+    no: "Spotify brukar ein pro-rata pooling-modell der <em>all</em> inntekt — både abonnement og reklame — vert samla i ein felles pott. Denne potten vert fordelt til rettshavarar basert på støymedelen deira. Reklameinntekt per brukar er vesentleg lågare enn abonnementsinntekt per brukar. Difor er per-stream-verdien for reklamefinansierte streams lågare — ikkje fordi artisten ikkje får betalt, men fordi inntektskjelda genererer mindre pengar totalt. Estimatet vårt brukar ein multiplikator på 0,35 for gratis-tier basert på bransjedata (Spotify Loud & Clear, Digital Music News).",
+    en: "Spotify uses a pro-rata pooling model where <em>all</em> revenue — both subscriptions and advertising — is collected into a shared pool. This pool is distributed to rights holders based on their streaming share. Ad revenue per user is significantly lower than subscription revenue per user. This is why per-stream value for ad-funded streams is lower — not because artists don't get paid, but because the revenue source generates less money overall. Our estimate uses a 0.35 multiplier for the Free tier based on industry data (Spotify Loud & Clear, Digital Music News).",
+  },
+  presetAlwaysPremium: { no: "Alltid Premium", en: "Always Premium" },
+  presetAlwaysFree: { no: "Alltid Gratis", en: "Always Free" },
+  presetCustom: { no: "Eigendefinert", en: "Custom" },
 } as const;
 
 export type TKey = keyof typeof T;

@@ -1,14 +1,22 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { analyze, calcHistoricalSubscriptionCost } from "./lib/analyze";
-import type { AnalysisConfig, SpotifyStreamRow } from "./lib/analyze";
+import type {
+  AnalysisConfig,
+  SpotifyStreamRow,
+  SubscriptionSegment,
+} from "./lib/analyze";
 import ListeningCharts from "./components/ListeningCharts";
 import ArtistComparisonChart from "./components/ArtistComparisonChart";
 import { LabelAnalytics } from "./components/LabelAnalytics";
 import {
   type Locale,
+  type SubscriptionTier,
   PRICE_HISTORY,
+  PRICE_HISTORY_BY_TIER,
   ROYALTY_HISTORY,
   DEFAULT_ALBUM_PRICE,
+  TIER_LAUNCH_DATES,
+  TIER_ROYALTY_MULTIPLIER,
   formatCurrency,
   formatHrs,
   formatNum,
@@ -1012,6 +1020,24 @@ export default function App() {
   const [dateFilterStart, setDateFilterStart] = useState<string>("");
   const [dateFilterEnd, setDateFilterEnd] = useState<string>("");
 
+  // Subscription segments with localStorage persistence
+  const [subscriptionSegments, setSubscriptionSegments] = useState<
+    SubscriptionSegment[]
+  >(() => {
+    try {
+      const saved = localStorage.getItem("spotify-sub-segments");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(
+      "spotify-sub-segments",
+      JSON.stringify(subscriptionSegments),
+    );
+  }, [subscriptionSegments]);
+
   const [cfg, setCfg] = useState<AnalysisConfig>({
     albumPriceNOK: DEFAULT_ALBUM_PRICE["no"],
     minMsPlayedToCount: 30_000,
@@ -1025,8 +1051,9 @@ export default function App() {
       ...prev,
       locale,
       albumPriceNOK: DEFAULT_ALBUM_PRICE[locale],
+      subscriptionSegments,
     }));
-  }, [locale]);
+  }, [locale, subscriptionSegments]);
 
   async function onFiles(files: FileList | null) {
     setErr(null);
@@ -1171,7 +1198,13 @@ export default function App() {
     });
 
     // Kalkuler total kostnad basert på historisk pris per månad
-    const historical = calcHistoricalSubscriptionCost(activeMonthList, locale);
+    const segs =
+      subscriptionSegments.length > 0 ? subscriptionSegments : undefined;
+    const historical = calcHistoricalSubscriptionCost(
+      activeMonthList,
+      locale,
+      segs,
+    );
 
     // Kalkuler også «span-kostnad» (alle månadar i perioden, inkl. inaktive)
     const spanMonths: Array<{ year: number; month: number }> = [];
@@ -1184,7 +1217,11 @@ export default function App() {
       });
       cursor.setMonth(cursor.getMonth() + 1);
     }
-    const spanHistorical = calcHistoricalSubscriptionCost(spanMonths, locale);
+    const spanHistorical = calcHistoricalSubscriptionCost(
+      spanMonths,
+      locale,
+      segs,
+    );
 
     return {
       firstDate,
@@ -1196,8 +1233,9 @@ export default function App() {
       avgMonthlyPrice: historical.weightedAvgPrice,
       spanAvgMonthlyPrice: spanHistorical.weightedAvgPrice,
       priceBreakdown: historical.monthDetails,
+      tierBreakdown: historical.tierBreakdown,
     };
-  }, [dateFilteredRows, locale]);
+  }, [dateFilteredRows, locale, subscriptionSegments]);
 
   const searchedArtists = useMemo(() => {
     if (!artistSearchQuery.trim()) return filteredArtists;
@@ -1653,6 +1691,188 @@ export default function App() {
                 </p>
               </div>
             </div>
+
+            {/* Subscription History Timeline Builder */}
+            <div className="subHistorySection">
+              <h4>{t("subHistoryTitle", locale)}</h4>
+              <p
+                className="subtle"
+                style={{ marginBottom: 10, fontSize: "0.85em" }}
+              >
+                {t("subHistoryDesc", locale)}
+              </p>
+
+              {/* Quick presets */}
+              <div className="subPresets">
+                <button
+                  className={`btn btnSmall ${subscriptionSegments.length === 0 ? "active" : ""}`}
+                  onClick={() => setSubscriptionSegments([])}
+                >
+                  {t("presetAlwaysPremium", locale)}
+                </button>
+                <button
+                  className="btn btnSmall"
+                  onClick={() =>
+                    setSubscriptionSegments([
+                      { tier: "free", from: [2009, 1], to: null },
+                    ])
+                  }
+                >
+                  {t("presetAlwaysFree", locale)}
+                </button>
+                <button
+                  className="btn btnSmall"
+                  onClick={() =>
+                    setSubscriptionSegments((prev) => [
+                      ...prev,
+                      {
+                        tier: "individual",
+                        from: [new Date().getFullYear(), 1],
+                        to: null,
+                      },
+                    ])
+                  }
+                >
+                  + {t("addSegment", locale)}
+                </button>
+              </div>
+
+              {/* Segment list */}
+              {subscriptionSegments.length > 0 && (
+                <div className="subSegmentList">
+                  {subscriptionSegments.map((seg, idx) => {
+                    // Validate tier against launch dates
+                    const launchDate =
+                      TIER_LAUNCH_DATES[
+                        seg.tier as keyof typeof TIER_LAUNCH_DATES
+                      ];
+                    const isBeforeLaunch =
+                      launchDate &&
+                      (seg.from[0] < launchDate[0] ||
+                        (seg.from[0] === launchDate[0] &&
+                          seg.from[1] < launchDate[1]));
+
+                    return (
+                      <div className="subSegmentRow" key={idx}>
+                        <select
+                          className="subTierSelect"
+                          value={seg.tier}
+                          onChange={(e) => {
+                            const next = [...subscriptionSegments];
+                            next[idx] = {
+                              ...next[idx],
+                              tier: e.target.value as SubscriptionTier,
+                            };
+                            setSubscriptionSegments(next);
+                          }}
+                        >
+                          <option value="individual">
+                            {t("tierIndividual", locale)}
+                          </option>
+                          <option value="free">{t("tierFree", locale)}</option>
+                          <option value="student">
+                            {t("tierStudent", locale)}
+                          </option>
+                          <option value="duo">{t("tierDuo", locale)}</option>
+                          <option value="family">
+                            {t("tierFamily", locale)}
+                          </option>
+                          <option value="unknown">
+                            {t("tierUnknown", locale)}
+                          </option>
+                        </select>
+
+                        <label className="subDateField">
+                          <span>{t("segmentFrom", locale)}</span>
+                          <input
+                            type="month"
+                            value={`${seg.from[0]}-${String(seg.from[1]).padStart(2, "0")}`}
+                            onChange={(e) => {
+                              const [y, m] = e.target.value
+                                .split("-")
+                                .map(Number);
+                              if (y && m) {
+                                const next = [...subscriptionSegments];
+                                next[idx] = {
+                                  ...next[idx],
+                                  from: [y, m],
+                                };
+                                setSubscriptionSegments(next);
+                              }
+                            }}
+                          />
+                        </label>
+
+                        <label className="subDateField">
+                          <span>{t("segmentTo", locale)}</span>
+                          <div className="subToField">
+                            <input
+                              type="month"
+                              value={
+                                seg.to
+                                  ? `${seg.to[0]}-${String(seg.to[1]).padStart(2, "0")}`
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const next = [...subscriptionSegments];
+                                if (!e.target.value) {
+                                  next[idx] = { ...next[idx], to: null };
+                                } else {
+                                  const [y, m] = e.target.value
+                                    .split("-")
+                                    .map(Number);
+                                  if (y && m) {
+                                    next[idx] = {
+                                      ...next[idx],
+                                      to: [y, m],
+                                    };
+                                  }
+                                }
+                                setSubscriptionSegments(next);
+                              }}
+                              placeholder={t("segmentOngoing", locale)}
+                            />
+                            {seg.to && (
+                              <button
+                                className="btnGhost btnTiny"
+                                onClick={() => {
+                                  const next = [...subscriptionSegments];
+                                  next[idx] = { ...next[idx], to: null };
+                                  setSubscriptionSegments(next);
+                                }}
+                                title={t("segmentOngoing", locale)}
+                              >
+                                ∞
+                              </button>
+                            )}
+                          </div>
+                        </label>
+
+                        <button
+                          className="btnGhost btnSmall"
+                          onClick={() => {
+                            setSubscriptionSegments((prev) =>
+                              prev.filter((_, i) => i !== idx),
+                            );
+                          }}
+                        >
+                          {t("removeSegment", locale)}
+                        </button>
+
+                        {isBeforeLaunch && (
+                          <div className="subTierWarning">
+                            {t("tierNotAvailable", locale).replace(
+                              "{date}",
+                              `${launchDate[0]}-${String(launchDate[1]).padStart(2, "0")}`,
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -1886,6 +2106,47 @@ export default function App() {
                 </div>
               )}
 
+              {/* Tier impact insight */}
+              {result && subscriptionSegments.length > 0 && (
+                <div className="tierImpactBox">
+                  <h4 className="tierImpactTitle">
+                    {t("tierImpactTitle", locale)}
+                  </h4>
+                  {result.freeMonths > 0 ? (
+                    <>
+                      <p className="tierImpactText">
+                        {t("tierImpactFree", locale).replace(
+                          "{months}",
+                          String(result.freeMonths),
+                        )}
+                      </p>
+                      <p className="tierImpactDelta">
+                        {t("tierImpactFreeDelta", locale).replace(
+                          "{amount}",
+                          formatCurrency(result.tierImpactDelta, locale),
+                        )}
+                      </p>
+                      <p
+                        className="tierImpactMethodology"
+                        dangerouslySetInnerHTML={{
+                          __html: t("tierMethodologyNote", locale),
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <p className="tierImpactAllPaid">
+                      {t("tierImpactAllPaid", locale)}
+                    </p>
+                  )}
+                  {subscriptionEstimate?.tierBreakdown?.student &&
+                    subscriptionEstimate.tierBreakdown.student.months > 0 && (
+                      <p className="tierImpactNote">
+                        {t("tierStudentNote", locale)}
+                      </p>
+                    )}
+                </div>
+              )}
+
               {/* Collapsible methodology info */}
               <div className="methodologyToggle">
                 <button
@@ -1919,6 +2180,15 @@ export default function App() {
                         __html: t("subPricingNote", locale),
                       }}
                     />
+                    {subscriptionSegments.length > 0 && (
+                      <p
+                        className="subtle"
+                        style={{ marginTop: 10 }}
+                        dangerouslySetInnerHTML={{
+                          __html: t("tierMethodologyNote", locale),
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </div>
