@@ -1662,15 +1662,15 @@ export default function ListeningCharts({
             </ResponsiveContainer>
             <p className="chartDescription">
               {locale === "en"
-                ? "Active = you played, navigated, or continued an album/playlist. Passive = Spotify chose for you (autoplay after album ends, recommendations, app startup). Unknown = ambiguous data (e.g. older exports where the start reason field has unclear semantics)."
-                : "Aktiv = du spelte, navigerte, eller fortsette eit album/spilleliste. Passiv = Spotify valde for deg (autoplay etter albumet er ferdig, anbefalingar, app-oppstart). Ukjent = tvetydig data (t.d. eldre eksportar der reason_start-feltet har uklar historisk betydning)."}
+                ? "Active = you played, navigated, or continued an album/playlist. Assisted = Spotify chose for you (autoplay after album ends, recommendations, app startup). Unknown = ambiguous data (e.g. older exports where the start reason field has unclear semantics)."
+                : "Aktiv = du spelte, navigerte, eller fortsette eit album/spilleliste. Assistert = Spotify valde for deg (autoplay etter albumet er ferdig, anbefalingar, app-oppstart). Ukjent = tvetydig data (t.d. eldre eksportar der reason_start-feltet har uklar historisk betydning)."}
             </p>
             {result.unknownShare > 0.05 && (
               <p className="chartWarning">
                 ⚠️{" "}
                 {locale === "en"
-                  ? `${Math.round(result.unknownShare * 100)}% of your listening data cannot be reliably classified as active or passive. This is often due to older exports where the data format differs. The active/passive statistics should be interpreted with caution.`
-                  : `${Math.round(result.unknownShare * 100)}% av lyttedataene dine kan ikkje klassifiserast påliteleg som aktiv eller passiv. Dette skuldast ofte eldre eksportar der dataformatet er annleis. Aktiv/passiv-statistikken bør tolkast med forsiktigheit.`}
+                  ? `${Math.round(result.unknownShare * 100)}% of your listening data cannot be reliably classified as active or assisted. This is often due to older exports where the data format differs. The active/assisted statistics should be interpreted with caution.`
+                  : `${Math.round(result.unknownShare * 100)}% av lyttedataene dine kan ikkje klassifiserast påliteleg som aktiv eller assistert. Dette skuldast ofte eldre eksportar der dataformatet er annleis. Aktiv/assistert-statistikken bør tolkast med forsiktigheit.`}
               </p>
             )}
           </div>

@@ -1644,8 +1644,8 @@ export default function App() {
                     <br />
                     <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
                     {locale === "no"
-                      ? "All hovudanalyse — royalty-estimat, artistoversikt, aktiv/passiv lytting, diagram."
-                      : "All main analysis — royalty estimates, artist overview, active/passive listening, charts."}
+                      ? "All hovudanalyse — royalty-estimat, artistoversikt, aktiv/assistert lytting, diagram."
+                      : "All main analysis — royalty estimates, artist overview, active/assisted listening, charts."}
                   </div>
                 </div>
 
@@ -1684,8 +1684,8 @@ export default function App() {
                     <br />
                     <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
                     {locale === "no"
-                      ? "Kan brukast som fallback — gir grunnleggande statistikk og royalty-estimat, men ingen aktiv/passiv-analyse."
-                      : "Can be used as fallback — provides basic stats and royalty estimates, but no active/passive analysis."}
+                      ? "Kan brukast som fallback — gir grunnleggande statistikk og royalty-estimat, men ingen aktiv/assistert-analyse."
+                      : "Can be used as fallback — provides basic stats and royalty estimates, but no active/assisted analysis."}
                   </div>
                 </div>
               </div>
@@ -3188,10 +3188,10 @@ export default function App() {
 
           {/* <section className="card">
             <div className="cardHeader">
-              <h2>4) Aktiv vs passiv lytting</h2>
+              <h2>4) Aktiv vs assistert lytting</h2>
               <div className="subtle">
                 Heuristikk basert på <code>reason_start</code> frå Spotify
-                dataene. «Aktiv» = du klikka eksplisitt for å spele; «passiv» =
+                dataene. «Aktiv» = du klikka eksplisitt for å spele; «Assistert» =
                 autoplay, neste i kø o.l. Ei spilleliste du startar sjølv tel
                 som aktiv berre for fyrste låt.
               </div>
@@ -3208,7 +3208,7 @@ export default function App() {
                 </div>
               </div>
               <div className="stat">
-                <div className="statLabel">Passiv</div>
+                <div className="statLabel">Assistert</div>
                 <div className="statValue">
                   {pct(result.passiveShare)}{" "}
                   <span className="statHint">
