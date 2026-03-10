@@ -1164,10 +1164,20 @@ export default function App() {
     }
   }
 
-  // Oppdater rows når uploadedFiles endrer seg
+  // Oppdater rows når uploadedFiles endrer seg — dedupliser overlapp mellom
+  // Extended (Streaming_History_Audio_*) og Level 1 (StreamingHistory_music_*)
   useEffect(() => {
     const allRows = uploadedFiles.flatMap((f) => f.rows);
-    setRows(allRows);
+    const seen = new Map<string, SpotifyStreamRow>();
+    for (const r of allRows) {
+      const key = `${r.ts ?? ""}|${r.master_metadata_album_artist_name ?? ""}|${r.master_metadata_track_name ?? ""}|${r.ms_played ?? 0}`;
+      const existing = seen.get(key);
+      // Prefer extended rows (they have reason_start, album, etc.)
+      if (!existing || (!existing.reason_start && r.reason_start)) {
+        seen.set(key, r);
+      }
+    }
+    setRows(Array.from(seen.values()));
   }, [uploadedFiles]);
 
   // Available years from data
@@ -1718,13 +1728,13 @@ export default function App() {
                   <div className="fileGuideDesc">
                     <strong>{t("fileGuideContains", locale)}:</strong>{" "}
                     {locale === "no"
-                      ? "Liste over artistar som har betalt Spotify for å vise deg «Marquee»-annonsar (fullskjermsanbefalingar)."
-                      : 'List of artists who paid Spotify to show you "Marquee" ads (full-screen recommendations).'}
+                      ? "Liste over artistar Spotify har kategorisert deg som lyttar av, med segment (t.d. «Previously Active Listeners», «Light listeners»). Brukt i Marquee-marknadsføringsverktøyet."
+                      : 'List of artists Spotify has categorized you as a listener of, with segments (e.g. "Previously Active Listeners", "Light listeners"). Used in the Marquee marketing tool.'}
                     <br />
                     <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
                     {locale === "no"
-                      ? "Viser kva artistar som betaler for å nå deg — illustrerer korleis Spotify tener pengar frå begge sider."
-                      : "Shows which artists pay to reach you — illustrating how Spotify earns money from both sides."}
+                      ? "Viser korleis Spotify segmenterer deg som lyttar — og gjer deg til ei målgruppe for betalt promotering."
+                      : "Shows how Spotify segments you as a listener — turning you into a target audience for paid promotion."}
                   </div>
                 </div>
 
@@ -3550,7 +3560,7 @@ export default function App() {
         </section>
       )}
 
-      {/* Artists paying to reach you — Marquee.json */}
+      {/* Listener segments — Marquee.json */}
       {marqueeArtists.length > 0 && (
         <section className="card">
           <div className="cardHeader">
@@ -3570,13 +3580,28 @@ export default function App() {
                 String(marqueeArtists.length),
               )}
             </div>
-            <div className="marqueeChips">
-              {marqueeArtists.map((m) => (
-                <span className="marqueeChip" key={m.artistName}>
-                  {m.artistName}
-                </span>
-              ))}
-            </div>
+            {/* Group by segment */}
+            {Object.entries(
+              marqueeArtists.reduce<Record<string, string[]>>((acc, m) => {
+                const seg = m.segment || "Unknown";
+                if (!acc[seg]) acc[seg] = [];
+                acc[seg].push(m.artistName);
+                return acc;
+              }, {})
+            ).map(([segment, artists]) => (
+              <div key={segment} style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: "0.85rem", opacity: 0.7, marginBottom: 6 }}>
+                  {segment} ({artists.length})
+                </div>
+                <div className="marqueeChips">
+                  {artists.map((name) => (
+                    <span className="marqueeChip" key={name}>
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
             <p
               className="marqueeEthicsNote"
               dangerouslySetInnerHTML={{

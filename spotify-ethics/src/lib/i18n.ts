@@ -776,20 +776,20 @@ const T = {
 
   // ─── Marquee section ──────────────────────────────────────────
   marqueeTitle: {
-    no: "Artistar som betaler for å nå deg",
-    en: "Artists paying to reach you",
+    no: "Dine lyttarsegment (Marquee)",
+    en: "Your listener segments (Marquee)",
   },
   marqueeDesc: {
-    no: "Spotify tilbyr artistar og plateselskap å betale for «Marquee»-annonsar — fullskjermsanbefalingar som dukkar opp når du opnar appen. Desse artistane har betalt for å nå deg spesifikt, basert på at du er kategorisert som «Previously Active Listener».",
-    en: 'Spotify offers artists and labels the option to pay for "Marquee" ads — full-screen recommendations that appear when you open the app. These artists have paid to reach you specifically, because you\'re categorized as a "Previously Active Listener."',
+    no: 'Spotify kategoriserer forholdet ditt til artistar i ulike lyttarsegment. Desse segmenta vert brukte i <a href="https://ads.spotify.com/en-US/marquee" target="_blank" rel="noopener">Marquee</a> — eit betalt marknadsføringsverktøy der artistar og plateselskap kan betale for fullskjermsanbefalingar retta mot bestemte lyttargrupper. Fila viser ikkje kven som faktisk har betalt for kampanjar — berre korleis Spotify har klassifisert deg.',
+    en: 'Spotify categorizes your relationship to artists into listener segments. These segments are used in <a href="https://ads.spotify.com/en-US/marquee" target="_blank" rel="noopener">Marquee</a> — a paid marketing tool where artists and labels can pay for full-screen recommendations targeted at specific listener groups. This file does not show who actually paid for campaigns — only how Spotify has classified you.',
   },
   marqueeCount: {
-    no: "{count} artistar har betalt for å nå deg",
-    en: "{count} artists have paid to reach you",
+    no: "Du er segmentert for {count} artistar",
+    en: "You are segmented for {count} artists",
   },
   marqueeEthicsNote: {
-    no: "Spotify tener altså pengar <em>begge vegar</em>: frå abonnementet ditt og frå artistar som betaler for å nå deg. Artistane betaler for ein sjanse til å bli anbefalt — ikkje basert på musikalsk kvalitet, men på betalingsvilje.",
-    en: "Spotify therefore earns money <em>both ways</em>: from your subscription and from artists paying to reach you. Artists pay for a chance to be recommended — not based on musical quality, but on willingness to pay.",
+    no: "Spotify tener pengar <em>begge vegar</em>: frå abonnementet ditt og frå artistar som betaler for å bli promotert til deg. Marquee-segmenteringa viser korleis Spotify gjer lyttarane sine til ei vare — du vert kategorisert og pakka inn som målgruppe for betalt marknadsføring.",
+    en: "Spotify earns money <em>both ways</em>: from your subscription and from artists paying to be promoted to you. The Marquee segmentation shows how Spotify turns its listeners into a product — you are categorized and packaged as a target audience for paid marketing.",
   },
 
   // ─── Userdata section ─────────────────────────────────────────
