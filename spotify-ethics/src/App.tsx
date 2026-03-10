@@ -3587,10 +3587,12 @@ export default function App() {
                 if (!acc[seg]) acc[seg] = [];
                 acc[seg].push(m.artistName);
                 return acc;
-              }, {})
+              }, {}),
             ).map(([segment, artists]) => (
               <div key={segment} style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: "0.85rem", opacity: 0.7, marginBottom: 6 }}>
+                <div
+                  style={{ fontSize: "0.85rem", opacity: 0.7, marginBottom: 6 }}
+                >
                   {segment} ({artists.length})
                 </div>
                 <div className="marqueeChips">
