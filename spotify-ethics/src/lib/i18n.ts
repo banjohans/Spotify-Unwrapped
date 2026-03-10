@@ -780,8 +780,8 @@ const T = {
     en: "Your listener segments (Marquee)",
   },
   marqueeDesc: {
-    no: 'Spotify kategoriserer forholdet ditt til artistar i ulike lyttarsegment. Desse segmenta vert brukte i <a href="https://ads.spotify.com/en-US/marquee" target="_blank" rel="noopener">Marquee</a> — eit betalt marknadsføringsverktøy der artistar og plateselskap kan betale for fullskjermsanbefalingar retta mot bestemte lyttargrupper. Fila viser ikkje kven som faktisk har betalt for kampanjar — berre korleis Spotify har klassifisert deg.',
-    en: 'Spotify categorizes your relationship to artists into listener segments. These segments are used in <a href="https://ads.spotify.com/en-US/marquee" target="_blank" rel="noopener">Marquee</a> — a paid marketing tool where artists and labels can pay for full-screen recommendations targeted at specific listener groups. This file does not show who actually paid for campaigns — only how Spotify has classified you.',
+    no: 'Spotify kategoriserer forholdet ditt til artistar i ulike lyttarsegment. Desse segmenta vert brukte i <a href="https://artists.spotify.com/marquee" target="_blank" rel="noopener">Marquee</a> — eit betalt marknadsføringsverktøy der artistar og plateselskap kan betale for fullskjermsanbefalingar retta mot bestemte lyttargrupper. Fila viser ikkje kven som faktisk har betalt for kampanjar — berre korleis Spotify har klassifisert deg.',
+    en: 'Spotify categorizes your relationship to artists into listener segments. These segments are used in <a href="https://artists.spotify.com/marquee" target="_blank" rel="noopener">Marquee</a> — a paid marketing tool where artists and labels can pay for full-screen recommendations targeted at specific listener groups. This file does not show who actually paid for campaigns — only how Spotify has classified you.',
   },
   marqueeCount: {
     no: "Du er segmentert for {count} artistar",
