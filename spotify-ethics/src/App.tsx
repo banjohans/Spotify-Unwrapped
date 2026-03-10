@@ -987,6 +987,19 @@ export default function App() {
   const [locale, setLocale] = useState<Locale>("no");
   const [shareToast, setShareToast] = useState<string | null>(null);
 
+  // Extra Spotify data files
+  const [inferences, setInferences] = useState<string[]>([]);
+  const [marqueeArtists, setMarqueeArtists] = useState<
+    Array<{ artistName: string; segment: string }>
+  >([]);
+  const [userdata, setUserdata] = useState<{
+    username?: string;
+    country?: string;
+    creationTime?: string;
+    gender?: string;
+  } | null>(null);
+  const [fileGuideOpen, setFileGuideOpen] = useState(false);
+
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [artistDetailSort, setArtistDetailSort] = useState<"time" | "tracks">(
     "time",
@@ -1053,6 +1066,31 @@ export default function App() {
     }));
   }, [locale, subscriptionSegments]);
 
+  /**
+   * Convert Level 1 streaming history rows (endTime, artistName, trackName, msPlayed)
+   * to the extended SpotifyStreamRow format used by analyze().
+   */
+  function convertLevel1Row(row: {
+    endTime?: string;
+    artistName?: string;
+    trackName?: string;
+    msPlayed?: number;
+  }): SpotifyStreamRow {
+    // endTime is "YYYY-MM-DD HH:mm" — convert to ISO
+    let ts: string | undefined;
+    if (row.endTime) {
+      const d = new Date(row.endTime.replace(" ", "T") + ":00Z");
+      if (!isNaN(d.getTime())) ts = d.toISOString();
+    }
+    return {
+      ts,
+      ms_played: row.msPlayed ?? 0,
+      master_metadata_album_artist_name: row.artistName ?? undefined,
+      master_metadata_track_name: row.trackName ?? undefined,
+      // No album, reason_start, etc. in Level 1 data
+    };
+  }
+
   async function onFiles(files: FileList | null) {
     setErr(null);
     if (!files || files.length === 0) return;
@@ -1067,15 +1105,51 @@ export default function App() {
       for (const f of Array.from(files)) {
         const text = await f.text();
         const json = JSON.parse(text);
+        const nameLower = f.name.toLowerCase();
+
+        // ── Handle special non-streaming files ──
+        if (nameLower === "inferences.json") {
+          if (json && Array.isArray(json.inferences)) {
+            setInferences(json.inferences);
+          }
+          continue;
+        }
+        if (nameLower === "marquee.json") {
+          if (Array.isArray(json)) {
+            setMarqueeArtists(json);
+          }
+          continue;
+        }
+        if (nameLower === "userdata.json") {
+          if (json && typeof json === "object" && !Array.isArray(json)) {
+            setUserdata(json);
+          }
+          continue;
+        }
+
+        // ── Streaming history files ──
         if (!Array.isArray(json)) {
           throw new Error(
             `Fila ${f.name} var ikkje ei liste (array) av rader.`,
           );
         }
+
+        // Detect Level 1 format (endTime + artistName) and convert
+        const isLevel1 =
+          json.length > 0 &&
+          "endTime" in json[0] &&
+          "artistName" in json[0] &&
+          !("ts" in json[0]) &&
+          !("master_metadata_track_name" in json[0]);
+
+        const rows: SpotifyStreamRow[] = isLevel1
+          ? json.map(convertLevel1Row)
+          : (json as SpotifyStreamRow[]);
+
         newFiles.push({
           name: f.name,
-          rowCount: json.length,
-          rows: json as SpotifyStreamRow[],
+          rowCount: rows.length,
+          rows,
         });
       }
 
@@ -1520,7 +1594,225 @@ export default function App() {
           )}
         </div>
 
-        {uploadedFiles.length > 0 && (
+        {/* File guide */}
+        <div className="fileGuideSection">
+          <button
+            className="collapsibleToggle fileGuideToggle"
+            onClick={() => setFileGuideOpen(!fileGuideOpen)}
+            aria-expanded={fileGuideOpen}
+          >
+            <span
+              className={`collapsibleChevron ${fileGuideOpen ? "open" : ""}`}
+            >
+              ▾
+            </span>
+            {t("fileGuideToggle", locale)}
+          </button>
+
+          {fileGuideOpen && (
+            <div className="fileGuideContent">
+              <p className="subtle" style={{ marginBottom: 16 }}>
+                {t("fileGuideIntro", locale)}
+              </p>
+
+              <h4 className="fileGuideGroupTitle">
+                {t("fileGuideRequired", locale)}
+              </h4>
+              <div className="fileGuideGrid">
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    Streaming_History_Audio_*.json
+                    <span className="fileGuideBadge primary">
+                      {locale === "no" ? "Hovudfil" : "Main file"}
+                    </span>
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Fullstendig strøymehistorikk med tidsstempel, artist, album, låttittel, ms lytta, avspelingsgrunn (reason_start/end), shuffle, offline m.m. Filnamn inkluderer årsperiode, t.d. Streaming_History_Audio_2018-2021_1.json."
+                      : "Complete streaming history with timestamp, artist, album, track name, ms played, playback reason (reason_start/end), shuffle, offline, etc. Filenames include year range, e.g. Streaming_History_Audio_2018-2021_1.json."}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "All hovudanalyse — royalty-estimat, artistoversikt, aktiv/passiv lytting, diagram."
+                      : "All main analysis — royalty estimates, artist overview, active/passive listening, charts."}
+                  </div>
+                </div>
+
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    Streaming_History_Video_*.json
+                    <span className="fileGuideBadge primary">
+                      {locale === "no" ? "Hovudfil" : "Main file"}
+                    </span>
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Strøymehistorikk for video og podcastar, same format som Audio-filene."
+                      : "Streaming history for video and podcasts, same format as the Audio files."}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Vert analysert saman med Audio-filene for komplett oversikt."
+                      : "Analyzed together with Audio files for a complete overview."}
+                  </div>
+                </div>
+
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    StreamingHistory_music_*.json
+                    <span className="fileGuideBadge">
+                      {locale === "no" ? "Alternativ" : "Alternative"}
+                    </span>
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Enklare strøymehistorikk (siste året) frå vanleg «Account Data»-eksport. Har sluttid, artistnamn, låtnamn og ms lytta. Manglar album, avspelingsgrunn, URI m.m."
+                      : 'Simpler streaming history (last year) from a regular "Account Data" export. Has end time, artist name, track name, and ms played. Missing album, playback reason, URI, etc.'}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Kan brukast som fallback — gir grunnleggande statistikk og royalty-estimat, men ingen aktiv/passiv-analyse."
+                      : "Can be used as fallback — provides basic stats and royalty estimates, but no active/passive analysis."}
+                  </div>
+                </div>
+              </div>
+
+              <h4 className="fileGuideGroupTitle">
+                {t("fileGuideOptional", locale)}
+              </h4>
+              <div className="fileGuideGrid">
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    Inferences.json
+                    {inferences.length > 0 && (
+                      <span className="fileGuideBadge loaded">
+                        {t("fileGuideLoaded", locale)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Spotify sine reklame-profilar av deg: demografiske segment, innhaldspreferansar, og annonsesegment."
+                      : "Spotify's advertising profiles of you: demographic segments, content preferences, and ad segments."}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Viser ein eigen «Slik ser Spotify deg»-seksjon som avslører korleis du vert profilert for annonsørar."
+                      : 'Shows a dedicated "How Spotify sees you" section revealing how you\'re profiled for advertisers.'}
+                  </div>
+                </div>
+
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    Marquee.json
+                    {marqueeArtists.length > 0 && (
+                      <span className="fileGuideBadge loaded">
+                        {t("fileGuideLoaded", locale)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Liste over artistar som har betalt Spotify for å vise deg «Marquee»-annonsar (fullskjermsanbefalingar)."
+                      : 'List of artists who paid Spotify to show you "Marquee" ads (full-screen recommendations).'}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Viser kva artistar som betaler for å nå deg — illustrerer korleis Spotify tener pengar frå begge sider."
+                      : "Shows which artists pay to reach you — illustrating how Spotify earns money from both sides."}
+                  </div>
+                </div>
+
+                <div className="fileGuideItem">
+                  <div className="fileGuideName">
+                    Userdata.json
+                    {userdata && (
+                      <span className="fileGuideBadge loaded">
+                        {t("fileGuideLoaded", locale)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="fileGuideDesc">
+                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Grunnleggande kontoinformasjon: brukarnamn, land, opprettingsdato."
+                      : "Basic account info: username, country, creation date."}
+                    <br />
+                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                    {locale === "no"
+                      ? "Viser kor lenge du har vore Spotify-brukar."
+                      : "Shows how long you've been a Spotify user."}
+                  </div>
+                </div>
+              </div>
+
+              <h4 className="fileGuideGroupTitle">
+                {t("fileGuideNotUsed", locale)}
+              </h4>
+              <div className="fileGuideGrid dimmed">
+                {[
+                  {
+                    name: "Follow.json",
+                    desc:
+                      locale === "no"
+                        ? "Sosial graf — kven du følgjer og kven som følgjer deg."
+                        : "Social graph — who you follow and who follows you.",
+                  },
+                  {
+                    name: "Playlist1.json",
+                    desc:
+                      locale === "no"
+                        ? "Spillelistene dine med alle sporar."
+                        : "Your playlists with all tracks.",
+                  },
+                  {
+                    name: "Payments.json",
+                    desc:
+                      locale === "no"
+                        ? "Betalingsinformasjon (vanlegvis tom)."
+                        : "Payment information (usually empty).",
+                  },
+                  {
+                    name: "YourLibrary.json",
+                    desc:
+                      locale === "no"
+                        ? "Lagra sporar, artistar, album og podcastar."
+                        : "Saved tracks, artists, albums, and podcasts.",
+                  },
+                  {
+                    name: "SearchQueries.json",
+                    desc:
+                      locale === "no"
+                        ? "Dei siste søka dine på Spotify."
+                        : "Your recent Spotify searches.",
+                  },
+                  {
+                    name: "Identifiers.json",
+                    desc:
+                      locale === "no"
+                        ? "E-postadressa knytt til kontoen."
+                        : "Email address linked to the account.",
+                  },
+                ].map((item) => (
+                  <div className="fileGuideItem" key={item.name}>
+                    <div className="fileGuideName">{item.name}</div>
+                    <div className="fileGuideDesc">{item.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {(uploadedFiles.length > 0 ||
+          inferences.length > 0 ||
+          marqueeArtists.length > 0 ||
+          userdata) && (
           <div className="uploadedFilesList">
             <div className="filesHeader">
               <h3>
@@ -1531,6 +1823,9 @@ export default function App() {
                 onClick={() => {
                   setUploadedFiles([]);
                   setRows([]);
+                  setInferences([]);
+                  setMarqueeArtists([]);
+                  setUserdata(null);
                 }}
               >
                 {t("removeAll", locale)}
@@ -1558,6 +1853,57 @@ export default function App() {
                   </button>
                 </div>
               ))}
+              {inferences.length > 0 && (
+                <div className="fileItem extraFile">
+                  <div className="fileInfo">
+                    <span className="fileName">Inferences.json</span>
+                    <span className="fileStats">
+                      {inferences.length}{" "}
+                      {locale === "no" ? "segment" : "segments"}
+                    </span>
+                  </div>
+                  <button
+                    className="fileRemove"
+                    onClick={() => setInferences([])}
+                    title={t("removeFile", locale)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              {marqueeArtists.length > 0 && (
+                <div className="fileItem extraFile">
+                  <div className="fileInfo">
+                    <span className="fileName">Marquee.json</span>
+                    <span className="fileStats">
+                      {marqueeArtists.length}{" "}
+                      {locale === "no" ? "artistar" : "artists"}
+                    </span>
+                  </div>
+                  <button
+                    className="fileRemove"
+                    onClick={() => setMarqueeArtists([])}
+                    title={t("removeFile", locale)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+              {userdata && (
+                <div className="fileItem extraFile">
+                  <div className="fileInfo">
+                    <span className="fileName">Userdata.json</span>
+                    <span className="fileStats">{userdata.username ?? ""}</span>
+                  </div>
+                  <button
+                    className="fileRemove"
+                    onClick={() => setUserdata(null)}
+                    title={t("removeFile", locale)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3035,6 +3381,211 @@ export default function App() {
           }
         }}
       />
+
+      {/* ─── Extra Spotify Data Sections ─── */}
+
+      {/* Account info from Userdata.json */}
+      {userdata && userdata.creationTime && (
+        <section className="card">
+          <div className="cardHeader">
+            <h2>{t("userdataTitle", locale)}</h2>
+            <p
+              className="subtle"
+              dangerouslySetInnerHTML={{
+                __html: t("userdataDesc", locale),
+              }}
+            />
+          </div>
+          <div className="userdataGrid">
+            {userdata.creationTime && (
+              <div className="userdataItem">
+                <div className="userdataLabel">
+                  {t("userdataCreated", locale)}
+                </div>
+                <div className="userdataValue">{userdata.creationTime}</div>
+              </div>
+            )}
+            {userdata.country && (
+              <div className="userdataItem">
+                <div className="userdataLabel">
+                  {t("userdataCountry", locale)}
+                </div>
+                <div className="userdataValue">{userdata.country}</div>
+              </div>
+            )}
+            {userdata.creationTime &&
+              (() => {
+                const created = new Date(userdata.creationTime);
+                if (isNaN(created.getTime())) return null;
+                const years = Math.floor(
+                  (Date.now() - created.getTime()) /
+                    (365.25 * 24 * 60 * 60 * 1000),
+                );
+                return (
+                  <div className="userdataItem">
+                    <div className="userdataLabel">
+                      {t("userdataAccountAge", locale)}
+                    </div>
+                    <div className="userdataValue">
+                      {years} {t("userdataYears", locale)}
+                    </div>
+                  </div>
+                );
+              })()}
+          </div>
+        </section>
+      )}
+
+      {/* How Spotify sees you — Inferences.json */}
+      {inferences.length > 0 && (
+        <section className="card">
+          <div className="cardHeader">
+            <h2>{t("inferencesTitle", locale)}</h2>
+            <p
+              className="subtle"
+              dangerouslySetInnerHTML={{
+                __html: t("inferencesDesc", locale),
+              }}
+            />
+          </div>
+
+          {(() => {
+            // Categorize inferences
+            const demo: string[] = [];
+            const content: string[] = [];
+            const adSegments: string[] = [];
+            const other: string[] = [];
+
+            for (const inf of inferences) {
+              const lower = inf.toLowerCase();
+              if (lower.startsWith("demographic_")) {
+                demo.push(inf.replace("demographic_", "").replace(/_/g, " "));
+              } else if (lower.startsWith("content_")) {
+                content.push(inf.replace("content_", "").replace(/_/g, " "));
+              } else if (lower.startsWith("1p_custom_")) {
+                const clean = inf.replace("1P_Custom_", "").replace(/_/g, " ");
+                adSegments.push(clean);
+              } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(lower)) {
+                // UUIDs — internal IDs, skip display
+              } else {
+                other.push(inf.replace(/_/g, " "));
+              }
+            }
+
+            return (
+              <div className="inferencesContent">
+                {demo.length > 0 && (
+                  <div className="inferenceGroup">
+                    <h4 className="inferenceGroupTitle">
+                      👤 {t("inferencesDemo", locale)}
+                    </h4>
+                    <div className="inferenceChips">
+                      {demo.map((d) => (
+                        <span className="inferenceChip demo" key={d}>
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {content.length > 0 && (
+                  <div className="inferenceGroup">
+                    <h4 className="inferenceGroupTitle">
+                      🎵 {t("inferencesContent", locale)}
+                    </h4>
+                    <div className="inferenceChips">
+                      {content.map((c) => (
+                        <span className="inferenceChip content" key={c}>
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {adSegments.length > 0 && (
+                  <div className="inferenceGroup">
+                    <h4 className="inferenceGroupTitle">
+                      📢 {t("inferencesAdSegments", locale)}
+                    </h4>
+                    <div className="inferenceChips">
+                      {adSegments.map((a) => (
+                        <span
+                          className={`inferenceChip ad ${a.includes("[Advertiser-Restricted]") ? "restricted" : ""}`}
+                          key={a}
+                        >
+                          {a.replace(" [Advertiser-Restricted]", "")}
+                          {a.includes("[Advertiser-Restricted]") && (
+                            <span className="restrictedBadge">
+                              {t("inferencesRestricted", locale)}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {other.length > 0 && (
+                  <div className="inferenceGroup">
+                    <h4 className="inferenceGroupTitle">
+                      🏷️ {t("inferencesOther", locale)}
+                    </h4>
+                    <div className="inferenceChips">
+                      {other.map((o) => (
+                        <span className="inferenceChip other" key={o}>
+                          {o}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <p
+                  className="inferencesPrivacyNote"
+                  dangerouslySetInnerHTML={{
+                    __html: t("inferencesPrivacyNote", locale),
+                  }}
+                />
+              </div>
+            );
+          })()}
+        </section>
+      )}
+
+      {/* Artists paying to reach you — Marquee.json */}
+      {marqueeArtists.length > 0 && (
+        <section className="card">
+          <div className="cardHeader">
+            <h2>{t("marqueeTitle", locale)}</h2>
+            <p
+              className="subtle"
+              dangerouslySetInnerHTML={{
+                __html: t("marqueeDesc", locale),
+              }}
+            />
+          </div>
+
+          <div className="marqueeContent">
+            <div className="marqueeCount">
+              {t("marqueeCount", locale).replace(
+                "{count}",
+                String(marqueeArtists.length),
+              )}
+            </div>
+            <div className="marqueeChips">
+              {marqueeArtists.map((m) => (
+                <span className="marqueeChip" key={m.artistName}>
+                  {m.artistName}
+                </span>
+              ))}
+            </div>
+            <p
+              className="marqueeEthicsNote"
+              dangerouslySetInnerHTML={{
+                __html: t("marqueeEthicsNote", locale),
+              }}
+            />
+          </div>
+        </section>
+      )}
 
       {/* Summary & Export Section */}
       {result && (

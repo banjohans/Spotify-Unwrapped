@@ -727,6 +727,84 @@ const T = {
   presetAlwaysPremium: { no: "Alltid Premium", en: "Always Premium" },
   presetAlwaysFree: { no: "Alltid Gratis", en: "Always Free" },
   presetCustom: { no: "Eigendefinert", en: "Custom" },
+
+  // ─── File guide (upload section) ──────────────────────────────
+  fileGuideToggle: {
+    no: "Kva filer har eg fått frå Spotify?",
+    en: "What files did I get from Spotify?",
+  },
+  fileGuideIntro: {
+    no: "Spotify sender deg fleire JSON-filer i GDPR-eksporten. Her er ei oversikt over kva kvar fil inneheld og korleis Spotify Unwrapped brukar dei.",
+    en: "Spotify sends you several JSON files in the GDPR export. Here's an overview of what each file contains and how Spotify Unwrapped uses them.",
+  },
+  fileGuideRequired: {
+    no: "Hovuddata (strøymehistorikk)",
+    en: "Main data (streaming history)",
+  },
+  fileGuideOptional: {
+    no: "Tilleggsdata (valfritt)",
+    en: "Additional data (optional)",
+  },
+  fileGuideNotUsed: {
+    no: "Ikkje brukt av Unwrapped",
+    en: "Not used by Unwrapped",
+  },
+  fileGuideUsedFor: { no: "Brukt til", en: "Used for" },
+  fileGuideContains: { no: "Innhald", en: "Contains" },
+  fileGuideStatus: { no: "Status", en: "Status" },
+  fileGuideLoaded: { no: "Lasta opp ✓", en: "Uploaded ✓" },
+  fileGuideNotLoaded: { no: "Ikkje lasta opp", en: "Not uploaded" },
+
+  // ─── Inferences section ────────────────────────────────────────
+  inferencesTitle: {
+    no: "Slik ser Spotify deg",
+    en: "How Spotify sees you",
+  },
+  inferencesDesc: {
+    no: "Spotify byggjer ein annonseprofil av deg basert på lyttevanane dine. Desse kategoriane vert brukte til å selje målretta reklame. Fila <code>Inferences.json</code> viser kva segment Spotify har plassert deg i.",
+    en: "Spotify builds an advertising profile of you based on your listening habits. These categories are used to sell targeted ads. The file <code>Inferences.json</code> shows which segments Spotify has placed you in.",
+  },
+  inferencesDemo: { no: "Demografisk", en: "Demographic" },
+  inferencesContent: { no: "Innhaldspreferansar", en: "Content preferences" },
+  inferencesAdSegments: { no: "Annonsesegment", en: "Ad segments" },
+  inferencesRestricted: { no: "Annonsøravgrensa", en: "Advertiser-Restricted" },
+  inferencesOther: { no: "Andre", en: "Other" },
+  inferencesPrivacyNote: {
+    no: "Denne informasjonen vert brukt av Spotify til å selje annonseringsplassar. Du er ikkje berre ein lyttar — du er eit produkt.",
+    en: "This information is used by Spotify to sell advertising space. You're not just a listener — you're a product.",
+  },
+
+  // ─── Marquee section ──────────────────────────────────────────
+  marqueeTitle: {
+    no: "Artistar som betaler for å nå deg",
+    en: "Artists paying to reach you",
+  },
+  marqueeDesc: {
+    no: "Spotify tilbyr artistar og plateselskap å betale for «Marquee»-annonsar — fullskjermsanbefalingar som dukkar opp når du opnar appen. Desse artistane har betalt for å nå deg spesifikt, basert på at du er kategorisert som «Previously Active Listener».",
+    en: 'Spotify offers artists and labels the option to pay for "Marquee" ads — full-screen recommendations that appear when you open the app. These artists have paid to reach you specifically, because you\'re categorized as a "Previously Active Listener."',
+  },
+  marqueeCount: {
+    no: "{count} artistar har betalt for å nå deg",
+    en: "{count} artists have paid to reach you",
+  },
+  marqueeEthicsNote: {
+    no: "Spotify tener altså pengar <em>begge vegar</em>: frå abonnementet ditt og frå artistar som betaler for å nå deg. Artistane betaler for ein sjanse til å bli anbefalt — ikkje basert på musikalsk kvalitet, men på betalingsvilje.",
+    en: "Spotify therefore earns money <em>both ways</em>: from your subscription and from artists paying to reach you. Artists pay for a chance to be recommended — not based on musical quality, but on willingness to pay.",
+  },
+
+  // ─── Userdata section ─────────────────────────────────────────
+  userdataTitle: {
+    no: "Kontoinformasjon",
+    en: "Account information",
+  },
+  userdataDesc: {
+    no: "Grunnleggande informasjon frå Spotify-kontoen din (<code>Userdata.json</code>).",
+    en: "Basic information from your Spotify account (<code>Userdata.json</code>).",
+  },
+  userdataCreated: { no: "Konto oppretta", en: "Account created" },
+  userdataCountry: { no: "Land", en: "Country" },
+  userdataAccountAge: { no: "Kontoalder", en: "Account age" },
+  userdataYears: { no: "år", en: "years" },
 } as const;
 
 export type TKey = keyof typeof T;

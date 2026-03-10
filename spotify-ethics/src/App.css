@@ -5147,3 +5147,275 @@ body {
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
+
+/* ─── File Guide Section ────────────────────────────────────────── */
+
+.fileGuideSection {
+  padding: 0 24px 20px;
+}
+
+.fileGuideToggle {
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.7);
+  gap: 8px;
+}
+
+.fileGuideContent {
+  padding: 16px 0 0;
+}
+
+.fileGuideGroupTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 20px 0 10px;
+}
+
+.fileGuideGroupTitle:first-of-type {
+  margin-top: 0;
+}
+
+.fileGuideGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.fileGuideGrid.dimmed {
+  opacity: 0.5;
+}
+
+.fileGuideItem {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.fileGuideName {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #fff;
+  margin-bottom: 6px;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fileGuideBadge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.fileGuideBadge.primary {
+  background: rgba(29, 185, 84, 0.2);
+  color: #1ed760;
+}
+
+.fileGuideBadge.loaded {
+  background: rgba(29, 185, 84, 0.15);
+  color: #1ed760;
+}
+
+.fileGuideDesc {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.fileGuideDesc strong {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Extra file indicators in upload list */
+.fileItem.extraFile {
+  border-left: 3px solid rgba(29, 185, 84, 0.4);
+}
+
+/* ─── Userdata Section ──────────────────────────────────────────── */
+
+.userdataGrid {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 8px 0;
+}
+
+.userdataItem {
+  flex: 1 1 150px;
+}
+
+.userdataLabel {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-bottom: 4px;
+}
+
+.userdataValue {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ─── Inferences Section ────────────────────────────────────────── */
+
+.inferencesContent {
+  padding: 8px 0;
+}
+
+.inferenceGroup {
+  margin-bottom: 18px;
+}
+
+.inferenceGroupTitle {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+}
+
+.inferenceChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inferenceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  text-transform: capitalize;
+}
+
+.inferenceChip.demo {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.inferenceChip.content {
+  background: rgba(29, 185, 84, 0.1);
+  border-color: rgba(29, 185, 84, 0.2);
+  color: #6ee7a0;
+}
+
+.inferenceChip.ad {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.inferenceChip.ad.restricted {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.restrictedBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.inferenceChip.other {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.inferencesPrivacyNote {
+  margin-top: 20px;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ─── Marquee Section ───────────────────────────────────────────── */
+
+.marqueeContent {
+  padding: 8px 0;
+}
+
+.marqueeCount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 16px;
+}
+
+.marqueeChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.marqueeChip {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  background: rgba(245, 158, 11, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.marqueeEthicsNote {
+  padding: 14px 18px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ─── Responsive adjustments for new sections ────────────────────── */
+
+@media (max-width: 600px) {
+  .fileGuideSection {
+    padding: 0 16px 16px;
+  }
+
+  .userdataGrid {
+    gap: 16px;
+  }
+
+  .inferenceChips,
+  .marqueeChips {
+    gap: 6px;
+  }
+
+  .inferenceChip,
+  .marqueeChip {
+    font-size: 0.78rem;
+    padding: 5px 10px;
+  }
+}
