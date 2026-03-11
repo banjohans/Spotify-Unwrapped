@@ -5,6 +5,7 @@ import type {
   SpotifyStreamRow,
   SubscriptionSegment,
 } from "./lib/analyze";
+import katex from "katex";
 import ListeningCharts from "./components/ListeningCharts";
 import ArtistComparisonChart from "./components/ArtistComparisonChart";
 import { LabelAnalytics } from "./components/LabelAnalytics";
@@ -32,6 +33,13 @@ import heroImg from "./assets/hero.png";
 
 function albumKey(artist: string, album: string) {
   return `${artist}|||${album}`;
+}
+
+function renderLatex(formula: string): string {
+  return katex.renderToString(formula, {
+    throwOnError: false,
+    displayMode: true,
+  });
 }
 
 // ─── Share image generator (canvas → PNG) ────────────────────────
@@ -168,7 +176,7 @@ async function generateShareImage(opts: {
   ctx.fill();
   ctx.fillStyle = "rgba(255,255,255,0.85)";
   ctx.fillText(
-    `${restPctInt}% ${locale === "en" ? "...who knows?" : "...kven veit?"}`,
+    `${restPctInt}% ${locale === "en" ? "...distributed through the pool" : "...fordelt gjennom potten"}`,
     cx + 32,
     legendY + 1,
   );
@@ -223,8 +231,8 @@ async function generateShareImage(opts: {
     "600 22px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   const line1 =
     locale === "en"
-      ? "Spotify Premium cost me"
-      : "Spotify Premium har kosta meg";
+      ? "My estimated Spotify Premium spending"
+      : "Mitt estimerte Spotify Premium-forbruk";
   ctx.fillText(line1, lx, 130);
   ctx.fillStyle = "#1ed760";
   ctx.font =
@@ -236,8 +244,8 @@ async function generateShareImage(opts: {
     "600 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   const line2 =
     locale === "en"
-      ? `Of this, only this went to the ${artistCount} artists I listened to:`
-      : `Av dette gjekk berre dette til dei ${artistCount} artistane eg lytta til:`;
+      ? `Based on estimated royalties, this is the approximate value associated with my ${artistCount} artists:`
+      : `Basert på estimerte royalties, er dette den omtrentlege verdien knytt til mine ${artistCount} artistar:`;
   // Wrap long text
   const maxW = 520;
   const words2 = line2.split(" ");
@@ -270,8 +278,8 @@ async function generateShareImage(opts: {
     "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
   ctx.fillText(
     locale === "en"
-      ? "went to… who knows what? Spotify won\u2019t say."
-      : "gjekk til… kven veit kva? Spotify seier det ikkje.",
+      ? "was distributed through Spotify\u2019s global royalty pool."
+      : "vart fordelt gjennom Spotify sin globale royalty-pott.",
     lx,
     restY + 28,
   );
@@ -352,8 +360,8 @@ async function generateShareImage(opts: {
   ctx.textAlign = "center";
   const cta =
     locale === "en"
-      ? "How much of YOUR subscription actually reaches the artists? → banjohans.github.io/Spotify-Unwrapped"
-      : "Kor mykje av DITT abonnement når faktisk artistane? → banjohans.github.io/Spotify-Unwrapped";
+      ? "How much of your listening translates into royalty value for your artists? → banjohans.github.io/Spotify-Unwrapped"
+      : "Kor mykje av lyttinga di gir estimert royalty-verdi til artistane dine? → banjohans.github.io/Spotify-Unwrapped";
   ctx.fillText(cta, W / 2, H - 26);
 
   // Privacy note
@@ -418,8 +426,8 @@ function exportPlannedAlbumsPDF(
 <div class="intro">
 ${
   locale === "en"
-    ? "These albums were identified from your Spotify listening data using <b>Spotify Unwrapped</b>. The app analyzes your GDPR data export to estimate which artists you've listened to the most. Because Spotify's pro-rata model distributes your subscription money into a shared pool rather than directly to the artists you listen to, buying albums is a far more direct way to support the music you enjoy. Prices shown are estimates based on a standard album price."
-    : "Desse albuma er identifiserte frå Spotify-lyttedataa dine ved hjelp av <b>Spotify Unwrapped</b>. Appen analyserer GDPR-dataeksporten din for å estimere kva artistar du har lytta mest til. Fordi Spotify sin pro-rata-modell fordeler abonnementspengane dine i ein felles pott i staden for direkte til artistane du lyttar til, er det å kjøpe album ein langt meir direkte måte å støtte musikken du likar. Prisar er estimat basert på standard albumpris."
+    ? "These albums were identified from your Spotify listening data using <b>Spotify Unwrapped</b>. The app analyzes your GDPR data export to estimate which artists you've listened to the most. In Spotify's pro-rata model, your subscription payment enters a shared royalty pool and is distributed according to global listening share, rather than being directly allocated to the artists you personally listen to. Buying music directly from artists or rights holders can provide a more direct financial link between listener and creator. Prices shown are estimates based on a standard album price."
+    : "Desse albuma er identifiserte frå Spotify-lyttedataa dine ved hjelp av <b>Spotify Unwrapped</b>. Appen analyserer GDPR-dataeksporten din for å estimere kva artistar du har lytta mest til. I Spotify sin pro-rata-modell går abonnementsbetalinga di inn i ein felles royalty-pott og vert fordelt etter global lyttedel, i staden for å vere direkte allokert til artistane du personleg lyttar til. Å kjøpe musikk direkte frå artistar eller rettshavarar kan gje ein meir direkte økonomisk kopling mellom lyttar og skapar. Prisar er estimat basert på standard albumpris."
 }
 </div>
 <table>
@@ -533,16 +541,8 @@ function exportFullReportPDF(
       : `Du har betalt ca. <b>${fmtK(subscriptionEstimate?.activeCost ?? 0)}</b> i Spotify-abonnement over <b>${subscriptionEstimate?.activeMonths ?? 0} aktive månadar</b>.`;
   const _theoArtistValue =
     locale === "en"
-      ? `The estimated theoretical value your artists received from your streaming is <b>${fmtK(totalValue)}</b>.`
-      : `Den estimerte teoretiske verdien artistane dine har fått frå strøyminga di er <b>${fmtK(totalValue)}</b>.`;
-  const _diffExpl = (diff: number) =>
-    diff > 0
-      ? locale === "en"
-        ? "didn't go to the artists you listened to, but to the shared pool"
-        : "ikkje gjekk til artistane du lytta på, men til den felles poolen"
-      : locale === "en"
-        ? "went beyond what you paid – other listeners subsidized your favorites"
-        : "gjekk utover det du betalte – andre lyttarar finansierte dine favorittar";
+      ? `The estimated royalty value associated with your listening activity is <b>${fmtK(totalValue)}</b>.`
+      : `Den estimerte royalty-verdien knytt til lytteaktiviteten din er <b>${fmtK(totalValue)}</b>.`;
   const _allArtists =
     locale === "en"
       ? `All ${topArtists.length} artists`
@@ -574,40 +574,82 @@ function exportFullReportPDF(
   const _currUnit = locale === "en" ? "USD" : "NOK";
   const _methodIntro =
     locale === "en"
-      ? "Because Spotify does not share exact financial data per listener, this report uses available data from Spotify's GDPR export and reverse-engineers theoretical royalties and subscription costs."
-      : "Fordi Spotify ikkje deler eksakte data per lyttar, bruker denne rapporten tilgjengelege data frå Spotify sin GDPR-eksport og reknar bakover for å estimere teoretiske royalties og abonnementskostnader.";
+      ? "Because Spotify does not publish financial data at the listener level, this report uses data from Spotify's GDPR export and estimates the economic value of your listening using publicly available industry data."
+      : "Fordi Spotify ikkje publiserer økonomiske data på lyttarnivå, brukar denne rapporten data frå Spotify sin GDPR-eksport og estimerer den økonomiske verdien av lyttinga di ved hjelp av offentleg tilgjengelege bransjedata.";
+  const _methodIntroRebuttal =
+    locale === "en"
+      ? "It is a common claim that you cannot calculate per-stream values to see what artists earn — but it is entirely possible to retrospectively compute a theoretical value based on figures Spotify itself has published."
+      : "Det er ein vanleg forklaring at ein ikkje kan rekne ut straumeverdier for å sjå kva artistar tener — men det er fullt mogleg å retrospektivt utrekne ein teoretisk verdi basert på tal Spotify sjølv har publisert.";
   const _methodSteps =
     locale === "en"
       ? [
           `<b>1. Data filtering:</b> Plays shorter than ${_minSec} seconds are removed. Spotify states 30 sec is the threshold for an official "stream." This excludes test plays, skips, and accidental clicks.`,
-          `<b>2. Estimated royalty value:</b> Historical average per-stream royalty rates (${_currUnit}) are applied to each qualifying play, based on industry data from The Trichordist, Soundcharts, and others. Rates differ by time period (see settings). The value is <i>theoretical</i> – it approximates what Spotify adds to the shared pool based on your habits.`,
-          `<b>3. Subscription cost:</b> Premium Individual pricing (${_country}), verified via Wayback Machine. Only months with actual listening activity are counted. Spotify's GDPR export does <i>not</i> include payment history or subscription type (<code>Payments.json</code> is empty). <b>Why Premium?</b> Other plans produce less reliable data: free-tier users receive ads instead of paying, which changes the revenue model; Duo/Family have lower per-user costs; Student discounts have different pricing. Premium gives the most conservative and transparent estimate – it represents the full payment without ad interruptions.`,
-          `<b>4. Artist aggregation:</b> For each artist: total listening time, estimated royalty value, album distribution, and stream count are summed. "Album equivalent" = estimated streaming value ÷ album price (${_albumPriceFmt}).`,
+          `<b>2. Estimated royalty value:</b> Historical average per-stream royalty rates (${_currUnit}) are applied to each qualifying play, based on industry data from The Trichordist, Soundcharts, and others. Rates differ by time period (see settings). The value is <i>theoretical</i> – it approximates what Spotify adds to the shared pool based on your habits. The estimate thus illustrates approximately how much value your listening may have generated in the system.`,
+          `<b>3. Subscription cost:</b> Defaults to Premium Individual pricing (${_country}), verified via Wayback Machine. Only months with actual listening activity are counted. Spotify's GDPR export does <i>not</i> include payment history or subscription type (<code>Payments.json</code> is empty). Users can select their subscription type in Settings — available options are Individual, Student, Duo, Family, and Free — and define which periods they had each type. Prices are automatically adjusted based on the selection and historical price changes.`,
+          `<b>4. Artist aggregation:</b> For each artist: total listening time, estimated royalty value, album distribution, and stream count are summed. "Album equivalent" = estimated streaming value ÷ album price (${_albumPriceFmt}). This provides an overview of how your listening is distributed across artists and catalogs.`,
         ]
       : [
           `<b>1. Filtrering av data:</b> Avspelingar kortare enn ${_minSec} sekund vert fjerna. Spotify har sagt at 30 sek er grensa for ein offisiell «stream». Dette hindrar prøvespeling, hopping og tilfeldige klikk.`,
-          `<b>2. Estimert royalty-verdi:</b> Historiske gjennomsnittssatsar (${_currUnit}/stream) vert brukt per kvalifiserande avspeling, basert på bransjedata frå m.a. The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå innstillingar). Verdien er <i>teoretisk</i> – den viser omtrent kva Spotify ville lagt i den felles poolen basert på dine lyttevanar.`,
-          `<b>3. Abonnementskostnad:</b> Premium Individual (${_country}), verifisert via Wayback Machine. Berre månadar med faktisk lytteaktivitet er talde. Spotify sin GDPR-eksport har <i>ikkje</i> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom). <b>Kvifor Premium?</b> Andre abonnementstypar gir mindre pålitelege data: gratisbrukarar får reklame i staden for full betaling, noko som endrar inntektsmodellen; Duo/Family har lågare pris per brukar; Student-rabatt gir annan prisstruktur. Premium-prising gir det mest konservative og transparente estimatet – det representerer full betaling utan reklameavbrot.`,
-          `<b>4. Artistaggregering:</b> For kvar artist: total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams vert summert. «Album-ekvivalent» = estimert strøymeverdi ÷ albumpris (${_albumPriceFmt}).`,
+          `<b>2. Estimert royalty-verdi:</b> Historiske gjennomsnittssatsar (${_currUnit}/stream) vert brukt per kvalifiserande avspeling, basert på bransjedata frå m.a. The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå innstillingar). Verdien er <i>teoretisk</i> – den viser omtrent kva Spotify ville lagt i den felles poolen basert på dine lyttevanar. Estimatet illustrerer dermed omtrent kor mykje verdi lyttinga di kan ha generert i systemet.`,
+          `<b>3. Abonnementskostnad:</b> Standard er Premium Individual (${_country}), verifisert via Wayback Machine. Berre månadar med faktisk lytteaktivitet er talde. Spotify sin GDPR-eksport har <i>ikkje</i> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom). Brukaren kan velje abonnementstype i innstillingane — tilgjengelege alternativ er Individual, Student, Duo, Family og Free — og definere kva periodar ein har hatt kvar type. Prisane vert justerte automatisk basert på valet og historiske prisendringar.`,
+          `<b>4. Artistaggregering:</b> For kvar artist: total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams vert summert. «Album-ekvivalent» = estimert strøymeverdi ÷ albumpris (${_albumPriceFmt}). Dette gir eit oversyn over korleis lyttinga di fordeler seg på tvers av artistar og katalogar.`,
         ];
   const _methodCaveats =
     locale === "en"
       ? [
           "This is an <b>estimation model</b>. Spotify does not publish actual royalty payouts per user.",
-          "Spotify uses a <b>\"StreamShare\" (pro-rata) model</b>: all subscription revenue goes into a shared pool distributed by each artist's share of <i>total</i> platform streams. Your money doesn't necessarily go to the music you listen to.",
-          "In practice, a large portion of subscription money flows to high-volume content – background music, AI-generated tracks, and major-label artists – rather than music people actively choose.",
+          'Spotify uses a <b>"StreamShare" (pro-rata) model</b>: all subscription revenue goes into a shared pool distributed by each artist\'s share of <i>total</i> platform streams. Your subscription payment is not directly allocated to the artists you personally listen to.',
+          "Because revenue is distributed according to global streaming volume, the system tends to favour high-volume content over individual listener preferences.",
           "Rates vary by country, subscription type, and platform activity. These figures represent a <i>reasonable average</i>, not exact payouts.",
+          "For those following the debate about background music and the EU's DSM Directive (e.g. in collecting societies like TONO), this is part of a larger issue: Listening music loses ground in royalty distribution, while background music receives a disproportionate share of the revenue pool.",
+          "<b>Label lookup</b> uses MusicBrainz and Discogs (community-driven, may be incomplete). The major/indie classification is approximate.",
+          "<b>Inferences and Marquee</b> data reflects Spotify's internal categorizations. Unwrapped displays but does not interpret this data.",
+          "<b>Listening pattern</b> classification (active vs. assisted) is based on Spotify's <code>reason_start</code> field in the GDPR data.",
+          "From 2024, Spotify requires a track to have <b>at least 1,000 streams per year</b> to generate royalty income. This model does not account for this threshold.",
+          "The figures in this analysis show estimated <b>gross</b> royalty value – not what the artist actually receives. Streaming revenue flows to the entire <b>value chain</b> behind a recording: labels, distributors, producers, session musicians, mixing and mastering engineers, and other rights holders. The actual amount reaching the songwriter or performer is a fraction of the gross total. This also means the system economically favours music that can be produced with few contributors, since traditional production involving many participants results in each individual receiving an ever-smaller share of an already low sum.",
         ]
       : [
           "Dette er ein <b>estimatmodell</b>. Spotify publiserer ikkje faktiske royalty-utbetalingar per brukar.",
-          "Spotify bruker ein <b>«StreamShare» (pro-rata)</b>-modell: alle abonnementsinntekter går i ein felles pott fordelt etter kvar artist sin andel av <i>totale</i> streams. Pengane dine går ikkje nødvendigvis til musikken du lyttar til.",
-          "I praksis går ein stor del av abonnementspengane til storforbruk-innhald – bakgrunnsmusikk, KI-generert musikk, og store artistar – heller enn til musikk folk aktivt vel å spele.",
+          "Spotify bruker ein <b>«StreamShare» (pro-rata)</b>-modell: alle abonnementsinntekter går i ein felles pott fordelt etter kvar artist sin andel av <i>totale</i> streams. Abonnementspengane dine vert ikkje direkte allokert til artistane du personleg lyttar til.",
+          "Fordi inntektene vert fordelt etter globalt lyttevolum, favoriserer systemet innhald med høgt avspelingsvolum framfor individuelle lyttarpreferansar.",
           "Satsar varierer med land, abonnementstype og plattformaktivitet. Tala gir eit <i>rimeleg gjennomsnittsbilete</i>, ikkje eksakte utbetalingar.",
+          "For dei som følgjer debatten om bakgrunnsmusikk og EU sitt DSM-direktiv (t.d. i TONO), er dette ein del av ein større problematikk: Lyttemusikk taper terreng i fordeling av vederlag, medan bakgrunnsmusikk får ein uforholdsmessig stor del av inntektspotten.",
+          "<b>Plateselskap-oppslag</b> nyttar MusicBrainz og Discogs (samfunnsdrivne, kan vere ufullstendige). Klassifiseringa major/indie er tilnærma.",
+          "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar. Unwrapped viser, men tolkar ikkje desse dataa.",
+          "<b>Lyttemønster</b>-klassifiseringa (aktiv vs. assistert) er basert på <code>reason_start</code>-feltet i Spotify sin GDPR-data.",
+          "Frå 2024 krev Spotify at ein song må ha <b>minst 1 000 streams per år</b> for å generere royalties. Denne modellen tek ikkje høgde for denne grensa.",
+          "Tala i denne analysen viser estimert <b>brutto</b> royalty-verdi – ikkje kva artisten faktisk mottek. Inntektene frå streaming går til heile <b>verdikjeda</b> bak opptaket: plateselskap, distributørar, produsentar, studiomusikerar, miks- og masteringteknikarar og andre rettshavarar. Det reelle beløpet som når fram til songskrivaren eller utøvaren er i praksis ein brøkdel av bruttotalet. Dette inneber også at systemet økonomisk favoriserer musikk som kan lagast med få medverkande, sidan tradisjonell produksjon med mange involverte fører til at kvar enkelt mottek ein stadig mindre del av ein allereie låg sum.",
         ];
   const _methodPurpose =
     locale === "en"
-      ? "This report is designed to make visible that your subscription money largely does <i>not</i> go to the music you listen to – and that direct support (like buying albums) is a far more effective way to support the music you care about."
-      : "Denne rapporten er lagd for å synleggjere at abonnementspengane dine i stor grad <i>ikkje</i> går til musikken du lyttar til – og at direkte støtte (som å kjøpe album) er ein langt meir effektiv måte å støtte musikken du bryr deg om.";
+      ? "This report illustrates how Spotify's pro-rata royalty model disconnects individual subscription payments from individual listening behaviour – and that buying music directly from artists or rights holders can provide a more direct financial link between listener and creator."
+      : "Denne rapporten illustrerer korleis Spotify sin pro-rata royalty-modell koplar individuelle abonnementsbetalingar frå individuell lytteåtferd – og at å kjøpe musikk direkte frå artistar eller rettshavarar kan gje ein meir direkte økonomisk kopling mellom lyttar og skapar.";
+  const _methodSolution =
+    locale === "en"
+      ? "A possible further development is to make visible to consumers how their subscription payments are distributed in a pro-rata system – so that more people can make informed choices about how they support the music they care about."
+      : "Ei mogleg vidare utvikling er å synleggjere for forbrukarane korleis abonnementspengane deira vert fordelt i eit pro-rata-system – slik at fleire kan ta informerte val om korleis dei støttar musikken dei bryr seg om.";
+  const _methodStudies =
+    locale === "en"
+      ? [
+          'Pedersen (2020): "A Meta Study of User-Centric Distribution" – Koda / Roskilde University',
+          'CNM / Deloitte (2021): "User Centric Payment System (UCPS)" – Centre national de la musique, France',
+          'Bergantiños & Moreno-Ternero (2025): "Revenue Sharing at Music Streaming Platforms" – Management Science 71(10)',
+          "Muikku (2017): Digital Media Finland – User-centric distribution simulation",
+          "Spotify Loud & Clear (2024): loudandclear.byspotify.com",
+          "FIM (2018): Comparison of pro-rata and user-centric distribution",
+          'Nordgård (2018): "The Music Business and Digital Impacts" – University of Agder / Springer',
+          'Yu (2026): "On click-fraud under pro-rata revenue sharing rule" – arXiv:2601.09573',
+        ]
+      : [
+          "Pedersen (2020): «A Meta Study of User-Centric Distribution» – Koda / Roskilde Universitet",
+          "CNM / Deloitte (2021): «User Centric Payment System (UCPS)» – Centre national de la musique, Frankrike",
+          "Bergantiños & Moreno-Ternero (2025): «Revenue Sharing at Music Streaming Platforms» – Management Science 71(10)",
+          "Muikku (2017): Digital Media Finland – Simulering av brukarsentrert fordeling",
+          "Spotify Loud & Clear (2024): loudandclear.byspotify.com",
+          "FIM (2018): Samanlikning av pro-rata og brukarsentrert fordeling",
+          "Nordgård (2018): «The Music Business and Digital Impacts» – Universitetet i Agder / Springer",
+          "Yu (2026): «On click-fraud under pro-rata revenue sharing rule» – arXiv:2601.09573",
+        ];
   const _methodPrivacy =
     locale === "en"
       ? "🔒 All analysis runs 100% locally in the browser. No data is sent to any server, stored, or shared with anyone."
@@ -742,8 +784,8 @@ function exportFullReportPDF(
 <div class="preamble">
 ${
   locale === "en"
-    ? "This report was generated from your personal Spotify GDPR data export. All analysis runs locally in your browser — no data is sent or stored anywhere. The figures are <b>theoretical estimates</b> based on historical per-stream royalty rates and subscription pricing. Spotify uses a pro-rata pooling model, meaning your subscription money goes into a shared pool rather than directly to the artists you listen to. This report aims to make that visible and encourage more direct forms of artist support."
-    : "Denne rapporten er generert frå din personlege Spotify GDPR-dataeksport. All analyse skjer lokalt i nettlesaren — ingen data vert sendt eller lagra. Tala er <b>teoretiske estimat</b> basert på historiske royalty-satsar per stream og abonnementsprisar. Spotify bruker ein pro-rata-modell der abonnementspengane dine går i ein felles pott i staden for direkte til artistane du lyttar til. Denne rapporten er meint å synleggjere dette, og motivere til meir direkte støtte av artistar."
+    ? "This report was generated from your personal Spotify GDPR data export. All analysis runs locally in your browser — no data is sent or stored anywhere. The figures are <b>theoretical estimates</b> based on historical per-stream royalty rates and subscription pricing. Spotify uses a pro-rata pooling model, where your subscription payment enters a shared royalty pool and is distributed according to global listening share, rather than being directly allocated to the artists you personally listen to. This report illustrates that disconnect and explores more direct forms of artist support."
+    : "Denne rapporten er generert frå din personlege Spotify GDPR-dataeksport. All analyse skjer lokalt i nettlesaren — ingen data vert sendt eller lagra. Tala er <b>teoretiske estimat</b> basert på historiske royalty-satsar per stream og abonnementsprisar. Spotify bruker ein pro-rata-modell der abonnementsbetalinga di går inn i ein felles royalty-pott og vert fordelt etter global lyttedel, i staden for å vere direkte allokert til artistane du personleg lyttar til. Denne rapporten illustrerer denne fråkoplinga og utforskar meir direkte former for artiststøtte."
 }
 </div>
 
@@ -812,8 +854,7 @@ ${
   <div class="info-box">
     <b>${_whatMeansTitle}</b> ${_youPaid}
     ${_theoArtistValue}
-    ${locale === "en" ? "The difference" : "Differansen"} (${fmtK(subscriptionEstimate.activeCost - totalValue)}) ${locale === "en" ? "represents money that" : "er midlar som"}
-    ${_diffExpl(subscriptionEstimate.activeCost - totalValue)}.
+    ${locale === "en" ? "The difference" : "Differansen"} (${fmtK(subscriptionEstimate.activeCost - totalValue)}) ${locale === "en" ? "reflects the gap between your estimated listening-based royalty value and your subscription payment within Spotify\u2019s pooled royalty system" : "viser differansen mellom den estimerte royalty-verdien fr\u00e5 lyttinga di og abonnementsbetalinga di i Spotify sitt pro-rata-system"}.
   </div>
 </div>`
     : ""
@@ -918,6 +959,7 @@ ${
   <h2>${_methodology}</h2>
   <div class="methodology">
     <p>${_methodIntro}</p>
+    <p><strong>${_methodIntroRebuttal}</strong></p>
     <ul>
       ${_methodSteps.map((item) => `<li>${item}</li>`).join("\n      ")}
     </ul>
@@ -926,6 +968,11 @@ ${
       ${_methodCaveats.map((item) => `<li>${item}</li>`).join("\n      ")}
     </ul>
     <p style="margin-top:10px;">${_methodPurpose}</p>
+    <p style="margin-top:6px;">${_methodSolution}</p>
+    <h3 style="margin-top:14px;font-size:13px;color:#333;">${locale === "en" ? "Key studies" : "Sentrale studiar"}</h3>
+    <ul style="font-size:11px;">
+      ${_methodStudies.map((s) => `<li>${s}</li>`).join("\n      ")}
+    </ul>
     <p style="margin-top:8px;font-style:italic;">${_methodPrivacy}</p>
   </div>
 </div>
@@ -982,6 +1029,8 @@ export default function App() {
   >({});
   const [plannedAlbumsOpen, setPlannedAlbumsOpen] = useState(false);
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
+  const [studiesOpen, setStudiesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [methodologyInfoOpen, setMethodologyInfoOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
@@ -2410,8 +2459,8 @@ export default function App() {
                       </span>
                       <span className="economicHint">
                         {locale === "en"
-                          ? "to your artists"
-                          : "til dine artistar"}
+                          ? "associated with your artists"
+                          : "knytt til dine artistar"}
                       </span>
                     </div>
                     <div className="economicEquals">=</div>
@@ -2438,8 +2487,8 @@ export default function App() {
                       </span>
                       <span className="economicHint">
                         {locale === "en"
-                          ? "to other artists"
-                          : "til andre artistar"}
+                          ? "distributed through the pool"
+                          : "fordelt gjennom potten"}
                       </span>
                     </div>
                   </div>
@@ -3865,6 +3914,9 @@ export default function App() {
             </div>
             <div className="disclaimerBody">
               <p className="disclaimerIntro">{t("disclaimerIntro", locale)}</p>
+              <p className="disclaimerIntroRebuttal">
+                <strong>{t("disclaimerIntroRebuttal", locale)}</strong>
+              </p>
 
               <h3>{t("disclaimerStep1Title", locale)}</h3>
               <p
@@ -3918,6 +3970,169 @@ export default function App() {
 
               <div className="disclaimerPrivacy">
                 <span>🔒</span> {t("disclaimerPrivacy", locale)}
+              </div>
+
+              {/* Collapsible: Research & Math */}
+              <div className="disclaimerSection">
+                <button
+                  className="disclaimerToggle"
+                  onClick={() => setResearchOpen((v) => !v)}
+                >
+                  {researchOpen ? "▾" : "▸"}{" "}
+                  {t("disclaimerResearchTitle", locale)}
+                </button>
+                {researchOpen && (
+                  <div className="disclaimerSectionBody">
+                    <p>{t("disclaimerResearchIntro", locale)}</p>
+                    <p>{t("disclaimerResearchCoreIdea", locale)}</p>
+                    <div
+                      className="katexBlock"
+                      dangerouslySetInnerHTML={{
+                        __html: renderLatex(
+                          t("disclaimerResearchFormula1", locale),
+                        ),
+                      }}
+                    />
+                    <ul className="formulaVars">
+                      {(
+                        tRaw(
+                          "disclaimerResearchFormula1Vars",
+                          locale,
+                        ) as readonly string[]
+                      ).map((v, i) => (
+                        <li key={i} dangerouslySetInnerHTML={{ __html: v }} />
+                      ))}
+                    </ul>
+
+                    <p>{t("disclaimerResearchStreamValue", locale)}</p>
+                    <div
+                      className="katexBlock"
+                      dangerouslySetInnerHTML={{
+                        __html: renderLatex(
+                          t("disclaimerResearchFormula2", locale),
+                        ),
+                      }}
+                    />
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerResearchVariation", locale),
+                      }}
+                    />
+
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerResearchUserValue", locale),
+                      }}
+                    />
+                    <div
+                      className="katexBlock"
+                      dangerouslySetInnerHTML={{
+                        __html: renderLatex(
+                          t("disclaimerResearchFormula3", locale),
+                        ),
+                      }}
+                    />
+                    <ul className="formulaVars">
+                      {(
+                        tRaw(
+                          "disclaimerResearchFormula3Vars",
+                          locale,
+                        ) as readonly string[]
+                      ).map((v, i) => (
+                        <li key={i} dangerouslySetInnerHTML={{ __html: v }} />
+                      ))}
+                    </ul>
+
+                    <p>{t("disclaimerResearchIllustrates", locale)}</p>
+                    <p>{t("disclaimerResearchMatters", locale)}</p>
+
+                    <h4 className="breakeven-title">
+                      {t("disclaimerBreakevenTitle", locale)}
+                    </h4>
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerBreakevenIntro", locale),
+                      }}
+                    />
+                    <div
+                      className="katexBlock"
+                      dangerouslySetInnerHTML={{
+                        __html: renderLatex(
+                          t("disclaimerBreakevenFormula", locale),
+                        ),
+                      }}
+                    />
+                    <p>{t("disclaimerBreakevenExample", locale)}</p>
+                    <ul className="breakeven-numbers">
+                      {(
+                        tRaw(
+                          "disclaimerBreakevenNumbers",
+                          locale,
+                        ) as readonly string[]
+                      ).map((v, i) => (
+                        <li key={i} dangerouslySetInnerHTML={{ __html: v }} />
+                      ))}
+                    </ul>
+                    <p
+                      className="breakeven-implication"
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerBreakevenImplication", locale),
+                      }}
+                    />
+                    <p className="breakeven-caveat">
+                      {t("disclaimerBreakevenCaveat", locale)}
+                    </p>
+                    <p className="breakeven-caveat">
+                      {t("disclaimerBreakevenGenre", locale)}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Collapsible: Studies */}
+              <div className="disclaimerSection">
+                <button
+                  className="disclaimerToggle"
+                  onClick={() => setStudiesOpen((v) => !v)}
+                >
+                  {studiesOpen ? "▾" : "▸"}{" "}
+                  {t("disclaimerStudiesTitle", locale)}
+                </button>
+                {studiesOpen && (
+                  <div className="disclaimerSectionBody">
+                    <p>{t("disclaimerStudiesIntro", locale)}</p>
+                    {([1, 2, 3, 4, 5, 6, 7, 8] as const).map((n) => {
+                      const titleKey = `disclaimerStudy${n}Title` as Parameters<
+                        typeof t
+                      >[0];
+                      const metaKey = `disclaimerStudy${n}Meta` as Parameters<
+                        typeof t
+                      >[0];
+                      const summaryKey =
+                        `disclaimerStudy${n}Summary` as Parameters<typeof t>[0];
+                      const urlKey = `disclaimerStudy${n}Url` as Parameters<
+                        typeof t
+                      >[0];
+                      return (
+                        <div className="studyCard" key={n}>
+                          <div className="studyTitle">
+                            <a
+                              href={t(urlKey, locale)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {t(titleKey, locale)}
+                            </a>
+                          </div>
+                          <div className="studyMeta">{t(metaKey, locale)}</div>
+                          <p className="studySummary">
+                            {t(summaryKey, locale)}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

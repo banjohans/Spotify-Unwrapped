@@ -2989,6 +2989,140 @@ body {
   font-weight: 500;
 }
 
+/* Collapsible sections in disclaimer */
+.disclaimerSection {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 10px;
+}
+
+.disclaimerToggle {
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px 0;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.disclaimerToggle:hover {
+  opacity: 0.8;
+}
+
+.disclaimerSectionBody {
+  padding-top: 10px;
+}
+
+/* KaTeX formula blocks */
+.katexBlock {
+  margin: 14px 0;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border-radius: 8px;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.katexBlock .katex-display {
+  margin: 0;
+}
+
+.formulaVars {
+  list-style: none;
+  padding-left: 8px;
+  margin: 8px 0 14px;
+  font-size: 0.9em;
+}
+
+.formulaVars li {
+  margin-bottom: 4px;
+  padding-left: 12px;
+  position: relative;
+}
+
+.formulaVars li::before {
+  content: "–";
+  position: absolute;
+  left: 0;
+  color: var(--textMuted);
+}
+
+/* Study cards */
+.studyCard {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--bg) 50%, var(--card));
+}
+
+.studyTitle {
+  font-weight: 600;
+  font-size: 0.95em;
+  margin-bottom: 2px;
+}
+
+.studyTitle a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.studyTitle a:hover {
+  text-decoration: underline;
+}
+
+.studyMeta {
+  font-size: 0.82em;
+  color: var(--textMuted);
+  margin-bottom: 6px;
+}
+
+.studySummary {
+  font-size: 0.9em;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* Break-even analysis */
+.breakeven-title {
+  font-size: 1.02em;
+  margin: 22px 0 8px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+
+.breakeven-numbers {
+  margin: 8px 0 14px;
+  padding-left: 20px;
+}
+
+.breakeven-numbers li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.breakeven-implication {
+  border-left: 3px solid var(--accent);
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border-radius: 0 6px 6px 0;
+  font-weight: 500;
+}
+
+.breakeven-caveat {
+  color: var(--textMuted);
+  font-style: italic;
+  font-size: 0.92em;
+}
+
 /* ─── Listening Charts ─────────────────────────────────────────── */
 
 .chartsSection {

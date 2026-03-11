@@ -287,8 +287,8 @@ const T = {
     en: "Analyze your listening",
   },
   featureAnalyzeDesc: {
-    no: "Estimert teoretisk verdi for kvar artist basert på gjennomsnittlege straumeprisar (pro-rata modell).",
-    en: "Estimated theoretical value per artist based on average streaming rates (pro-rata model).",
+    no: "Estimert royalty-verdi for kvar artist basert på gjennomsnittlege straumeprisar (pro-rata modell).",
+    en: "Estimated royalty value per artist based on average streaming rates (pro-rata model).",
   },
   featureInsightTitle: { no: "Få innsikt", en: "Get insights" },
   featureInsightDesc: {
@@ -408,8 +408,8 @@ const T = {
   weightedAvg: { no: "vekta snittpris", en: "weighted avg price" },
   pricesUsed: { no: "Prisar brukt", en: "Prices used" },
   proRataNote: {
-    no: "Merk: Spotify bruker ein <b>pro-rata pooling-modell</b>. Det betyr at abonnementspengane dine ikkje går direkte til artistane du lyttar til – dei går i ein felles pott og vert fordelt etter kvar artist sin andel av <i>alle</i> streams på plattforma. Estimata her viser ein teoretisk verdi basert på gjennomsnittleg straumepris × lyttetid, ikkje kva artisten faktisk har fått frå akkurat deg.",
-    en: "Note: Spotify uses a <b>pro-rata pooling model</b>. This means your subscription payments don't go directly to the artists you listen to – they go into a shared pool and are distributed based on each artist's share of <i>all</i> streams on the platform. Estimates here show a theoretical value based on average stream rate × listening time, not what the artist actually received from you.",
+    no: "Merk: Spotify bruker ein <b>pro-rata pooling-modell</b>. Det betyr at abonnementspengane dine ikkje vert tildelt direkte til artistane du lyttar til – dei går i ein felles pott og vert fordelt etter kvar artist sin andel av <i>alle</i> strøymingar på plattforma. Estimata her viser ein royalty-verdi basert på gjennomsnittleg straumepris × lyttetid, ikkje kva artisten faktisk har motteke frå akkurat deg.",
+    en: "Note: Spotify uses a <b>pro-rata pooling model</b>. This means your subscription payments are not directly allocated to the artists you listen to – they enter a shared pool and are distributed based on each artist's share of <i>all</i> streams on the platform. Estimates here show an estimated royalty value based on average stream rate × listening time, not what the artist actually received from you.",
   },
   subPricingNote: {
     no: "<b>Om abonnementsprising:</b> Spotify sin GDPR-dataeksport inneheld ikkje informasjon om abonnementstype eller betalingshistorikk. Feltet <code>Payments.json</code> er tomt, og <code>Userdata.json</code> har berre grunnleggande kontoinformasjon.<br/><br/>Du kan konfigurere abonnementshistorikken din under <em>Innstillingar → Abonnementshistorikk</em>. Utan eigne innstillingar brukar modellen <b>Premium Individual</b> som standard. Dei ulike abonnementstypane påverkar utrekninga slik:<ul><li><b>Premium (Individual/Duo/Family/Student):</b> Alle betalande abonnement bidreg til same inntektspott. Per-stream-verdien er lik, men prisen du betalar varierer.</li><li><b>Gratis (reklamefinansiert):</b> Artistar får framleis betalt, men inntektene kjem frå reklame i staden for abonnement. Reklameinntekt per brukar er vesentleg lågare enn abonnementsinntekt – bransjetal viser at per-stream-verdien for reklamefinansierte streams er ca. 30–40 % av abonnementsfinansierte streams.</li><li><b>Student:</b> Same per-stream-verdi som Premium, men du betalar lågare pris.</li></ul>Historiske prisar er verifiserte via Wayback Machine. Duo-pris er delt på 2, Family-pris delt på 6.",
@@ -512,8 +512,13 @@ const T = {
     en: "How the calculation model works",
   },
   disclaimerIntro: {
-    no: "Fordi Spotify ikkje deler eksakte økonomiske data per lyttar, bruker denne appen tilgjengelige data frå Spotify sin GDPR-eksport og reknar bakover for å estimere teoretiske royalties og abonnementskostnader. Under følgjer ei forklaring steg for steg.",
-    en: "Because Spotify does not share exact financial data per listener, this app uses available data from Spotify's GDPR export and reverse-engineers theoretical royalties and subscription costs. Below is a step-by-step explanation.",
+    no: "Fordi Spotify ikkje publiserer økonomiske data på lyttarnivå, brukar denne appen data frå Spotify sin GDPR-eksport og estimerer den økonomiske verdien av lyttinga di ved hjelp av offentleg tilgjengelege bransjedata. Under følgjer ei forklaring av kvart steg i modellen.",
+    en: "Because Spotify does not publish financial data at the listener level, this app uses data from Spotify's GDPR export and estimates the economic value of your listening using publicly available industry data. Below is an explanation of each step in the model.",
+  },
+
+  disclaimerIntroRebuttal: {
+    no: "Det er ein vanleg forklaring at ein ikkje kan rekne ut straumeverdier for å sjå kva artistar tener — men det er fullt mogleg å retrospektivt utrekne ein teoretisk verdi basert på tal Spotify sjølv har publisert.",
+    en: "It is a common claim that you cannot calculate per-stream values to see what artists earn — but it is entirely possible to retrospectively compute a theoretical value based on figures Spotify itself has published.",
   },
 
   disclaimerStep1Title: {
@@ -521,8 +526,8 @@ const T = {
     en: "1. Data filtering",
   },
   disclaimerStep1: {
-    no: "Appen les JSON-filene frå Spotify sin dataeksport. Avspelingar som varar kortare enn ein minimumsgrense (standard: 30 sekund) blir fjerna. Spotify har sjølv sagt at 30 sekund er grensa for at noko tel som ein «stream». Dette hindrar at prøvespeling, hopping og tilfeldige klikk tel som reelle lyttesesjonar.",
-    en: 'The app reads the JSON files from Spotify\'s data export. Plays shorter than a minimum threshold (default: 30 seconds) are removed. Spotify itself has stated that 30 seconds is the cutoff for something to count as a "stream." This prevents test plays, skips, and accidental clicks from counting as real listening sessions.',
+    no: "Appen les JSON-filene frå Spotify sin dataeksport. Avspelingar kortare enn ein minimumsgrense (standard: 30 sekund) vert fjerna. Spotify har sjølv oppgitt at 30 sekund er grensa for at ei avspeling tel som ein «stream». Dette hindrar at korte prøvelyttingar, hopping og tilfeldige klikk vert talde som reelle lytteøkter.",
+    en: 'The app reads the JSON files from Spotify\'s data export. Plays shorter than a minimum threshold (default: 30 seconds) are removed. Spotify has stated that 30 seconds is the cutoff for a play to count as a "stream." This prevents short test plays, skips, and accidental clicks from being counted as real listening sessions.',
   },
 
   disclaimerStep2Title: {
@@ -530,8 +535,8 @@ const T = {
     en: "2. Estimated royalty value",
   },
   disclaimerStep2: {
-    no: "Modellen brukar historiske gjennomsnittssatsar for royalty per stream, basert på bransjedata frå mellom anna The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå prislista i innstillingane). Ein «stream» i denne appen er kvar avspeling som passerer minimumsgrensa. Verdien er altså <em>teoretisk</em> – den viser omtrent kva Spotify ville lagt i den felles poolen basert på dine lyttevanar.",
-    en: 'The model uses historical average per-stream royalty rates based on industry data from sources including The Trichordist and Soundcharts. Rates differ for each time period (see the price list in settings). A "stream" in this app is any play that passes the minimum threshold. The value is therefore <em>theoretical</em> – it shows roughly what Spotify would have put into the shared pool based on your listening habits.',
+    no: "Modellen brukar historiske gjennomsnittssatsar for royalty per stream, basert på bransjedata frå mellom anna The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå prislista i innstillingane). Ein «stream» i denne appen er kvar avspeling som passerer minimumsgrensa. Verdien er <em>teoretisk</em> – den viser omtrent kva Spotify ville ha lagt i den felles poolen basert på dine lyttevanar. Estimatet illustrerer dermed omtrent kor mykje verdi lyttinga di kan ha generert i systemet.",
+    en: 'The model uses historical average per-stream royalty rates based on industry data from sources including The Trichordist and Soundcharts. Rates differ for each time period (see the rate table in settings). A "stream" in this app is any play that passes the minimum threshold. The value is <em>theoretical</em> – it shows roughly what Spotify would have put into the shared pool based on your listening habits. The estimate thus illustrates approximately how much value your listening may have generated in the system.',
   },
 
   disclaimerStep3Title: {
@@ -539,8 +544,8 @@ const T = {
     en: "3. Subscription cost",
   },
   disclaimerStep3: {
-    no: "Modellen reknar ut historisk kostnad per månad du har hatt Spotify, basert på kjende prisaukar. Berre månader der du faktisk har lytteaktivitet i dataen vert rekna med. Spotify sin GDPR-eksport inneheld <em>ikkje</em> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom), så modellen tek utgangspunkt i standard <b>Premium Individual-pris</b>.<br/><br/><b>Kvifor Premium?</b> Andre abonnementstypar gir mindre pålitelege data for denne analysen: <em>Gratisbrukarar</em> får reklame innimellom, noko som endrar inntektsmodellen fundamentalt og gjer at strøymeverdien ikkje kan samanliknast direkte. <em>Duo og Family</em> har lågare pris per brukar, men GDPR-eksporten seier ikkje kva plan du har hatt. <em>Student-rabatt</em> gir annan prisstruktur. Ved å bruke Premium-prising får vi det mest konservative og transparente estimatet – det representerer den fulle betalinga ein brukar gir til Spotify utan reklameavbrot.",
-    en: "The model calculates historical cost per month you've had Spotify, based on known price changes. Only months where you actually have listening activity in the data are counted. Spotify's GDPR export does <em>not</em> contain payment history or subscription type (<code>Payments.json</code> is empty), so the model assumes standard <b>Premium Individual pricing</b>.<br/><br/><b>Why Premium?</b> Other subscription types produce less reliable data for this analysis: <em>Free-tier users</em> receive ads between tracks, which fundamentally changes the revenue model and makes stream value non-comparable. <em>Duo and Family plans</em> have lower per-user costs, but the GDPR export doesn't indicate which plan you had. <em>Student discounts</em> have a different price structure. By using Premium pricing, we get the most conservative and transparent estimate – it represents the full payment a user makes to Spotify without ad interruptions.",
+    no: "Modellen reknar ut historisk kostnad per månad du har hatt Spotify, basert på kjende prisaukar. Berre månadar der du faktisk har lytteaktivitet i dataen vert rekna med. Spotify sin GDPR-eksport inneheld <em>ikkje</em> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom), så modellen brukar <b>Premium Individual</b> som standard. Du kan sjølv velje abonnementstype i innstillingane — tilgjengelege alternativ er Individual, Student, Duo, Family og Free — og definere kva periodar du har hatt kvar type. Prisane vert justerte automatisk basert på valet ditt og historiske prisendringar.",
+    en: "The model calculates historical cost per month you've had Spotify, based on known price changes. Only months where you actually have listening activity in the data are counted. Spotify's GDPR export does <em>not</em> contain payment history or subscription type (<code>Payments.json</code> is empty), so the model defaults to <b>Premium Individual pricing</b>. You can select your subscription type in Settings — available options are Individual, Student, Duo, Family, and Free — and define which periods you had each type. Prices are automatically adjusted based on your selection and historical price changes.",
   },
 
   disclaimerStep4Title: {
@@ -548,41 +553,300 @@ const T = {
     en: "4. Artist aggregation",
   },
   disclaimerStep4: {
-    no: "For kvar artist blir total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams summert. «Album-ekvivalent» viser kor mange fysiske album den estimerte strøymeverdien for ein artist tilsvarar.",
-    en: 'For each artist, total listening time, estimated royalty value, album distribution, and stream count are summed up. "Album equivalent" shows how many physical albums the estimated streaming value for an artist corresponds to.',
+    no: "For kvar artist vert total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams summert. «Album-ekvivalent» viser kor mange fysiske album den estimerte strøymeverdien for ein artist tilsvarar. Dette gir eit oversyn over korleis lyttinga di fordeler seg på tvers av artistar og katalogar.",
+    en: 'For each artist, total listening time, estimated royalty value, album distribution, and stream count are summed. "Album equivalent" shows how many physical albums the estimated streaming value for an artist corresponds to. This provides an overview of how your listening is distributed across artists and catalogs.',
   },
 
   disclaimerCaveatsTitle: { no: "Viktige atterhald", en: "Important caveats" },
   disclaimerCaveats: {
     no: [
       "Dette er ein <b>estimatmodell</b>. Spotify publiserer ikkje faktiske royalty-utbetalingar per brukar.",
-      "Spotify bruker ein <b>«StreamShare»-modell</b> (pro-rata): alle abonnementsinntekter går i ein felles pott og vert fordelt etter kvar artist sin andel av <em>totale</em> streams på plattforma. Det betyr at pengane du betaler for å lytte til musikk ikkje nødvendigvis går til musikken du faktisk lyttar til.",
-      "I praksis betyr det at ein stor del av abonnementspengane går til storforbruk-innhald – bakgrunnsmusikk på kjøpesenter, KI-generert musikk, og store artistar øvst i plateselskapshierarkiet – heller enn til lyttemusikk som folk aktivt vel å setje på.",
+      "Spotify bruker ein <b>«StreamShare»-modell</b> (pro-rata): alle abonnementsinntekter går i ein felles pott og vert fordelt etter kvar artist sin andel av <em>totale</em> streams på plattforma. Abonnementspengane dine vert med andre ord ikkje direkte allokert til artistane du personleg lyttar til.",
+      "Fordi inntektene vert fordelt etter globalt lyttevolum, favoriserer systemet innhald med høgt avspelingsvolum framfor individuelle lyttarpreferansar.",
       "Satsar varierer med land, abonnementstype og samla aktivitet på plattforma. Tala gir eit <em>rimeleg gjennomsnittsbilete</em>, ikkje eksakte utbetalingar.",
-      "For dei som følgjer debatten om bakgrunnsmusikk og EU sitt DSM-direktiv (t.d. i TONO), er dette ein del av ein større problematikk: Lyttemusikk taper terreng i fordeling av vederlag, medan bakgrunnsmusikk får finansiering dei kanskje ikkje fortener.",
+      "For dei som følgjer debatten om bakgrunnsmusikk og EU sitt DSM-direktiv (t.d. i TONO), er dette ein del av ein større problematikk: Lyttemusikk taper terreng i fordeling av vederlag, medan bakgrunnsmusikk får ein uforholdsmessig stor del av inntektspotten.",
+      "<b>Plateselskap-oppslag</b> (label analytics) nyttar MusicBrainz og Discogs som kjelder. Desse databasane er samfunnsdrivne og kan vere ufullstendige eller upresise. Klassifiseringa av «major» vs. «indie» er tilnærma.",
+      "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar og marknadsføringsval. Unwrapped viser desse dataa, men tolkar dei ikkje.",
+      "<b>Lyttemønster</b>-klassifiseringa (aktiv vs. assistert lytting) er basert på <code>reason_start</code>-feltet i GDPR-dataen, som Spotify sjølv definerer. Grensedraging mellom kategoriane kan variere.",
+      "Frå 2024 krev Spotify at ein song må ha <b>minst 1 000 streams per år</b> for å generere royalty-inntekter. Denne modellen tek ikkje høgde for denne grensa – estimata inkluderer også streams til artistar og songar som i praksis fell under minimumskravet.",
     ],
     en: [
       "This is an <b>estimation model</b>. Spotify does not publish actual royalty payouts per user.",
-      "Spotify uses a <b>\"StreamShare\" model</b> (pro-rata): all subscription revenue goes into a shared pool and is distributed based on each artist's share of <em>total</em> streams on the platform. This means the money you pay to listen to music doesn't necessarily go to the music you actually listen to.",
-      "In practice, a large portion of subscription money flows toward high-volume content – background music in shopping malls, AI-generated tracks, and major artists at the top of the label hierarchy – rather than to music that people actively choose to play.",
+      'Spotify uses a <b>"StreamShare" model</b> (pro-rata): all subscription revenue goes into a shared pool and is distributed based on each artist\'s share of <em>total</em> streams on the platform. Your subscription payment is not directly allocated to the artists you personally listen to.',
+      "Because revenue is distributed according to global streaming volume, the system tends to favour high-volume content over individual listener preferences.",
       "Rates vary by country, subscription type, and overall platform activity. The figures provide a <em>reasonable average picture</em>, not exact payouts.",
-      "For those following the debate about background music and the EU's DSM Directive (e.g. in collecting societies like TONO), this is part of a larger issue: Listening music loses ground in royalty distribution, while background music receives funding it may not deserve.",
+      "For those following the debate about background music and the EU's DSM Directive (e.g. in collecting societies like TONO), this is part of a larger issue: Listening music loses ground in royalty distribution, while background music receives a disproportionate share of the revenue pool.",
+      '<b>Label lookup</b> (label analytics) uses MusicBrainz and Discogs as sources. These databases are community-driven and may be incomplete or imprecise. The classification of "major" vs. "indie" is approximate.',
+      "<b>Inferences and Marquee</b> data reflects Spotify's internal categorizations and marketing decisions. Unwrapped displays this data but does not interpret it.",
+      "<b>Listening pattern</b> classification (active vs. assisted listening) is based on the <code>reason_start</code> field in the GDPR data, as defined by Spotify. The boundary between categories may vary.",
+      "From 2024, Spotify requires a track to have <b>at least 1,000 streams per year</b> to generate royalty income. This model does not account for this threshold – estimates include streams to artists and tracks that in practice fall below the minimum requirement.",
+      "The figures in this analysis show estimated <b>gross</b> royalty value – not what the artist actually receives. Streaming revenue flows to the entire <b>value chain</b> behind a recording: labels, distributors, producers, session musicians, mixing and mastering engineers, and other rights holders. The actual amount reaching the songwriter or performer is in practice a fraction of the gross total. This also means the system economically favours music that can be produced with few contributors, since traditional music production involving many participants results in each individual receiving an ever-smaller share of an already low sum.",
     ],
   },
 
   disclaimerPurpose: {
-    no: "Denne sida er lagd for å synleggjere at abonnementspengane dine i stor grad <em>ikkje</em> går til musikken du lyttar til – og at direkte støtte, som å kjøpe album, er ein langt meir effektiv måte å støtte musikken du bryr deg om på.",
-    en: "This site is designed to make visible that your subscription money largely does <em>not</em> go to the music you listen to – and that direct support, like buying albums, is a far more effective way to support the music you care about.",
+    no: "Denne sida illustrerer korleis Spotify sin pro-rata royalty-modell koplar individuelle abonnementsbetalingar frå individuell lytteåtferd – og at å kjøpe musikk direkte frå artistar eller rettshavarar kan gje ein meir direkte økonomisk kopling mellom lyttar og skapar.",
+    en: "This site illustrates how Spotify's pro-rata royalty model disconnects individual subscription payments from individual listening behaviour – and that buying music directly from artists or rights holders can provide a more direct financial link between listener and creator.",
   },
 
   disclaimerSolution: {
-    no: "Ei mogleg løysing er å klargjere for forbrukarane at abonnementa deira i hovudsak går til å betale for noko anna enn sjølve musikken dei lyttar til – og håpe at fleire vel meir etiske løysingar som belønner den musikken dei faktisk ønsker meir av.",
-    en: "A possible solution is to make clear to consumers that their subscriptions largely pay for something other than the music they listen to – and hope that more people choose more ethical alternatives that reward the music they actually want more of.",
+    no: "Ei mogleg vidare utvikling er å synleggjere for forbrukarane korleis abonnementspengane deira vert fordelt i eit pro-rata-system – slik at fleire kan ta informerte val om korleis dei støttar musikken dei bryr seg om.",
+    en: "A possible further development is to make visible to consumers how their subscription payments are distributed in a pro-rata system – so that more people can make informed choices about how they support the music they care about.",
   },
 
   disclaimerPrivacy: {
     no: "All analyse skjer 100 % lokalt i nettlesaren din. Ingen data vert sendt til nokon server, lagra, eller delt med nokon. Filane dine forlet aldri maskina di.",
     en: "All analysis runs 100% locally in your browser. No data is sent to any server, stored, or shared with anyone. Your files never leave your machine.",
+  },
+
+  // Research & Math section (collapsible)
+  disclaimerResearchTitle: {
+    no: "Vil du vite meir om forskinga og matematikken?",
+    en: "Want to know more about the research and the math?",
+  },
+  disclaimerResearchIntro: {
+    no: "Spotify sin eksakte royalty-fordeling er ikkje offentleg, og det er ikkje mogleg å rekonstruere den nøyaktig frå GDPR-dataen åleine. Denne appen bruker derfor ein estimeringsmodell basert på offentleg tilgjengelege bransjetal og akademisk litteratur om strøymeøkonomi.",
+    en: "Spotify's exact royalty distribution is not public, and it is not possible to reconstruct it precisely from GDPR data alone. This app therefore uses an estimation model based on publicly available industry figures and academic literature on streaming economics.",
+  },
+  disclaimerResearchCoreIdea: {
+    no: "I Spotify sin pro-rata-modell vert alle abonnementsinntekter samla i ein felles pott, og kvar artist sin del vert bestemt av deira andel av totale streams på plattforma:",
+    en: "In Spotify's pro-rata model, all subscription revenue is pooled together, and each artist's share is determined by their proportion of total streams on the platform:",
+  },
+  disclaimerResearchFormula1: {
+    no: "P_{artist} = \\frac{S_{artist}}{S_{total}} \\times R_{pool}",
+    en: "P_{artist} = \\frac{S_{artist}}{S_{total}} \\times R_{pool}",
+  },
+  disclaimerResearchFormula1Vars: {
+    no: [
+      "<i>P<sub>artist</sub></i> = utbetaling til ein gitt artist",
+      "<i>S<sub>artist</sub></i> = antal streams for den artisten",
+      "<i>S<sub>total</sub></i> = totalt antal streams på heile plattforma",
+      "<i>R<sub>pool</sub></i> = den samla royalty-potten (ca. 70 % av Spotify sine inntekter)",
+    ],
+    en: [
+      "<i>P<sub>artist</sub></i> = payout to a given artist",
+      "<i>S<sub>artist</sub></i> = number of streams for that artist",
+      "<i>S<sub>total</sub></i> = total number of streams on the entire platform",
+      "<i>R<sub>pool</sub></i> = the total royalty pool (approx. 70% of Spotify's revenue)",
+    ],
+  },
+  disclaimerResearchStreamValue: {
+    no: "Ein statistisk gjennomsnittleg verdi per stream kan tilnærmast som:",
+    en: "A statistical average value per stream can be approximated as:",
+  },
+  disclaimerResearchFormula2: {
+    no: "V_{stream} \\approx \\frac{R_{pool}}{S_{total}}",
+    en: "V_{stream} \\approx \\frac{R_{pool}}{S_{total}}",
+  },
+  disclaimerResearchVariation: {
+    no: "I praksis varierer <i>V<sub>stream</sub></i> med land, abonnementstype, reklameinntekter og samla plattformaktivitet. Denne appen brukar historiske satsar frå 0.03 til 0.05 NOK per stream (tilsvarande $0.003–$0.006 USD).",
+    en: "In practice, <i>V<sub>stream</sub></i> varies by country, subscription type, ad revenue, and overall platform activity. This app uses historical rates from $0.003 to $0.006 per stream (corresponding to 0.03–0.05 NOK).",
+  },
+  disclaimerResearchUserValue: {
+    no: "For å estimere verdien av <em>di</em> lytting, gangar appen antal kvalifiserande streams med den gjennomsnittlege strøymesatsen:",
+    en: "To estimate the value of <em>your</em> listening, the app multiplies qualifying streams by the average per-stream rate:",
+  },
+  disclaimerResearchFormula3: {
+    no: "V_{user} \\approx S_{user} \\times V_{stream}",
+    en: "V_{user} \\approx S_{user} \\times V_{stream}",
+  },
+  disclaimerResearchFormula3Vars: {
+    no: [
+      "<i>V<sub>user</sub></i> = estimert verdi av lyttinga di",
+      "<i>S<sub>user</sub></i> = ditt totale antal kvalifiserande streams",
+    ],
+    en: [
+      "<i>V<sub>user</sub></i> = estimated value of your listening",
+      "<i>S<sub>user</sub></i> = your total number of qualifying streams",
+    ],
+  },
+  disclaimerResearchIllustrates: {
+    no: "Denne analysen illustrerer at det du betalar i abonnement og det artistane du lyttar til mottek, ikkje er direkte knytt saman. Differansen mellom abonnementskostnaden din og den estimerte royaltyverdien viser korleis pro-rata-systemet omfordeler inntektene.",
+    en: "This analysis illustrates that what you pay in subscription fees and what the artists you listen to receive are not directly linked. The gap between your subscription cost and the estimated royalty value shows how the pro-rata system redistributes revenue.",
+  },
+  disclaimerResearchMatters: {
+    no: "Å forstå korleis systemet fungerer gjev lyttarar høve til å ta meir informerte val – anten det gjeld å kjøpe musikk direkte, støtte artistar via andre kanalar, eller engasjere seg i debatten om korleis strøymeinntekter bør fordelast.",
+    en: "Understanding how the system works allows listeners to make more informed choices – whether that means buying music directly, supporting artists through other channels, or engaging in the debate about how streaming revenue should be distributed.",
+  },
+
+  // Break-even analysis
+  disclaimerBreakevenTitle: {
+    no: "Kor mykje må du lytte for å \u00abgå i null\u00bb?",
+    en: "How much do you need to listen to \u201cbreak even\u201d?",
+  },
+  disclaimerBreakevenIntro: {
+    no: "Vi kan estimere kor mange streams som trengst for at den estimerte royaltyverdien av lyttinga di skal tilsvare abonnementet ditt. Utrekninga løyser for <i>S<sub>user</sub></i>:",
+    en: "We can estimate how many streams are needed for the estimated royalty value of your listening to match your subscription. The calculation solves for <i>S<sub>user</sub></i>:",
+  },
+  disclaimerBreakevenFormula: {
+    no: "S_{user} \\approx \\frac{\\text{Abonnement}}{V_{stream}}",
+    en: "S_{user} \\approx \\frac{\\text{Subscription}}{V_{stream}}",
+  },
+  disclaimerBreakevenExample: {
+    no: "Med ein noverande Premium-pris på 139 NOK/mnd og appen sine royalty-satsar på 0.03–0.05 NOK per stream (avhengig av tidsperiode), gjev dette:",
+    en: "With a current Premium price of $11.99/month and the app's royalty rates of $0.003–$0.006 per stream (depending on time period), this gives:",
+  },
+  disclaimerBreakevenNumbers: {
+    no: [
+      "<b>Låg sats</b> (0.03 NOK): ~4 633 streams/mnd → ~154 streams/dag → ~7,7 timar lytting per dag",
+      "<b>Noverande sats</b> (0.04 NOK): ~3 475 streams/mnd → ~116 streams/dag → ~5,8 timar lytting per dag",
+      "<b>Høg sats</b> (0.05 NOK): ~2 780 streams/mnd → ~93 streams/dag → ~4,6 timar lytting per dag",
+    ],
+    en: [
+      "<b>Low rate</b> ($0.003): ~4,000 streams/mo → ~133 streams/day → ~6.6 hours of listening per day",
+      "<b>Current rate</b> ($0.004): ~3,000 streams/mo → ~100 streams/day → ~5 hours of listening per day",
+      "<b>High rate</b> ($0.006): ~2,000 streams/mo → ~67 streams/day → ~3.3 hours of listening per day",
+    ],
+  },
+  disclaimerBreakevenImplication: {
+    no: "Lyttar du mindre enn ca. 5–8 timar dagleg, vil den estimerte royaltyverdien av lyttinga di vere <em>lågare</em> enn abonnementet ditt. Differansen går inn i den globale royalty-potten og vert fordelt etter total lytting på plattforma.",
+    en: "If you listen less than about 3–7 hours per day, the estimated royalty value of your listening will be <em>lower</em> than your subscription. The difference enters the global royalty pool and is distributed according to total listening on the platform.",
+  },
+  disclaimerBreakevenCaveat: {
+    no: "Men sjølv om du lyttar nok til å \u00abgå i null\u00bb, stoppar ikkje omfordelinga. I pro-rata-modellen følgjer ikkje abonnementspengane dine lyttinga di direkte – dei aukar berre den totale potten. Du kan aldri fullt ut sikre at pengane dine går til akkurat dei artistane du høyrer på.",
+    en: "But even if you listen enough to \u201cbreak even,\u201d the redistribution does not stop. In the pro-rata model, your subscription payment does not follow your listening directly – it only increases the total pool. You can never fully ensure that your money goes to exactly the artists you listen to.",
+  },
+  disclaimerBreakevenGenre: {
+    no: "Påverknaden ei enkelt lytting har på den globale potten vil logisk sett vere avhengig av korleis grupper med felles lyttevanar skapar strøymetrendar. Dette gjer nokre sjangrar meir sårbare enn andre – musikk med smalare publikum når sjeldan dei volumnivåa som gir utteljing i eit pro-rata-system.",
+    en: "The impact any individual listening has on the global pool is logically determined by how groups with common listening habits create streaming trends. This leaves some genres more vulnerable than others – music with narrower audiences rarely reaches the volume levels that yield meaningful returns in a pro-rata system.",
+  },
+
+  // Studies section (collapsible)
+  disclaimerStudiesTitle: {
+    no: "Kva seier forskinga?",
+    en: "What do studies say?",
+  },
+  disclaimerStudiesIntro: {
+    no: "Fleire uavhengige forskingsprosjekt har undersøkt korleis ulike fordelingsmodellar påverkar artistar. Her er eit utval av sentrale studiar:",
+    en: "Several independent research projects have examined how different distribution models affect artists. Here is a selection of key studies:",
+  },
+  disclaimerStudy1Title: {
+    no: "A Meta Study of User-Centric Distribution for Music Streaming",
+    en: "A Meta Study of User-Centric Distribution for Music Streaming",
+  },
+  disclaimerStudy1Meta: {
+    no: "Rasmus Rex Pedersen · Koda / Roskilde Universitet · 2020",
+    en: "Rasmus Rex Pedersen · Koda / Roskilde University · 2020",
+  },
+  disclaimerStudy1Summary: {
+    no: "Meta-studien samanliknar fire empiriske undersøkingar av brukarsentrert fordeling (UCD) vs. pro-rata. Hovudfunna er at overordna fordeling mellom plateselskap vert lite endra, men UCD kjem betre ut for artistar utanfor den absolutte toppen – særleg lokale og nisjeprega artistar. Effekten varierer etter individuelle lyttemønster.",
+    en: "This meta-study compares four empirical investigations of user-centric distribution (UCD) vs. pro-rata. The main findings are that overall label-level shares change little, but UCD benefits artists outside the extreme top – especially local and niche artists. The effect varies by individual listening patterns.",
+  },
+  disclaimerStudy1Url: {
+    no: "https://www.koda.dk/media/220998/meta-study-of-user-centric-distribution-for-music-streaming.pdf",
+    en: "https://www.koda.dk/media/220998/meta-study-of-user-centric-distribution-for-music-streaming.pdf",
+  },
+  disclaimerStudy2Title: {
+    no: "User Centric Payment System (UCPS)",
+    en: "User Centric Payment System (UCPS)",
+  },
+  disclaimerStudy2Meta: {
+    no: "Centre national de la musique (CNM) / Deloitte · Frankrike · 2021",
+    en: "Centre national de la musique (CNM) / Deloitte · France · 2021",
+  },
+  disclaimerStudy2Summary: {
+    no: "Den største studien til no, basert på faktiske data frå Deezer og Spotify i Frankrike. Hovudfunn: UCPS ville betre samsvar mellom fordeling og forbrukaråtferd, marginalt gagne artistar utanfor den ekstreme toppen, og redusere effekten av klikk-svindel. Omfordelinga skjer primært mellom sjangrar, ikkje mellom store og små aktørar.",
+    en: "The largest study to date, based on actual data from Deezer and Spotify in France. Main findings: UCPS would better align distribution with consumer behaviour, marginally benefit artists outside the extreme top, and reduce the impact of click fraud. Redistribution occurs primarily between genres, not between large and small actors.",
+  },
+  disclaimerStudy2Url: {
+    no: "https://cnm.fr/etudes/le-cnm-publie-letude-sur-les-modalites-de-remuneration-des-artistes-par-les-plateformes-de-streaming/",
+    en: "https://cnm.fr/etudes/le-cnm-publie-letude-sur-les-modalites-de-remuneration-des-artistes-par-les-plateformes-de-streaming/",
+  },
+  disclaimerStudy3Title: {
+    no: "Revenue Sharing at Music Streaming Platforms",
+    en: "Revenue Sharing at Music Streaming Platforms",
+  },
+  disclaimerStudy3Meta: {
+    no: "Gustavo Bergantiños & Juan D. Moreno-Ternero · Management Science 71(10) · 2025",
+    en: "Gustavo Bergantiños & Juan D. Moreno-Ternero · Management Science 71(10) · 2025",
+  },
+  disclaimerStudy3Summary: {
+    no: "Gjev aksiomatiske og spelteori-baserte grunnlag for pro-rata og brukarsentrert fordeling. Studien formaliserer eigenskapane til begge modellar, foreslår kompromissfamiliar av metodar, og viser at begge tilnærmingane har normativt forsvarleg grunnlag – men med ulike konsekvensar for fordeling.",
+    en: "Provides axiomatic and game-theoretical foundations for pro-rata and user-centric distribution. The study formalises the properties of both models, proposes compromise families of methods, and shows that both approaches have normatively defensible foundations – but with different distributional consequences.",
+  },
+  disclaimerStudy3Url: {
+    no: "https://doi.org/10.1287/mnsc.2023.03830",
+    en: "https://doi.org/10.1287/mnsc.2023.03830",
+  },
+  disclaimerStudy4Title: {
+    no: "Digital Media Finland: Effekten av brukarsentrert fordeling",
+    en: "Digital Media Finland: The effect of user-centric distribution",
+  },
+  disclaimerStudy4Meta: {
+    no: "Arno Muikku · Digital Media Finland · 2017",
+    en: "Arno Muikku · Digital Media Finland · 2017",
+  },
+  disclaimerStudy4Summary: {
+    no: "Tidleg finsk studie som simulerte overgang frå pro-rata til brukarsentrert på det finske marknaden. Hovudfunn: Mainstream-artistar ville tape 1–5 %, medan lokale og nisje-sjangrar ville vinne tilsvarande. Studien peika mot at UCD kan styrke kulturelt mangfald i strøymemarknaden.",
+    en: "Early Finnish study that simulated a switch from pro-rata to user-centric in the Finnish market. Main findings: Mainstream artists would lose 1–5%, while local and niche genres would gain correspondingly. The study suggested that UCD could strengthen cultural diversity in streaming markets.",
+  },
+  disclaimerStudy4Url: {
+    no: "https://www.digitalmediafi.com/",
+    en: "https://www.digitalmediafi.com/",
+  },
+  disclaimerStudy5Title: {
+    no: "Spotify Loud & Clear",
+    en: "Spotify Loud & Clear",
+  },
+  disclaimerStudy5Meta: {
+    no: "Spotify · Årlege transparensdata · 2024",
+    en: "Spotify · Annual transparency data · 2024",
+  },
+  disclaimerStudy5Summary: {
+    no: "Spotify sine eigne tal om royalty-økonomi: Over $10 milliardar utbetalt til rettshavarar i 2024, ca. 1 500 artistar tente over $1M, 100 000+ artistar tente tusenvis. Uavhengige artistar mottok over $5 milliardar. Dataa gjev kontekst for å forstå skalaen av strøymeøkonomien.",
+    en: "Spotify's own figures on royalty economics: Over $10 billion paid out to rights holders in 2024, around 1,500 artists earned over $1M, 100,000+ artists earned thousands. Independent artists received over $5 billion. The data provides context for understanding the scale of the streaming economy.",
+  },
+  disclaimerStudy5Url: {
+    no: "https://loudandclear.byspotify.com/",
+    en: "https://loudandclear.byspotify.com/",
+  },
+  disclaimerStudy6Title: {
+    no: "FIM: Samanlikning av pro-rata og brukarsentrert fordeling",
+    en: "FIM: Comparison of pro-rata and user-centric distribution",
+  },
+  disclaimerStudy6Meta: {
+    no: "International Federation of Musicians (FIM) · 2018",
+    en: "International Federation of Musicians (FIM) · 2018",
+  },
+  disclaimerStudy6Summary: {
+    no: "FIM gjennomgjekk fire empiriske studiar og konkluderte med at brukarsentrert fordeling ville gagne nisjemusikk og lokale artistar, utan store endringar på overordna nivå. Rapporten tilrådde vidare utforsking av UCD som eit meir rettferdig alternativ.",
+    en: "FIM reviewed four empirical studies and concluded that user-centric distribution would benefit niche music and local artists, without major changes at the macro level. The report recommended further exploration of UCD as a more equitable alternative.",
+  },
+  disclaimerStudy6Url: {
+    no: "https://www.fim-musicians.org/documents/",
+    en: "https://www.fim-musicians.org/documents/",
+  },
+  disclaimerStudy7Title: {
+    no: "The Music Business and Digital Impacts",
+    en: "The Music Business and Digital Impacts",
+  },
+  disclaimerStudy7Meta: {
+    no: "Daniel Nordgård · Universitetet i Agder / Springer · 2018",
+    en: "Daniel Nordgård · University of Agder / Springer · 2018",
+  },
+  disclaimerStudy7Summary: {
+    no: "Nordgård analyserer korleis digitalisering og strøyming har endra maktstrukturar og verdikjeder i musikkbransjen. Boka drøftar korleis pro-rata-fordelingsmodellar påverkar ulike aktørar ulikt, og argumenterer for at bransjen treng meir transparens og nye fordelingsmekanismar for å sikre berekraftig mangfald.",
+    en: "Nordgård analyses how digitalisation and streaming have changed power structures and value chains in the music industry. The book discusses how pro-rata distribution models affect different actors differently, and argues that the industry needs more transparency and new distribution mechanisms to ensure sustainable diversity.",
+  },
+  disclaimerStudy7Url: {
+    no: "https://doi.org/10.1007/978-3-319-91887-7",
+    en: "https://doi.org/10.1007/978-3-319-91887-7",
+  },
+  disclaimerStudy8Title: {
+    no: "On click-fraud under pro-rata revenue sharing rule",
+    en: "On click-fraud under pro-rata revenue sharing rule",
+  },
+  disclaimerStudy8Meta: {
+    no: "Hao Yu · arXiv (econ.TH) · 2026",
+    en: "Hao Yu · arXiv (econ.TH) · 2026",
+  },
+  disclaimerStudy8Summary: {
+    no: "Analyserer klikk-svindel som ei sårbarheit i pro-rata-modellen. Viser at pro-rata er meir robust enn anteke når svindelteknologien er svak, men at ein parametrisk vekta regel mellom pro-rata og brukarsentrert kan eliminere svindelinsentiv. Drøftar også implikasjonar av Spotify sin moderniserte royalty-modell for svindelinsentiv.",
+    en: "Analyses click-fraud as a vulnerability of the pro-rata model. Shows that pro-rata is more robust than assumed when fraud technology is weak, but that a parametric weighted rule interpolating between pro-rata and user-centric can eliminate fraud incentives. Also discusses implications of Spotify's modernised royalty system for fraud incentives.",
+  },
+  disclaimerStudy8Url: {
+    no: "https://arxiv.org/abs/2601.09573",
+    en: "https://arxiv.org/abs/2601.09573",
   },
 
   // Shopping list PDF
@@ -622,8 +886,8 @@ const T = {
     en: '📋 Image copied + downloaded! Facebook is open.\n\n1. Click "What\'s on your mind?"\n2. Paste the image (⌘V / Ctrl+V)\n3. Add a comment and share!',
   },
   shareText: {
-    no: "Eg har sjekka kvar Spotify-pengane mine eigentleg går med Spotify Unwrapped! 🎵\n\nVisste du at abonnementspengane dine ikkje nødvendigvis går til musikken du lyttar til? Prøv sjølv – det er 100 % lokalt og trygt:\n",
-    en: "I checked where my Spotify money actually goes with Spotify Unwrapped! 🎵\n\nDid you know your subscription money doesn't necessarily go to the music you listen to? Try it yourself – it's 100% local and private:\n",
+    no: "Eg har sjekka korleis Spotify sin pro-rata-modell fordeler abonnementspengane mine med Spotify Unwrapped! 🎵\n\nVisste du at abonnementspengane dine ikkje vert tildelt direkte til musikken du lyttar til? Prøv sjølv – det er 100 % lokalt og trygt:\n",
+    en: "I explored how Spotify's pro-rata model distributes my subscription with Spotify Unwrapped! 🎵\n\nDid you know your subscription isn't directly allocated to the music you listen to? Try it yourself – it's 100% local and private:\n",
   },
   shareTip: {
     no: "📱 På mobil deler du direkte med biletet. 💻 På PC vert biletet kopiert til utklippstavla — lim det rett inn i eit nytt innlegg.",
