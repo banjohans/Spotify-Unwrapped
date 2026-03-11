@@ -517,8 +517,8 @@ const T = {
   },
 
   disclaimerIntroRebuttal: {
-    no: "Det er ein vanleg forklaring at ein ikkje kan rekne ut straumeverdier for å sjå kva artistar tener — men det er fullt mogleg å retrospektivt utrekne ein teoretisk verdi basert på tal Spotify sjølv har publisert.",
-    en: "It is a common claim that you cannot calculate per-stream values to see what artists earn — but it is entirely possible to retrospectively compute a theoretical value based on figures Spotify itself has published.",
+    no: "Det er ein vanleg forklaring at ein ikkje kan rekne ut straumeverdiar for å sjå kva artistar tener — men det er fullt mogleg å retrospektivt utrekne ein teoretisk verdi basert på berekningar av gjennomsnittlege satsar per stream. Desse satsene er nettopp utrekna frå Spotify sine eigne publiserte tal, og reflekterer den faktiske økonomien i strøyming så langt det er mogleg å anslå utan tilgang til Spotify sine interne data. Hadde det ikkje vore mogleg, ville deira tal vore ubrukelige for analyse eller innsikt, og hele industrien ville vært i mørket om hvordan strøymingsinntekter genereres.",
+    en: "It is a common explanation that you can't calculate stream values to see what artists earn — but it's entirely possible to retrospectively calculate a theoretical value based on calculations of average rates per stream. These rates are precisely calculated from Spotify's own published figures, and reflect the actual economics of streaming as far as can be estimated without access to Spotify's internal data. Had it not been possible, their numbers would be useless for any kind of analysis or insight, and the entire industry would be in the dark about how streaming revenue is generated.",
   },
 
   disclaimerStep1Title: {
@@ -566,7 +566,7 @@ const T = {
       "Satsar varierer med land, abonnementstype og samla aktivitet på plattforma. Tala gir eit <em>rimeleg gjennomsnittsbilete</em>, ikkje eksakte utbetalingar.",
       "For dei som følgjer debatten om bakgrunnsmusikk og EU sitt DSM-direktiv (t.d. i TONO), er dette ein del av ein større problematikk: Lyttemusikk taper terreng i fordeling av vederlag, medan bakgrunnsmusikk får ein uforholdsmessig stor del av inntektspotten.",
       "<b>Plateselskap-oppslag</b> (label analytics) nyttar MusicBrainz og Discogs som kjelder. Desse databasane er samfunnsdrivne og kan vere ufullstendige eller upresise. Klassifiseringa av «major» vs. «indie» er tilnærma.",
-      "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar og marknadsføringsval. Unwrapped viser desse dataa, men tolkar dei ikkje.",
+      "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar og marknadsføringsval. Unwrapped viser desse dataene, men tolkar dei ikkje.",
       "<b>Lyttemønster</b>-klassifiseringa (aktiv vs. assistert lytting) er basert på <code>reason_start</code>-feltet i GDPR-dataen, som Spotify sjølv definerer. Grensedraging mellom kategoriane kan variere.",
       "Frå 2024 krev Spotify at ein song må ha <b>minst 1 000 streams per år</b> for å generere royalty-inntekter. Denne modellen tek ikkje høgde for denne grensa – estimata inkluderer også streams til artistar og songar som i praksis fell under minimumskravet.",
     ],
@@ -809,7 +809,7 @@ const T = {
     en: "Spotify · Annual transparency data · 2024",
   },
   disclaimerStudy5Summary: {
-    no: "Spotify sine eigne tal om royalty-økonomi: Over $10 milliardar utbetalt til rettshavarar i 2024, ca. 1 500 artistar tente over $1M, 100 000+ artistar tente tusenvis. Uavhengige artistar mottok over $5 milliardar. Dataa gjev kontekst for å forstå skalaen av strøymeøkonomien.",
+    no: "Spotify sine eigne tal om royalty-økonomi: Over $10 milliardar utbetalt til rettshavarar i 2024, ca. 1 500 artistar tente over $1M, 100 000+ artistar tente tusenvis. Uavhengige artistar mottok over $5 milliardar. Dataene gjev kontekst for å forstå skalaen av strøymeøkonomien.",
     en: "Spotify's own figures on royalty economics: Over $10 billion paid out to rights holders in 2024, around 1,500 artists earned over $1M, 100,000+ artists earned thousands. Independent artists received over $5 billion. The data provides context for understanding the scale of the streaming economy.",
   },
   disclaimerStudy5Url: {
@@ -1092,7 +1092,7 @@ const T = {
     en: "Contribute anonymized data for research",
   },
   contributeDesc: {
-    no: "Vi fjernar sensitive data og tek ut berre dei relevante dataa som kan brukast til å seie noko fornuftig når ein slår fleire lyttarar sine lyttevanar saman. Dataa vil kunne hjelpe forskarar og studentar med å forstå lyttemønster og måten Spotify vert brukt på.",
+    no: "Vi fjernar sensitive data og tek ut berre dei relevante dataene som kan brukast til å seie noko fornuftig når ein slår fleire lyttarar sine lyttevanar saman. Dataene vil kunne hjelpe forskarar og studentar med å forstå lyttemønster og måten Spotify vert brukt på.",
     en: "We remove sensitive data and extract only the relevant data that can provide meaningful insights when multiple listeners' habits are combined. The data can help researchers and students understand listening patterns and how Spotify is used.",
   },
   contributeBtn: {
@@ -1100,7 +1100,7 @@ const T = {
     en: "Open anonymized export",
   },
   contributeNoData: {
-    no: "Du m\u00e5 laste opp Spotify-dataa dine f\u00f8rst f\u00f8r du kan bidra.",
+    no: "Du må laste opp Spotify-dataene dine først før du kan bidra.",
     en: "You need to upload your Spotify data first before you can contribute.",
   },
   contributeCtaHeadline: {
@@ -1194,7 +1194,7 @@ const T = {
     en: "Download anonymized file",
   },
   contributeUploadHint: {
-    no: "Etter nedlasting kan du laste opp fila via lenkja under for å bidra til forskingsdatasettet. Ved å laste opp godtek du at dei anonymiserte dataa kan brukast fritt til forsking og analyse.",
+    no: "Etter nedlasting kan du laste opp fila via lenkja under for å bidra til forskingsdatasettet. Ved å laste opp godtek du at dei anonymiserte dataene kan brukast fritt til forsking og analyse.",
     en: "After downloading, you can upload the file via the link below to contribute to the research dataset. By uploading, you agree that the anonymized data may be freely used for research and analysis.",
   },
   contributeUploadLink: {
