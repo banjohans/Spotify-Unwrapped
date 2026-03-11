@@ -609,8 +609,8 @@ const T = {
     en: "Spotify's exact royalty distribution is not public, and it is not possible to reconstruct it precisely from GDPR data alone. This app therefore uses an estimation model based on publicly available industry figures and academic literature on streaming economics.",
   },
   disclaimerResearchCoreIdea: {
-    no: "I Spotify sin pro-rata-modell vert alle abonnementsinntekter samla i ein felles pott, og kvar artist sin del vert bestemt av deira andel av totale streams på plattforma:",
-    en: "In Spotify's pro-rata model, all subscription revenue is pooled together, and each artist's share is determined by their proportion of total streams on the platform:",
+    no: "I Spotify sin pro-rata-modell vert alle abonnementsinntekter samla i ein felles pott, og kvar artist sin del vert bestemt av deira andel av totale streams på plattforma. Følgande formel beskriv <em>prinsippet</em> bak modellen:",
+    en: "In Spotify's pro-rata model, all subscription revenue is pooled together, and each artist's share is determined by their proportion of total streams on the platform. The following formula describes the <em>principle</em> behind the model:",
   },
   disclaimerResearchFormula1: {
     no: "P_{artist} = \\frac{S_{artist}}{S_{total}} \\times R_{pool}",
@@ -631,20 +631,20 @@ const T = {
     ],
   },
   disclaimerResearchStreamValue: {
-    no: "Ein statistisk gjennomsnittleg verdi per stream kan tilnærmast som:",
-    en: "A statistical average value per stream can be approximated as:",
+    no: "Frå dette prinsippet kan ein statistisk gjennomsnittleg verdi per stream tilnærmast som:",
+    en: "From this principle, a statistical average value per stream can be approximated as:",
   },
   disclaimerResearchFormula2: {
     no: "V_{stream} \\approx \\frac{R_{pool}}{S_{total}}",
     en: "V_{stream} \\approx \\frac{R_{pool}}{S_{total}}",
   },
   disclaimerResearchVariation: {
-    no: "I praksis varierer <i>V<sub>stream</sub></i> med land, abonnementstype, reklameinntekter og samla plattformaktivitet. Denne appen brukar historiske satsar frå 0.03 til 0.05 NOK per stream (tilsvarande $0.003–$0.006 USD).",
-    en: "In practice, <i>V<sub>stream</sub></i> varies by country, subscription type, ad revenue, and overall platform activity. This app uses historical rates from $0.003 to $0.006 per stream (corresponding to 0.03–0.05 NOK).",
+    no: "Sidan verken <i>R<sub>pool</sub></i> eller <i>S<sub>total</sub></i> er offentleg tilgjengelege, kan ikkje appen utleie denne verdien direkte. I staden brukar appen <b>publiserte gjennomsnittssatsar</b> frå bransjeanalytikarar (m.a. The Trichordist, Soundcharts) som har utleia <i>V<sub>stream</sub></i> retrospektivt frå Spotify sine finansrapportar. Satsane varierer med land, abonnementstype, reklameinntekter og samla plattformaktivitet. Appen brukar historiske satsar frå 0.03 til 0.05 NOK per stream (tilsvarande $0.003–0.006 USD).",
+    en: "Since neither <i>R<sub>pool</sub></i> nor <i>S<sub>total</sub></i> are publicly available, the app cannot derive this value directly. Instead, it uses <b>published average rates</b> from industry analysts (including The Trichordist, Soundcharts) who have derived <i>V<sub>stream</sub></i> retrospectively from Spotify's financial reports. Rates vary by country, subscription type, ad revenue, and overall platform activity. The app uses historical rates from $0.003 to $0.006 per stream (corresponding to 0.03–0.05 NOK).",
   },
   disclaimerResearchUserValue: {
-    no: "For å estimere verdien av <em>di</em> lytting, gangar appen antal kvalifiserande streams med den gjennomsnittlege strøymesatsen:",
-    en: "To estimate the value of <em>your</em> listening, the app multiplies qualifying streams by the average per-stream rate:",
+    no: "Det einaste appen faktisk reknar ut er verdien av <em>di</em> lytting, ved å gange antal kvalifiserande streams med den publiserte gjennomsnittssatsen:",
+    en: "The only calculation the app actually performs is estimating the value of <em>your</em> listening, by multiplying qualifying streams by the published average per-stream rate:",
   },
   disclaimerResearchFormula3: {
     no: "V_{user} \\approx S_{user} \\times V_{stream}",
@@ -686,6 +686,10 @@ const T = {
     no: "Med ein noverande Premium-pris på 139 NOK/mnd og appen sine royalty-satsar på 0.03–0.05 NOK per stream (avhengig av tidsperiode), gjev dette:",
     en: "With a current Premium price of $11.99/month and the app's royalty rates of $0.003–$0.006 per stream (depending on time period), this gives:",
   },
+  disclaimerBreakevenPoolNote: {
+    no: "<b>Viktig presisering:</b> Per-stream-satsane som appen brukar (0.03–0.05 NOK) er utleia frå <em>faktiske utbetalingar til rettshavarar</em>, som utgjer ca. 70 % av Spotify sine inntekter. Spotify sin eigen margin (~30 %) er allereie trekt frå. Det betyr at vi samanliknar 100 % av abonnementet ditt mot satsar som berre representerer ~70 % av inntektene. Om vi i staden reknar mot berre royalty-delen av abonnementet (139 × 0.7 ≈ 97 NOK), vert break-even-punktet lågare:",
+    en: "<b>Important clarification:</b> The per-stream rates the app uses ($0.003–$0.006) are derived from <em>actual payouts to rights holders</em>, which represent approx. 70% of Spotify's revenue. Spotify's own margin (~30%) has already been deducted. This means we are comparing 100% of your subscription against rates that only represent ~70% of the revenue. If we instead calculate against just the royalty portion of the subscription ($11.99 × 0.7 ≈ $8.39), the break-even point is lower:",
+  },
   disclaimerBreakevenNumbers: {
     no: [
       "<b>Låg sats</b> (0.03 NOK): ~4 633 streams/mnd → ~154 streams/dag → ~7,7 timar lytting per dag",
@@ -698,9 +702,21 @@ const T = {
       "<b>High rate</b> ($0.006): ~2,000 streams/mo → ~67 streams/day → ~3.3 hours of listening per day",
     ],
   },
+  disclaimerBreakevenPoolNumbers: {
+    no: [
+      "<b>Låg sats</b> (0.03 NOK): ~3 233 streams/mnd → ~108 streams/dag → ~5,4 timar lytting per dag",
+      "<b>Noverande sats</b> (0.04 NOK): ~2 425 streams/mnd → ~81 streams/dag → ~4,0 timar lytting per dag",
+      "<b>Høg sats</b> (0.05 NOK): ~1 940 streams/mnd → ~65 streams/dag → ~3,2 timar lytting per dag",
+    ],
+    en: [
+      "<b>Low rate</b> ($0.003): ~2,797 streams/mo → ~93 streams/day → ~4.7 hours of listening per day",
+      "<b>Current rate</b> ($0.004): ~2,098 streams/mo → ~70 streams/day → ~3.5 hours of listening per day",
+      "<b>High rate</b> ($0.006): ~1,398 streams/mo → ~47 streams/day → ~2.3 hours of listening per day",
+    ],
+  },
   disclaimerBreakevenImplication: {
-    no: "Lyttar du mindre enn ca. 5–8 timar dagleg, vil den estimerte royaltyverdien av lyttinga di vere <em>lågare</em> enn abonnementet ditt. Differansen går inn i den globale royalty-potten og vert fordelt etter total lytting på plattforma.",
-    en: "If you listen less than about 3–7 hours per day, the estimated royalty value of your listening will be <em>lower</em> than your subscription. The difference enters the global royalty pool and is distributed according to total listening on the platform.",
+    no: "Matematisk sett vil gjennomsnittslyttaren per definisjon generere nok streams til å matche gjennomsnittet – men spørsmålet er <em>kven</em> som driv dette gjennomsnittet. Det finst lite uavhengig forsking på korleis lyttetid fordeler seg blant Spotify sine brukarar, og i kva grad høgt lyttevolum kjem frå aktive, medvitne lytteøkter. Som eit konkret døme: utviklaren av denne appen hadde eit gjennomsnittleg strøymetal tilsvarande ca. 12 minutt om dagen – noko som betyr at over 3 timar dagleg lytteverdi vart omfordelt vekk frå artistane han lytta til. Differansen mellom abonnementet ditt og den estimerte royaltyverdien går inn i den globale potten og vert fordelt etter total lytting på plattforma.",
+    en: "Mathematically, the average listener will by definition generate enough streams to match the average – but the question is <em>who</em> drives that average. There is little independent research on how listening time is distributed among Spotify's users, and to what extent high listening volumes come from active, conscious listening sessions. As a concrete example: the developer of this app had an average streaming figure equivalent to about 12 minutes per day – meaning over 3 hours of daily listening value was redistributed away from the artists he listened to. The difference between your subscription and the estimated royalty value enters the global pool and is distributed according to total listening on the platform.",
   },
   disclaimerBreakevenCaveat: {
     no: "Men sjølv om du lyttar nok til å \u00abgå i null\u00bb, stoppar ikkje omfordelinga. I pro-rata-modellen følgjer ikkje abonnementspengane dine lyttinga di direkte – dei aukar berre den totale potten. Du kan aldri fullt ut sikre at pengane dine går til akkurat dei artistane du høyrer på.",

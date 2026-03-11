@@ -4074,6 +4074,22 @@ export default function App() {
                       ))}
                     </ul>
                     <p
+                      className="breakeven-caveat"
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerBreakevenPoolNote", locale),
+                      }}
+                    />
+                    <ul className="breakeven-numbers">
+                      {(
+                        tRaw(
+                          "disclaimerBreakevenPoolNumbers",
+                          locale,
+                        ) as readonly string[]
+                      ).map((v, i) => (
+                        <li key={i} dangerouslySetInnerHTML={{ __html: v }} />
+                      ))}
+                    </ul>
+                    <p
                       className="breakeven-implication"
                       dangerouslySetInnerHTML={{
                         __html: t("disclaimerBreakevenImplication", locale),
