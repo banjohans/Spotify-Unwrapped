@@ -5553,3 +5553,309 @@ body {
     padding: 5px 10px;
   }
 }
+
+/* ─── Anonymized data contribution modal ─────────────────────── */
+.contributeModal {
+  max-width: 680px;
+}
+
+.contributeBody {
+  padding: 20px 24px 28px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  overflow-y: auto;
+}
+
+/* ─── Contribute CTA banner ──────────────────────────────────── */
+.contributeCta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(29, 185, 84, 0.12), rgba(29, 185, 84, 0.04));
+  border: 1px solid rgba(29, 185, 84, 0.3);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 8px;
+}
+
+.contributeCta:hover {
+  background: linear-gradient(135deg, rgba(29, 185, 84, 0.22), rgba(29, 185, 84, 0.08));
+  border-color: rgba(29, 185, 84, 0.5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(29, 185, 84, 0.15);
+}
+
+.contributeCtaIcon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.contributeCtaText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.contributeCtaText strong {
+  font-size: 0.92rem;
+  color: #1db954;
+}
+
+.contributeCtaText span {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
+.contributeCtaArrow {
+  font-size: 1.3rem;
+  color: #1db954;
+  flex-shrink: 0;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.contributeCta:hover .contributeCtaArrow {
+  transform: translateX(3px);
+}
+
+.contributePrivacy {
+  background: rgba(29, 185, 84, 0.08);
+  border-left: 3px solid #1db954;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin-bottom: 20px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.contributeColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.contributeCol h3 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contributeList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.contributeList li {
+  padding: 4px 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.contributeList li::before {
+  margin-right: 6px;
+  font-size: 0.8rem;
+}
+
+.contributeListIncluded li::before {
+  content: "✓";
+  color: #1db954;
+}
+
+.contributeListRemoved li::before {
+  content: "✕";
+  color: #ee5a24;
+}
+
+.contributeFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 20px;
+}
+
+.contributeFormGrid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contributeFormGrid select {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.contributeFormGrid select:focus {
+  outline: none;
+  border-color: #1db954;
+}
+
+.contributeCountryInput {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+.contributeCountryInput:focus {
+  outline: none;
+  border-color: #1db954;
+}
+
+.contributeCountryInput::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Human verification captcha ─────────────────────────────── */
+.captchaBox {
+  margin-top: 16px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+
+.captchaLabel {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.captchaInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.captchaInput {
+  width: 70px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 10px;
+  font-size: 1rem;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.captchaInput::-webkit-inner-spin-button,
+.captchaInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.captchaInput:focus {
+  outline: none;
+  border-color: #1db954;
+}
+
+.captchaHint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.contributeDownloadBtn {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 0.95rem;
+  padding: 12px;
+}
+
+.contributeUploadHint {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+.contributeUploadLink {
+  display: block;
+  text-align: center;
+  margin-top: 6px;
+  color: #1db954;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.contributeUploadLink:hover {
+  text-decoration: underline;
+}
+
+/* ─── Researcher access CTA ──────────────────────────────────── */
+.researcherCta {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+}
+
+.researcherCtaIcon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.researcherCtaContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.researcherCtaContent strong {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.researcherCtaContent p {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.researcherCtaLink {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1db954;
+  text-decoration: none;
+}
+
+.researcherCtaLink:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 500px) {
+  .contributeColumns {
+    grid-template-columns: 1fr;
+  }
+  .contributeFormGrid {
+    grid-template-columns: 1fr;
+  }
+}
