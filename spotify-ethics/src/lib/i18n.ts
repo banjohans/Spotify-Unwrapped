@@ -733,8 +733,8 @@ const T = {
     en: "What do studies say?",
   },
   disclaimerStudiesIntro: {
-    no: "Fleire uavhengige forskingsprosjekt har undersøkt korleis ulike fordelingsmodellar påverkar artistar. Her er eit utval av sentrale studiar:",
-    en: "Several independent research projects have examined how different distribution models affect artists. Here is a selection of key studies:",
+    no: "Fleire uavhengige forskingsprosjekt har undersøkt korleis ulike fordelingsmodellar påverkar artistar. Dei fleste studiane er prega av mangel på gode data frå plattformene, og er avgrensa mot problemstillingar det er mogleg å seie noko om med tilgjengeleg informasjon. Her er eit utval av sentrale studiar:",
+    en: "Several independent research projects have examined how different distribution models affect artists. Most studies are characterised by a lack of good data from the platforms, and are limited to questions that can be addressed with available information. Here is a selection of key studies:",
   },
   disclaimerStudy1Title: {
     no: "A Meta Study of User-Centric Distribution for Music Streaming",
