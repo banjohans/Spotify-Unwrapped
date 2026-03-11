@@ -609,8 +609,8 @@ const T = {
     en: "Spotify's exact royalty distribution is not public, and it is not possible to reconstruct it precisely from GDPR data alone. This app therefore uses an estimation model based on publicly available industry figures and academic literature on streaming economics.",
   },
   disclaimerResearchCoreIdea: {
-    no: "I Spotify sin pro-rata-modell vert alle abonnementsinntekter samla i ein felles pott, og kvar artist sin del vert bestemt av deira andel av totale streams på plattforma. Følgande formel beskriv <em>prinsippet</em> bak modellen:",
-    en: "In Spotify's pro-rata model, all subscription revenue is pooled together, and each artist's share is determined by their proportion of total streams on the platform. The following formula describes the <em>principle</em> behind the model:",
+    no: "I Spotify sin pro-rata-modell vert alle abonnementsinntekter samla i ein felles pott, og kvar artist sin del vert bestemt av deira andel av totale streams på plattforma. Følgande formel beskriv <b>prinsippet</b> bak modellen:",
+    en: "In Spotify's pro-rata model, all subscription revenue is pooled together, and each artist's share is determined by their proportion of total streams on the platform. The following formula describes the <b>principle</b> behind the model:",
   },
   disclaimerResearchFormula1: {
     no: "P_{artist} = \\frac{S_{artist}}{S_{total}} \\times R_{pool}",
@@ -749,8 +749,8 @@ const T = {
     en: "This meta-study compares four empirical investigations of user-centric distribution (UCD) vs. pro-rata. The main findings are that overall label-level shares change little, but UCD benefits artists outside the extreme top – especially local and niche artists. The effect varies by individual listening patterns.",
   },
   disclaimerStudy1Url: {
-    no: "https://www.koda.dk/media/220998/meta-study-of-user-centric-distribution-for-music-streaming.pdf",
-    en: "https://www.koda.dk/media/220998/meta-study-of-user-centric-distribution-for-music-streaming.pdf",
+    no: "https://www.koda.dk/media/224782/meta-study-of-user-centric-distribution-model-for-music-streaming.pdf",
+    en: "https://www.koda.dk/media/224782/meta-study-of-user-centric-distribution-model-for-music-streaming.pdf",
   },
   disclaimerStudy2Title: {
     no: "User Centric Payment System (UCPS)",
@@ -765,8 +765,8 @@ const T = {
     en: "The largest study to date, based on actual data from Deezer and Spotify in France. Main findings: UCPS would better align distribution with consumer behaviour, marginally benefit artists outside the extreme top, and reduce the impact of click fraud. Redistribution occurs primarily between genres, not between large and small actors.",
   },
   disclaimerStudy2Url: {
-    no: "https://cnm.fr/etudes/le-cnm-publie-letude-sur-les-modalites-de-remuneration-des-artistes-par-les-plateformes-de-streaming/",
-    en: "https://cnm.fr/etudes/le-cnm-publie-letude-sur-les-modalites-de-remuneration-des-artistes-par-les-plateformes-de-streaming/",
+    no: "https://cnm.fr/en/studies/impact-of-online-music-streaming-services-adopting-the-ucps/",
+    en: "https://cnm.fr/en/studies/impact-of-online-music-streaming-services-adopting-the-ucps/",
   },
   disclaimerStudy3Title: {
     no: "Revenue Sharing at Music Streaming Platforms",
@@ -829,8 +829,8 @@ const T = {
     en: "FIM reviewed four empirical studies and concluded that user-centric distribution would benefit niche music and local artists, without major changes at the macro level. The report recommended further exploration of UCD as a more equitable alternative.",
   },
   disclaimerStudy6Url: {
-    no: "https://www.fim-musicians.org/documents/",
-    en: "https://www.fim-musicians.org/documents/",
+    no: "https://www.fim-musicians.org/wp-content/uploads/prorata-vs-user-centric-models-study-2018.pdf",
+    en: "https://www.fim-musicians.org/wp-content/uploads/prorata-vs-user-centric-models-study-2018.pdf",
   },
   disclaimerStudy7Title: {
     no: "The Music Business and Digital Impacts",
@@ -1085,6 +1085,166 @@ const T = {
   userdataCountry: { no: "Land", en: "Country" },
   userdataAccountAge: { no: "Kontoalder", en: "Account age" },
   userdataYears: { no: "år", en: "years" },
+
+  // ─── Anonymized data contribution ─────────────────────────────
+  contributeTitle: {
+    no: "Bidra anonymisert data til forsking",
+    en: "Contribute anonymized data for research",
+  },
+  contributeDesc: {
+    no: "Vi fjernar sensitive data og tek ut berre dei relevante dataa som kan brukast til å seie noko fornuftig når ein slår fleire lyttarar sine lyttevanar saman. Dataa vil kunne hjelpe forskarar og studentar med å forstå lyttemønster og måten Spotify vert brukt på.",
+    en: "We remove sensitive data and extract only the relevant data that can provide meaningful insights when multiple listeners' habits are combined. The data can help researchers and students understand listening patterns and how Spotify is used.",
+  },
+  contributeBtn: {
+    no: "Opne anonymisert eksport",
+    en: "Open anonymized export",
+  },
+  contributeNoData: {
+    no: "Du m\u00e5 laste opp Spotify-dataa dine f\u00f8rst f\u00f8r du kan bidra.",
+    en: "You need to upload your Spotify data first before you can contribute.",
+  },
+  contributeCtaHeadline: {
+    no: "Vil du bidra til ein felles datadugnad?",
+    en: "Want to contribute to a data pool?",
+  },
+  contributeDemographicsTitle: {
+    no: "Valfri demografisk informasjon",
+    en: "Optional demographic information",
+  },
+  contributeDemographicsDesc: {
+    no: "Denne informasjonen er valfri og vert berre brukt til å analysere lyttemønster på tvers av grupper. Du kan hoppe over alle felta.",
+    en: "This information is optional and is only used to analyze patterns across groups. You can skip any field.",
+  },
+  contributeGenderLabel: { no: "Kjønn", en: "Gender" },
+  contributeGenderOptions: {
+    no: ["Vil ikkje seie", "Mann", "Kvinne", "Ikkje-binær", "Anna"],
+    en: ["Prefer not to say", "Male", "Female", "Non-binary", "Other"],
+  },
+  contributeAgeLabel: { no: "Aldersgruppe", en: "Age group" },
+  contributeAgeOptions: {
+    no: [
+      "Vil ikkje seie",
+      "Under 18",
+      "18–24",
+      "25–34",
+      "35–44",
+      "45–54",
+      "55–64",
+      "65+",
+    ],
+    en: [
+      "Prefer not to say",
+      "Under 18",
+      "18–24",
+      "25–34",
+      "35–44",
+      "45–54",
+      "55–64",
+      "65+",
+    ],
+  },
+  contributeSocialLabel: { no: "Sosial status", en: "Social status" },
+  contributeSocialOptions: {
+    no: [
+      "Vil ikkje seie",
+      "Student",
+      "Tilsett",
+      "Sjølvstendig næringsdrivande",
+      "Arbeidsledig",
+      "Pensjonert",
+      "Anna",
+    ],
+    en: [
+      "Prefer not to say",
+      "Student",
+      "Employed",
+      "Self-employed",
+      "Unemployed",
+      "Retired",
+      "Other",
+    ],
+  },
+  contributeCountryLabel: { no: "Land", en: "Country" },
+  contributeConsentLabel: {
+    no: "Eg godtek at dei opplasta filene kan brukast til analyse og forsking",
+    en: "I accept that the uploaded files may be used for analysis and research",
+  },
+  captchaPrompt: {
+    no: "Stadfest at du er eit menneske: kva er {a} + {b}?",
+    en: "Verify you are human: what is {a} + {b}?",
+  },
+  captchaHint: {
+    no: "Svar rett for å låse opp nedlasting",
+    en: "Answer correctly to unlock download",
+  },
+  researcherCtaHeadline: {
+    no: "Treng du samla data til forskinga di?",
+    en: "Need pooled data for your research?",
+  },
+  researcherCtaDesc: {
+    no: "Anonymiserte lyttedata frå bidragsytarar er tilgjengelege for forskarar etter førespurnad. Send oss ein e-post med informasjon om forskingsprosjektet ditt.",
+    en: "Anonymized listening data from contributors is available to researchers upon request. Send us an email with information about your research project.",
+  },
+  researcherCtaLink: {
+    no: "Send førespurnad",
+    en: "Request access",
+  },
+  contributeDownload: {
+    no: "Last ned anonymisert fil",
+    en: "Download anonymized file",
+  },
+  contributeUploadHint: {
+    no: "Etter nedlasting kan du laste opp fila via lenkja under for å bidra til forskingsdatasettet. Ved å laste opp godtek du at dei anonymiserte dataa kan brukast fritt til forsking og analyse.",
+    en: "After downloading, you can upload the file via the link below to contribute to the research dataset. By uploading, you agree that the anonymized data may be freely used for research and analysis.",
+  },
+  contributeUploadLink: {
+    no: "Last opp til forskingsdatasett",
+    en: "Upload to research dataset",
+  },
+  contributePrivacyNote: {
+    no: "Fila inneheld <strong>ingen</strong> brukarnamn, IP-adresser, e-post eller andre identifiserande data. Ein pseudonym hash-ID gjer det mogleg å gruppere fleire eksportar frå same brukar utan å avsløre identiteten.",
+    en: "The file contains <strong>no</strong> usernames, IP addresses, emails, or other identifying data. A pseudonymous hash ID allows grouping multiple exports from the same user without revealing identity.",
+  },
+  contributeIncludedTitle: {
+    no: "Kva er inkludert",
+    en: "What's included",
+  },
+  contributeIncluded: {
+    no: [
+      "Artistnamn og albumnamn",
+      "Lyttetid per straum (ms)",
+      "Tidspunkt for kvar straum (tidsforskyvd ±59 min for anonymisering)",
+      "Aktiv/passiv-klassifisering (reason_start/end)",
+      "Valfri demografisk info du vel å oppgje",
+    ],
+    en: [
+      "Artist names and album names",
+      "Listening time per stream (ms)",
+      "Timestamp for each stream (time-shifted ±59 min for anonymization)",
+      "Active/passive classification (reason_start/end)",
+      "Optional demographic info you choose to provide",
+    ],
+  },
+  contributeRemovedTitle: {
+    no: "Kva er fjerna",
+    en: "What's removed",
+  },
+  contributeRemoved: {
+    no: [
+      "Brukarnamn og e-post",
+      "IP-adresser",
+      "Spotify URI-ar (sporbar tilbake til konto)",
+      "Inkognitomodus-flagg",
+      "Offline-flagg",
+    ],
+    en: [
+      "Username and email",
+      "IP addresses",
+      "Spotify URIs (traceable back to account)",
+      "Incognito mode flag",
+      "Offline flag",
+    ],
+  },
 } as const;
 
 export type TKey = keyof typeof T;

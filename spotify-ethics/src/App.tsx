@@ -31,6 +31,205 @@ import insightImg from "./assets/insight.png";
 import privateImg from "./assets/private.png";
 import heroImg from "./assets/hero.png";
 
+const COUNTRIES = [
+  { code: "AF", name: "Afghanistan" },
+  { code: "AL", name: "Albania" },
+  { code: "DZ", name: "Algeria" },
+  { code: "AD", name: "Andorra" },
+  { code: "AO", name: "Angola" },
+  { code: "AG", name: "Antigua and Barbuda" },
+  { code: "AR", name: "Argentina" },
+  { code: "AM", name: "Armenia" },
+  { code: "AU", name: "Australia" },
+  { code: "AT", name: "Austria" },
+  { code: "AZ", name: "Azerbaijan" },
+  { code: "BS", name: "Bahamas" },
+  { code: "BH", name: "Bahrain" },
+  { code: "BD", name: "Bangladesh" },
+  { code: "BB", name: "Barbados" },
+  { code: "BY", name: "Belarus" },
+  { code: "BE", name: "Belgium" },
+  { code: "BZ", name: "Belize" },
+  { code: "BJ", name: "Benin" },
+  { code: "BT", name: "Bhutan" },
+  { code: "BO", name: "Bolivia" },
+  { code: "BA", name: "Bosnia and Herzegovina" },
+  { code: "BW", name: "Botswana" },
+  { code: "BR", name: "Brazil" },
+  { code: "BN", name: "Brunei" },
+  { code: "BG", name: "Bulgaria" },
+  { code: "BF", name: "Burkina Faso" },
+  { code: "BI", name: "Burundi" },
+  { code: "CV", name: "Cabo Verde" },
+  { code: "KH", name: "Cambodia" },
+  { code: "CM", name: "Cameroon" },
+  { code: "CA", name: "Canada" },
+  { code: "CF", name: "Central African Republic" },
+  { code: "TD", name: "Chad" },
+  { code: "CL", name: "Chile" },
+  { code: "CN", name: "China" },
+  { code: "CO", name: "Colombia" },
+  { code: "KM", name: "Comoros" },
+  { code: "CG", name: "Congo" },
+  { code: "CD", name: "Congo (DRC)" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "CI", name: "Côte d'Ivoire" },
+  { code: "HR", name: "Croatia" },
+  { code: "CU", name: "Cuba" },
+  { code: "CY", name: "Cyprus" },
+  { code: "CZ", name: "Czechia" },
+  { code: "DK", name: "Denmark" },
+  { code: "DJ", name: "Djibouti" },
+  { code: "DM", name: "Dominica" },
+  { code: "DO", name: "Dominican Republic" },
+  { code: "EC", name: "Ecuador" },
+  { code: "EG", name: "Egypt" },
+  { code: "SV", name: "El Salvador" },
+  { code: "GQ", name: "Equatorial Guinea" },
+  { code: "ER", name: "Eritrea" },
+  { code: "EE", name: "Estonia" },
+  { code: "SZ", name: "Eswatini" },
+  { code: "ET", name: "Ethiopia" },
+  { code: "FJ", name: "Fiji" },
+  { code: "FI", name: "Finland" },
+  { code: "FR", name: "France" },
+  { code: "GA", name: "Gabon" },
+  { code: "GM", name: "Gambia" },
+  { code: "GE", name: "Georgia" },
+  { code: "DE", name: "Germany" },
+  { code: "GH", name: "Ghana" },
+  { code: "GR", name: "Greece" },
+  { code: "GD", name: "Grenada" },
+  { code: "GT", name: "Guatemala" },
+  { code: "GN", name: "Guinea" },
+  { code: "GW", name: "Guinea-Bissau" },
+  { code: "GY", name: "Guyana" },
+  { code: "HT", name: "Haiti" },
+  { code: "HN", name: "Honduras" },
+  { code: "HU", name: "Hungary" },
+  { code: "IS", name: "Iceland" },
+  { code: "IN", name: "India" },
+  { code: "ID", name: "Indonesia" },
+  { code: "IR", name: "Iran" },
+  { code: "IQ", name: "Iraq" },
+  { code: "IE", name: "Ireland" },
+  { code: "IL", name: "Israel" },
+  { code: "IT", name: "Italy" },
+  { code: "JM", name: "Jamaica" },
+  { code: "JP", name: "Japan" },
+  { code: "JO", name: "Jordan" },
+  { code: "KZ", name: "Kazakhstan" },
+  { code: "KE", name: "Kenya" },
+  { code: "KI", name: "Kiribati" },
+  { code: "KP", name: "North Korea" },
+  { code: "KR", name: "South Korea" },
+  { code: "KW", name: "Kuwait" },
+  { code: "KG", name: "Kyrgyzstan" },
+  { code: "LA", name: "Laos" },
+  { code: "LV", name: "Latvia" },
+  { code: "LB", name: "Lebanon" },
+  { code: "LS", name: "Lesotho" },
+  { code: "LR", name: "Liberia" },
+  { code: "LY", name: "Libya" },
+  { code: "LI", name: "Liechtenstein" },
+  { code: "LT", name: "Lithuania" },
+  { code: "LU", name: "Luxembourg" },
+  { code: "MG", name: "Madagascar" },
+  { code: "MW", name: "Malawi" },
+  { code: "MY", name: "Malaysia" },
+  { code: "MV", name: "Maldives" },
+  { code: "ML", name: "Mali" },
+  { code: "MT", name: "Malta" },
+  { code: "MH", name: "Marshall Islands" },
+  { code: "MR", name: "Mauritania" },
+  { code: "MU", name: "Mauritius" },
+  { code: "MX", name: "Mexico" },
+  { code: "FM", name: "Micronesia" },
+  { code: "MD", name: "Moldova" },
+  { code: "MC", name: "Monaco" },
+  { code: "MN", name: "Mongolia" },
+  { code: "ME", name: "Montenegro" },
+  { code: "MA", name: "Morocco" },
+  { code: "MZ", name: "Mozambique" },
+  { code: "MM", name: "Myanmar" },
+  { code: "NA", name: "Namibia" },
+  { code: "NR", name: "Nauru" },
+  { code: "NP", name: "Nepal" },
+  { code: "NL", name: "Netherlands" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "NI", name: "Nicaragua" },
+  { code: "NE", name: "Niger" },
+  { code: "NG", name: "Nigeria" },
+  { code: "MK", name: "North Macedonia" },
+  { code: "NO", name: "Norway" },
+  { code: "OM", name: "Oman" },
+  { code: "PK", name: "Pakistan" },
+  { code: "PW", name: "Palau" },
+  { code: "PS", name: "Palestine" },
+  { code: "PA", name: "Panama" },
+  { code: "PG", name: "Papua New Guinea" },
+  { code: "PY", name: "Paraguay" },
+  { code: "PE", name: "Peru" },
+  { code: "PH", name: "Philippines" },
+  { code: "PL", name: "Poland" },
+  { code: "PT", name: "Portugal" },
+  { code: "QA", name: "Qatar" },
+  { code: "RO", name: "Romania" },
+  { code: "RU", name: "Russia" },
+  { code: "RW", name: "Rwanda" },
+  { code: "KN", name: "Saint Kitts and Nevis" },
+  { code: "LC", name: "Saint Lucia" },
+  { code: "VC", name: "Saint Vincent and the Grenadines" },
+  { code: "WS", name: "Samoa" },
+  { code: "SM", name: "San Marino" },
+  { code: "ST", name: "São Tomé and Príncipe" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "SN", name: "Senegal" },
+  { code: "RS", name: "Serbia" },
+  { code: "SC", name: "Seychelles" },
+  { code: "SL", name: "Sierra Leone" },
+  { code: "SG", name: "Singapore" },
+  { code: "SK", name: "Slovakia" },
+  { code: "SI", name: "Slovenia" },
+  { code: "SB", name: "Solomon Islands" },
+  { code: "SO", name: "Somalia" },
+  { code: "ZA", name: "South Africa" },
+  { code: "SS", name: "South Sudan" },
+  { code: "ES", name: "Spain" },
+  { code: "LK", name: "Sri Lanka" },
+  { code: "SD", name: "Sudan" },
+  { code: "SR", name: "Suriname" },
+  { code: "SE", name: "Sweden" },
+  { code: "CH", name: "Switzerland" },
+  { code: "SY", name: "Syria" },
+  { code: "TW", name: "Taiwan" },
+  { code: "TJ", name: "Tajikistan" },
+  { code: "TZ", name: "Tanzania" },
+  { code: "TH", name: "Thailand" },
+  { code: "TL", name: "Timor-Leste" },
+  { code: "TG", name: "Togo" },
+  { code: "TO", name: "Tonga" },
+  { code: "TT", name: "Trinidad and Tobago" },
+  { code: "TN", name: "Tunisia" },
+  { code: "TR", name: "Turkey" },
+  { code: "TM", name: "Turkmenistan" },
+  { code: "TV", name: "Tuvalu" },
+  { code: "UG", name: "Uganda" },
+  { code: "UA", name: "Ukraine" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+  { code: "UY", name: "Uruguay" },
+  { code: "UZ", name: "Uzbekistan" },
+  { code: "VU", name: "Vanuatu" },
+  { code: "VA", name: "Vatican City" },
+  { code: "VE", name: "Venezuela" },
+  { code: "VN", name: "Vietnam" },
+  { code: "YE", name: "Yemen" },
+  { code: "ZM", name: "Zambia" },
+  { code: "ZW", name: "Zimbabwe" },
+] as const;
+
 function albumKey(artist: string, album: string) {
   return `${artist}|||${album}`;
 }
@@ -1048,6 +1247,19 @@ export default function App() {
     gender?: string;
   } | null>(null);
   const [fileGuideOpen, setFileGuideOpen] = useState(false);
+  const [contributeOpen, setContributeOpen] = useState(false);
+  const [contribGender, setContribGender] = useState(0);
+  const [contribAge, setContribAge] = useState(0);
+  const [contribSocial, setContribSocial] = useState(0);
+  const [contribCountry, setContribCountry] = useState("");
+  const [contribConsent, setContribConsent] = useState(false);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaChallenge] = useState(() => {
+    const a = Math.floor(Math.random() * 10) + 1;
+    const b = Math.floor(Math.random() * 10) + 1;
+    return { a, b, answer: a + b };
+  });
 
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
   const [artistDetailSort, setArtistDetailSort] = useState<"time" | "tracks">(
@@ -1140,6 +1352,33 @@ export default function App() {
     };
   }
 
+  /**
+   * Convert an anonymized export row back to SpotifyStreamRow format.
+   */
+  function convertAnonRow(row: {
+    ts?: string | null;
+    ms_played?: number;
+    artist?: string | null;
+    album?: string | null;
+    track?: string | null;
+    reason_start?: string | null;
+    reason_end?: string | null;
+    shuffle?: boolean | null;
+    skipped?: boolean | null;
+  }): SpotifyStreamRow {
+    return {
+      ts: row.ts ?? undefined,
+      ms_played: row.ms_played ?? 0,
+      master_metadata_album_artist_name: row.artist ?? undefined,
+      master_metadata_album_album_name: row.album ?? undefined,
+      master_metadata_track_name: row.track ?? undefined,
+      reason_start: row.reason_start ?? undefined,
+      reason_end: row.reason_end ?? undefined,
+      shuffle: row.shuffle ?? undefined,
+      skipped: row.skipped ?? undefined,
+    };
+  }
+
   async function onFiles(files: FileList | null) {
     setErr(null);
     if (!files || files.length === 0) return;
@@ -1173,6 +1412,24 @@ export default function App() {
           if (json && typeof json === "object" && !Array.isArray(json)) {
             setUserdata(json);
           }
+          continue;
+        }
+
+        // ── Anonymized export files (spotify-unwrapped-anon-*.json) ──
+        if (
+          json &&
+          typeof json === "object" &&
+          !Array.isArray(json) &&
+          "version" in json &&
+          "pseudoId" in json &&
+          Array.isArray(json.rows)
+        ) {
+          const rows: SpotifyStreamRow[] = json.rows.map(convertAnonRow);
+          newFiles.push({
+            name: f.name,
+            rowCount: rows.length,
+            rows,
+          });
           continue;
         }
 
@@ -3894,6 +4151,26 @@ export default function App() {
         >
           {t("disclaimerLink", locale)}
         </button>
+
+        {/* ─── Anonymized data contribution CTA ─── */}
+        <div
+          className="contributeCta"
+          onClick={() => {
+            if (!result) {
+              setShareToast(t("contributeNoData", locale));
+              setTimeout(() => setShareToast(null), 5000);
+              return;
+            }
+            setContributeOpen(true);
+          }}
+        >
+          <div className="contributeCtaIcon">📊</div>
+          <div className="contributeCtaText">
+            <strong>{t("contributeCtaHeadline", locale)}</strong>
+            <span>{t("contributeDesc", locale)}</span>
+          </div>
+          <span className="contributeCtaArrow">→</span>
+        </div>
       </footer>
 
       {/* Disclaimer Modal */}
@@ -3984,7 +4261,11 @@ export default function App() {
                 {researchOpen && (
                   <div className="disclaimerSectionBody">
                     <p>{t("disclaimerResearchIntro", locale)}</p>
-                    <p>{t("disclaimerResearchCoreIdea", locale)}</p>
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: t("disclaimerResearchCoreIdea", locale),
+                      }}
+                    />
                     <div
                       className="katexBlock"
                       dangerouslySetInnerHTML={{
@@ -4156,6 +4437,311 @@ export default function App() {
       )}
 
       {shareToast && <div className="shareToast">{shareToast}</div>}
+
+      {/* ─── Anonymized export modal ─── */}
+      {contributeOpen && result && (
+        <div className="modalOverlay" onClick={() => setContributeOpen(false)}>
+          <div
+            className="modalContent contributeModal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modalHeader">
+              <h2>{t("contributeTitle", locale)}</h2>
+              <button
+                className="modalClose"
+                onClick={() => setContributeOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="contributeBody">
+              <p
+                className="contributePrivacy"
+                dangerouslySetInnerHTML={{
+                  __html: t("contributePrivacyNote", locale),
+                }}
+              />
+
+              <div className="contributeColumns">
+                <div className="contributeCol">
+                  <h3>{t("contributeIncludedTitle", locale)}</h3>
+                  <ul className="contributeList contributeListIncluded">
+                    {(
+                      tRaw("contributeIncluded", locale) as readonly string[]
+                    ).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="contributeCol">
+                  <h3>{t("contributeRemovedTitle", locale)}</h3>
+                  <ul className="contributeList contributeListRemoved">
+                    {(
+                      tRaw("contributeRemoved", locale) as readonly string[]
+                    ).map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <h3 style={{ marginTop: 20 }}>
+                {t("contributeDemographicsTitle", locale)}
+              </h3>
+              <p className="subtle">
+                {t("contributeDemographicsDesc", locale)}
+              </p>
+
+              <div className="contributeFormGrid">
+                <label>
+                  {t("contributeGenderLabel", locale)}
+                  <select
+                    value={contribGender}
+                    onChange={(e) => setContribGender(Number(e.target.value))}
+                  >
+                    {(
+                      tRaw(
+                        "contributeGenderOptions",
+                        locale,
+                      ) as readonly string[]
+                    ).map((opt, i) => (
+                      <option key={i} value={i}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t("contributeAgeLabel", locale)}
+                  <select
+                    value={contribAge}
+                    onChange={(e) => setContribAge(Number(e.target.value))}
+                  >
+                    {(
+                      tRaw("contributeAgeOptions", locale) as readonly string[]
+                    ).map((opt, i) => (
+                      <option key={i} value={i}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t("contributeSocialLabel", locale)}
+                  <select
+                    value={contribSocial}
+                    onChange={(e) => setContribSocial(Number(e.target.value))}
+                  >
+                    {(
+                      tRaw(
+                        "contributeSocialOptions",
+                        locale,
+                      ) as readonly string[]
+                    ).map((opt, i) => (
+                      <option key={i} value={i}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t("contributeCountryLabel", locale)}
+                  <select
+                    value={contribCountry || userdata?.country || ""}
+                    onChange={(e) => setContribCountry(e.target.value)}
+                  >
+                    <option value="">
+                      {locale === "no" ? "Vel land" : "Select country"}
+                    </option>
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {/* Consent + Human verification */}
+              <label className="contributeConsentLabel">
+                <input
+                  type="checkbox"
+                  checked={contribConsent}
+                  onChange={(e) => setContribConsent(e.target.checked)}
+                />
+                {t("contributeConsentLabel", locale)}
+              </label>
+
+              {!captchaVerified || !contribConsent ? (
+                <div className="captchaBox">
+                  {!contribConsent && (
+                    <p className="captchaBlockedHint">
+                      {locale === "no"
+                        ? "Du må godta vilkåra over for å fortsetje."
+                        : "You must accept the terms above to continue."}
+                    </p>
+                  )}
+                  {contribConsent && !captchaVerified && (
+                    <label className="captchaLabel">
+                      {t("captchaPrompt", locale)
+                        .replace("{a}", String(captchaChallenge.a))
+                        .replace("{b}", String(captchaChallenge.b))}
+                      <div className="captchaInputRow">
+                        <input
+                          type="number"
+                          className="captchaInput"
+                          value={captchaAnswer}
+                          onChange={(e) => {
+                            setCaptchaAnswer(e.target.value);
+                            if (
+                              parseInt(e.target.value, 10) ===
+                              captchaChallenge.answer
+                            ) {
+                              setCaptchaVerified(true);
+                            }
+                          }}
+                          placeholder="?"
+                        />
+                        <span className="captchaHint">
+                          {t("captchaHint", locale)}
+                        </span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <button
+                    className="btnExportPdf contributeDownloadBtn"
+                    onClick={async () => {
+                      const genderOpts = tRaw(
+                        "contributeGenderOptions",
+                        locale,
+                      ) as readonly string[];
+                      const ageOpts = tRaw(
+                        "contributeAgeOptions",
+                        locale,
+                      ) as readonly string[];
+                      const socialOpts = tRaw(
+                        "contributeSocialOptions",
+                        locale,
+                      ) as readonly string[];
+
+                      // Build pseudonymous hash from username (or fallback)
+                      const raw = userdata?.username ?? "anonymous";
+                      const salt = "spotify-unwrapped-2026";
+                      const encoder = new TextEncoder();
+                      const data = encoder.encode(raw + salt);
+                      const hashBuffer = await crypto.subtle.digest(
+                        "SHA-256",
+                        data,
+                      );
+                      const hashArray = Array.from(new Uint8Array(hashBuffer));
+                      const pseudoId = hashArray
+                        .map((b) => b.toString(16).padStart(2, "0"))
+                        .join("")
+                        .slice(0, 16);
+
+                      // Random time offset ±59 minutes (in ms) — same for all rows in this export.
+                      // Preserves relative gaps and patterns, but prevents exact timestamp matching.
+                      const offsetMs = Math.round(
+                        (Math.random() * 2 - 1) * 59 * 60 * 1000,
+                      );
+
+                      // Sanitize rows: strip identifying fields, apply time offset
+                      const sanitizedRows = filteredRows.map((r) => {
+                        let ts: string | null = null;
+                        if (r.ts) {
+                          const d = new Date(r.ts);
+                          if (!isNaN(d.getTime())) {
+                            ts = new Date(d.getTime() + offsetMs).toISOString();
+                          }
+                        }
+                        return {
+                          ts,
+                          ms_played: r.ms_played ?? r.msPlayed ?? 0,
+                          artist: r.master_metadata_album_artist_name ?? null,
+                          album: r.master_metadata_album_album_name ?? null,
+                          track: r.master_metadata_track_name ?? null,
+                          reason_start: r.reason_start ?? null,
+                          reason_end: r.reason_end ?? null,
+                          shuffle: r.shuffle ?? null,
+                          skipped: r.skipped ?? null,
+                        };
+                      });
+
+                      const demographics = {
+                        gender:
+                          contribGender > 0 ? genderOpts[contribGender] : null,
+                        ageGroup: contribAge > 0 ? ageOpts[contribAge] : null,
+                        socialStatus:
+                          contribSocial > 0 ? socialOpts[contribSocial] : null,
+                        country:
+                          (contribCountry || userdata?.country || "").trim() ||
+                          null,
+                      };
+
+                      const exportData = {
+                        version: 1,
+                        pseudoId,
+                        exportedAt: new Date().toISOString(),
+                        locale,
+                        demographics,
+                        totalRows: sanitizedRows.length,
+                        rows: sanitizedRows,
+                      };
+
+                      const json = JSON.stringify(exportData, null, 2);
+                      const blob = new Blob([json], {
+                        type: "application/json",
+                      });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `spotify-unwrapped-anon-${pseudoId}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    {t("contributeDownload", locale)}
+                  </button>
+
+                  <p className="contributeUploadHint">
+                    {t("contributeUploadHint", locale)}
+                  </p>
+                  <a
+                    className="contributeUploadLink"
+                    href="https://www.dropbox.com/request/H5CeM21kcBUwHiuInXq7"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("contributeUploadLink", locale)} →
+                  </a>
+                </>
+              )}
+
+              <div className="researcherCta">
+                <span className="researcherCtaIcon">🎓</span>
+                <div className="researcherCtaContent">
+                  <strong>{t("researcherCtaHeadline", locale)}</strong>
+                  <p>{t("researcherCtaDesc", locale)}</p>
+                  <a
+                    className="researcherCtaLink"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const u = ["hansmartinaustestad", "gmail.com"].join("@");
+                      window.location.href = `mailto:${u}?subject=${encodeURIComponent("Research data request – Spotify Unwrapped")}`;
+                    }}
+                  >
+                    {t("researcherCtaLink", locale)} →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
