@@ -5,8 +5,13 @@
   --panel2: rgba(255, 255, 255, 0.09);
   --border: rgba(255, 255, 255, 0.12);
   --text: rgba(255, 255, 255, 0.92);
+  --textMuted: rgba(255, 255, 255, 0.68);
+  --text-secondary: rgba(255, 255, 255, 0.55);
   --muted: rgba(255, 255, 255, 0.68);
   --muted2: rgba(255, 255, 255, 0.55);
+  --surface: rgba(255, 255, 255, 0.08);
+  --card: rgba(255, 255, 255, 0.06);
+  --bgCard: rgba(255, 255, 255, 0.04);
 
   --chip: rgba(255, 255, 255, 0.09);
   --chipHover: rgba(255, 255, 255, 0.13);
@@ -734,6 +739,38 @@ body {
   border-color: var(--accent);
 }
 
+.checkboxField {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.checkboxField input {
+  margin-top: 2px;
+}
+
+.checkboxField span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.checkboxField strong {
+  font-size: 0.92em;
+  color: var(--text);
+}
+
+.checkboxField small {
+  font-size: 0.8em;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .priceHistorySection {
   margin-top: 16px;
   padding-top: 16px;
@@ -893,6 +930,59 @@ body {
   text-align: center;
   font-size: 0.8em;
   color: var(--muted);
+}
+
+.subscriptionInsightsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.subscriptionInsightCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.subscriptionInsightValue {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.subscriptionInsightValue.warning {
+  color: #f4b266;
+}
+
+.subscriptionInsightRanges {
+  font-size: 0.78em;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.subscriptionInsightRangeList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.subscriptionInsightRangeTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.78em;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 /* Methodology collapsible */
@@ -3734,6 +3824,16 @@ body {
 /* Recharts overrides */
 .recharts-legend-item-text {
   color: var(--textMuted) !important;
+}
+
+.recharts-tooltip-label {
+  color: #fff !important;
+}
+
+.recharts-tooltip-item-name,
+.recharts-tooltip-item-value,
+.recharts-tooltip-item-separator {
+  color: #fff !important;
   font-size: 0.82rem;
 }
 
@@ -5572,7 +5672,11 @@ body {
   align-items: center;
   gap: 14px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(29, 185, 84, 0.12), rgba(29, 185, 84, 0.04));
+  background: linear-gradient(
+    135deg,
+    rgba(29, 185, 84, 0.12),
+    rgba(29, 185, 84, 0.04)
+  );
   border: 1px solid rgba(29, 185, 84, 0.3);
   border-radius: 14px;
   cursor: pointer;
@@ -5581,7 +5685,11 @@ body {
 }
 
 .contributeCta:hover {
-  background: linear-gradient(135deg, rgba(29, 185, 84, 0.22), rgba(29, 185, 84, 0.08));
+  background: linear-gradient(
+    135deg,
+    rgba(29, 185, 84, 0.22),
+    rgba(29, 185, 84, 0.08)
+  );
   border-color: rgba(29, 185, 84, 0.5);
   transform: translateY(-1px);
   box-shadow: 0 4px 20px rgba(29, 185, 84, 0.15);
@@ -5858,4 +5966,293 @@ body {
   .contributeFormGrid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ─── Main Navigation (Industry / My Data tabs) ───────────────── */
+
+.mainNav {
+  display: flex;
+  gap: 4px;
+  margin: 0 auto 18px;
+  max-width: 1120px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+}
+
+.mainNavBtn {
+  flex: 1;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--textMuted);
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mainNavBtn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mainNavBtn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Industry Charts ─────────────────────────────────────────── */
+
+.industryCard {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.industryTitle {
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.industryCard .chartsTab.active {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.chartArea {
+  margin-top: 16px;
+}
+
+.chartTitle {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.chartDesc {
+  font-size: 0.9rem;
+  color: var(--textMuted);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.chartHighlight {
+  margin-top: 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.chartHighlightGreen {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  color: #22c55e;
+}
+
+.chartFootnote {
+  margin-top: 12px;
+  font-size: 0.82rem;
+  color: var(--textMuted);
+  line-height: 1.5;
+}
+
+.chartSource {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.industryWarning {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #f87171;
+  font-weight: 500;
+}
+
+.industrySource {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--textMuted);
+}
+
+.industrySource a {
+  color: var(--textMuted);
+  text-decoration: none;
+}
+
+.industrySource a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* ─── SVG Pyramid ─────────────────────────────────────────────── */
+
+.pyramidSvgWrap {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  margin: 16px 0 10px;
+}
+
+.pyramidSvg {
+  flex: 1 1 55%;
+  max-width: 500px;
+  height: auto;
+}
+
+.pyramidLegend {
+  flex: 1 1 40%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.pyramidLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+.pyramidLegendRow.highlighted {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pyramidLegendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.pyramidLegendLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.pyramidLegendCount {
+  font-size: 0.78rem;
+  color: var(--textMuted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pyramidLegendPct {
+  font-size: 0.78rem;
+  color: var(--textMuted);
+  min-width: 50px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pyramidCallout {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+}
+
+.pyramidCalloutBig {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #ef4444;
+  line-height: 1;
+}
+
+.pyramidCalloutText {
+  font-size: 0.95rem;
+  color: var(--textMuted);
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .mainNav {
+    flex-direction: column;
+  }
+  .mainNavBtn {
+    text-align: center;
+  }
+  .pyramidSvgWrap {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pyramidSvg {
+    max-width: 100%;
+  }
+  .pyramidLegend {
+    gap: 2px;
+  }
+  .pyramidLegendLabel {
+    font-size: 0.75rem;
+  }
+  .pyramidCallout {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+  }
+  .pyramidCalloutBig {
+    font-size: 1.8rem;
+  }
+  .industryCard .chartsTabs {
+    gap: 4px;
+  }
+  .industryCard .chartsTab {
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+}
+
+/* ─── Per-Artist Proportional SVG ─────────────────────────────── */
+
+.perArtistSvgWrap {
+  position: relative;
+  margin: 16px 0 10px;
+}
+
+.perArtistSvg {
+  width: 100%;
+  height: auto;
+}
+
+.perArtistTooltip {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(26, 26, 46, 0.95);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fff;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  pointer-events: none;
+  z-index: 10;
+  max-width: 220px;
 }

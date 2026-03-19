@@ -338,6 +338,14 @@ const T = {
     en: "Default album price (USD)",
   },
   minMsLabel: { no: "Min. ms per rad", en: "Min. ms per row" },
+  subscriptionUsageToggleLabel: {
+    no: "Tell berre betalte abonnementsmånadar med faktisk bruk",
+    en: "Only count paid subscription months with listening activity",
+  },
+  subscriptionUsageToggleHint: {
+    no: "Slå av for å ta med alle betalte abonnementsmånadar i vald periode, også når Spotify ikkje vart brukt.",
+    en: "Turn off to include all paid subscription months in the selected period, even when Spotify was not used.",
+  },
   priceHistoryTitle: {
     no: "Historisk abonnementspris (Premium Individual, Noreg)",
     en: "Historical subscription price (Premium Individual, USA)",
@@ -403,6 +411,46 @@ const T = {
   estSubCost: {
     no: "Estimert abonnementskostnad",
     en: "Estimated subscription cost",
+  },
+  paidDurationLabel: {
+    no: "Med abonnement",
+    en: "With subscription",
+  },
+  paidDurationHint: {
+    no: "{months} betalte månadar i perioden",
+    en: "{months} paid months in the period",
+  },
+  noSubscriptionLabel: {
+    no: "Utan abonnement",
+    en: "Without subscription",
+  },
+  noSubscriptionHint: {
+    no: "{months} månadar utan betalt abonnement",
+    en: "{months} months without a paid subscription",
+  },
+  unusedSubscriptionLabel: {
+    no: "Betalt utan bruk",
+    en: "Paid but unused",
+  },
+  unusedSubscriptionHint: {
+    no: "{months} heile månadar utan aktivitet",
+    en: "{months} full months without activity",
+  },
+  unusedDailyLabel: {
+    no: "Ubrukt dagsestimat",
+    en: "Unused daily estimate",
+  },
+  unusedDailyHint: {
+    no: "{days} dagar utan aktivitet",
+    en: "{days} days without activity",
+  },
+  noSubscriptionNeedsHistory: {
+    no: "Legg til abonnementshistorikk for å sjå periodar utan abonnement",
+    en: "Add subscription history to see periods without a subscription",
+  },
+  unusedSubscriptionDefaultNote: {
+    no: "Basert på «alltid premium»-modellen. Hol kan vera periodar utan abonnement.",
+    en: "Based on 'always premium' model. Gaps may be unsubscribed periods.",
   },
   difference: { no: "Differanse", en: "Difference" },
   weightedAvg: { no: "vekta snittpris", en: "weighted avg price" },
@@ -961,8 +1009,8 @@ const T = {
     en: "Subscription history",
   },
   subHistoryDesc: {
-    no: "Legg til periodane dine for meir nøyaktige estimat. Standard er Premium Individual.",
-    en: "Add your subscription periods for more accurate estimates. Defaults to Premium Individual.",
+    no: "Legg til periodane dine for meir nøyaktige estimat. Standard er Premium Individual. Hol i tidslinja vert tolka som periodar utan abonnement.",
+    en: "Add your subscription periods for more accurate estimates. Defaults to Premium Individual. Gaps in the timeline are treated as periods without a paid subscription.",
   },
   tierFree: { no: "Gratis", en: "Free" },
   tierIndividual: { no: "Premium Individual", en: "Premium Individual" },
@@ -1244,6 +1292,235 @@ const T = {
       "Incognito mode flag",
       "Offline flag",
     ],
+  },
+
+  // ─── Industry Charts (Loud & Clear) ──────────────────────────
+  industryNavLabel: {
+    no: "Bransjedata",
+    en: "Industry data",
+  },
+  myDataNavLabel: {
+    no: "Mine data",
+    en: "My data",
+  },
+  industryTitle: {
+    no: "Skuggeside: Spotify sine eigne tal",
+    en: "The Shadow Side: Spotify's Own Numbers",
+  },
+  industrySubtitle: {
+    no: "Desse grafane brukar offisielle tal frå Spotify Loud & Clear for å setje den store skeivfordelinga i perspektiv.",
+    en: "These charts use official numbers from Spotify Loud & Clear to put the massive inequality in perspective.",
+  },
+  industrySourceNote: {
+    no: "Kjelde: loudandclear.byspotify.com · Data frå {year}",
+    en: "Source: loudandclear.byspotify.com · {year} data",
+  },
+
+  // Tab labels
+  industryTabPyramid: { no: "Ulikheitspyramiden", en: "Inequality Pyramid" },
+  industryTabMoneyFlow: { no: "Pengeflyten", en: "Money Flow" },
+  industryTabMinWage: { no: "Minstelønn-testen", en: "Minimum Wage Test" },
+  industryTabPerStream: { no: "Per-stream-rate", en: "Per-Stream Rate" },
+  industryTabPerArtist: { no: "Per artist", en: "Per Artist" },
+  industryTabStreamsToLive: {
+    no: "Streams for å leve",
+    en: "Streams to Survive",
+  },
+
+  // 1. Inequality Pyramid
+  pyramidTitle: {
+    no: "Ulikheitspyramiden: {totalArtists} artistar på Spotify",
+    en: "The Inequality Pyramid: {totalArtists} artists on Spotify",
+  },
+  pyramidDesc: {
+    no: "Spotify skryt av 13 800 artistar som tener over $100 000. Men det er berre 0,13 % av alle artistane på plattforma. Resten — over 10,9 millionar — deler smulane.",
+    en: "Spotify boasts about 13,800 artists earning over $100,000. But that's just 0.13% of all artists on the platform. The rest — over 10.9 million — share the crumbs.",
+  },
+  pyramidArtists: { no: "artistar", en: "artists" },
+  pyramidOfTotal: { no: "av alle", en: "of total" },
+  pyramidBelowThreshold: {
+    no: "<$1K eller ingenting",
+    en: "<$1K or nothing",
+  },
+
+  // 2. Money Flow / Waterfall
+  moneyFlowTitle: {
+    no: "Kor går {price}/mnd?",
+    en: "Where does {price}/mo go?",
+  },
+  moneyFlowDesc: {
+    no: "Abonnementet ditt vert delt opp lenge før artisten ser ei krone. Slik ser verdikjeda ut:",
+    en: "Your subscription is carved up long before the artist sees a penny. Here's the value chain:",
+  },
+  moneyFlowSpotify: { no: "Spotify tek ~30 %", en: "Spotify takes ~30%" },
+  moneyFlowLabelKeeps: { no: "Plateselskap beheld", en: "Label keeps" },
+  moneyFlowPublisherKeeps: { no: "Forlag beheld", en: "Publisher keeps" },
+  moneyFlowArtistRecording: {
+    no: "Artist (innspelingsrettar)",
+    en: "Artist (recording royalty)",
+  },
+  moneyFlowSongwriter: {
+    no: "Låtskrivar (publiseringsrettar)",
+    en: "Songwriter (publishing)",
+  },
+  moneyFlowLeftForArtist: {
+    no: "Artist + låtskrivar sit att med ~{amount} ({pct}%) — resten går til mellomledd",
+    en: "Artist + songwriter are left with ~{amount} ({pct}%) — the rest goes to intermediaries",
+  },
+  moneyFlowAlbumCompare: {
+    no: "Eitt albumkjøp ({albumPrice}) gir artisten ~{albumArtistShare} — {times}x meir enn ein månad med streaming.",
+    en: "One album purchase ({albumPrice}) gives the artist ~{albumArtistShare} — {times}x more than a month of streaming.",
+  },
+
+  // 3. The 100,000th Artist / Minimum wage
+  minWageTitle: {
+    no: "Artist nr. 100 000 sin verdikjede tener {amount}/år",
+    en: "Artist #100,000's value chain earns {amount}/year",
+  },
+  minWageDesc: {
+    no: "Spotify framstiller dette som ein suksesshistorie. Men {amount}/år er det som vert utbetalt til heile verdikjeda — plateselskap, forlag, distributør og artist. Artisten sjølv sit att med ein brøkdel. Slik ser fullt beløp ut samanlikna med minstelønn:",
+    en: "Spotify presents this as a success story. But {amount}/year is what's paid out to the entire value chain — label, publisher, distributor, and artist. The artist themselves keeps a fraction. Here's how the full amount compares to minimum wage:",
+  },
+  minWageHourly: {
+    no: "timelønn (fulltid)",
+    en: "hourly wage (full-time)",
+  },
+  minWageArtistLabel: {
+    no: "Artist #100 000 — verdikjeda",
+    en: "Artist #100,000 — value chain",
+  },
+  minWageCountry: { no: "Minstelønn", en: "Minimum wage" },
+
+  // 4. Per-Stream Rate vs Revenue
+  perStreamTitle: {
+    no: "Per-stream-rate fell — Spotify sine inntekter stig",
+    en: "Per-stream rate falls — Spotify's revenue rises",
+  },
+  perStreamDesc: {
+    no: "Sjølv om Spotify tener meir enn nokon gong, har betalinga per avspeling blitt lågare med tida. Artistane får ein stadig mindre bit av ein veksande kake.",
+    en: "Even though Spotify earns more than ever, the payment per play has declined over time. Artists get an ever-smaller slice of a growing pie.",
+  },
+  perStreamRateLabel: {
+    no: "Per-stream rate (USD)",
+    en: "Per-stream rate (USD)",
+  },
+  perStreamRateRealLabel: {
+    no: "Reell rate (KPI-justert, 2025-kr)",
+    en: "Real rate (CPI-adjusted, 2025$)",
+  },
+  perStreamRevenueLabel: {
+    no: "Spotify-inntekt ($mrd)",
+    en: "Spotify revenue ($B)",
+  },
+  perStreamCpiNote: {
+    no: "KPI-justert linje viser den reelle verdien av kvar stream i 2025-dollar. Inflasjonen gjer at det reelle fallet er endå brattare.",
+    en: "CPI-adjusted line shows the real value of each stream in 2025 dollars. Inflation makes the real decline even steeper.",
+  },
+
+  // 5. Per Artist Average
+  perArtistTitle: {
+    no: "«$11 milliardar» — kva betyr det eigentleg?",
+    en: '"$11 billion" — what does it really mean?',
+  },
+  perArtistDesc: {
+    no: "Spotify la $11 milliardar i potten i 2025. Delt på 11 millionar artistar er snittet ~$1 000. Men fordelinga er ekstremt skeiv — medianen er truleg under $100.",
+    en: "Spotify put $11 billion in the pool in 2025. Divided among 11 million artists, the average is ~$1,000. But the distribution is extremely skewed — the median is likely below $100.",
+  },
+  perArtistAvg: { no: "Gjennomsnitt", en: "Average" },
+  perArtistMedian: { no: "Estimert median", en: "Estimated median" },
+  perArtistTop1: { no: "Topp 0,01 % snitt", en: "Top 0.01% average" },
+  perArtistBottom99: { no: "Botn 99 % snitt", en: "Bottom 99% average" },
+  perArtistPerSubscriber: {
+    no: "Per abonnent: ~{amountTotal}/år går til rettshavarar. Med typiske plateavtalar sit artistar og låtskrivarar att med ~{amountArtist}/år — som deretter skal fordelast mellom alle medverkande.",
+    en: "Per subscriber: ~{amountTotal}/year goes to rights holders. With typical label deals, artists and songwriters are left with ~{amountArtist}/year — which is then split among all contributors.",
+  },
+
+  // 6. Streams to survive
+  streamsToLiveTitle: {
+    no: "Kor mange streams trengst for minstelønn?",
+    en: "How many streams for minimum wage?",
+  },
+  streamsToLiveDesc: {
+    no: "Med ein sats på ~$0,004 per stream: dette er kor mange streams ein artist treng kvar månad for å nå minstelønn i ulike land.",
+    en: "At a rate of ~$0.004 per stream: this is how many streams an artist needs each month to reach minimum wage in different countries.",
+  },
+  streamsPerMonth: { no: "streams/mnd", en: "streams/mo" },
+  streamsPerDay: { no: "~{n} per dag", en: "~{n} per day" },
+  impossibleNote: {
+    no: "Til samanlikning: berre ~400 000 songar vart strøyma over 1 million gonger i heile 2025.",
+    en: "For comparison: only ~400,000 songs were streamed over 1 million times in all of 2025.",
+  },
+
+  // Long-tail toggle (pyramid tab)
+  pyramidToggleLabel: { no: "Pyramide", en: "Pyramid" },
+  longTailToggleLabel: { no: "Long tail", en: "Long tail" },
+  longTailTitle: {
+    no: "Long tail: Inntektsfordelinga på Spotify",
+    en: "Long tail: Income distribution on Spotify",
+  },
+  longTailDesc: {
+    no: "Same data som pyramiden — vist som ei inntektskurve. Legg merke til den dramatiske spiken heilt til venstre: topp ~6 % tek nesten alt. Resten er ein flat linje langs botnen.",
+    en: "Same data as the pyramid — shown as an income curve. Notice the dramatic spike on the far left: the top ~6% take almost everything. The rest is a flat line along the bottom.",
+  },
+
+  // Money flow — redistribution notes
+  moneyFlowRedistTitle: {
+    no: "Pro-rata: Pengane dine går ikkje dit du trur",
+    en: "Pro-rata: Your money doesn't go where you think",
+  },
+  moneyFlowRedistNote: {
+    no: "Abonnementet ditt vert fordelt på SAMTLEGE artistar via pro-rata-modellen — ikkje dei du lyttar på. Pengane i potten vert fordelt etter strøymedel: dei som får flest streams globalt, får mest pengar. For dei med få streams vert bidraget ditt i praksis omfordelt til topp 0,01 %.",
+    en: "Your subscription is distributed across ALL artists via the pro-rata model — not the ones you listen to. The pool is distributed by stream share: those with the most global streams get the most money. For those with few streams, your contribution is effectively redistributed to the top 0.01%.",
+  },
+  moneyFlowPoolTopCapture: {
+    no: "Topp {n} artistar ({pct}%) tek ~{revPct}% av totalpotten",
+    en: "Top {n} artists ({pct}%) capture ~{revPct}% of total pool",
+  },
+  moneyFlowPoolBottomCapture: {
+    no: "Botn {n} artistar ({pct}%) får berre ~{revPct}%",
+    en: "Bottom {n} artists ({pct}%) receive only ~{revPct}%",
+  },
+
+  // Per artist — revenue concentration
+  perArtistConcTitle: {
+    no: "Inntektskonsentrasjon: kven tek pengane?",
+    en: "Revenue concentration: who gets the money?",
+  },
+  perArtistConcDesc: {
+    no: "Kvar rad viser ein inntektsgruppe. Blå er deira del av alle artistar, raud er deira del av totalinntekta. Skilnaden er sjokkerende.",
+    en: "Each row shows an income tier. Blue is their share of all artists, red is their share of total revenue. The gap is staggering.",
+  },
+  perArtistPctArtists: { no: "% av artistar", en: "% of artists" },
+  perArtistPctRevenue: { no: "% av inntekt", en: "% of revenue" },
+  perArtistSkewNote: {
+    no: "Gjennomsnittet ($1 000/år) er meiningslaust. Dei 1 500 best betalte artistane (~0,014 %) tek over ein tredjedel av heile potten — medan 94 % av alle artistar deler berre 2 % seg imellom.",
+    en: "The average ($1,000/year) is meaningless. The top 1,500 artists (~0.014%) take over a third of the entire pool — while 94% of all artists share just 2% among themselves.",
+  },
+
+  // ─── Per-chart source citations ────────────────────────────────
+  sourcePyramid: {
+    no: "Kjelde: Spotify Loud & Clear (loudandclear.byspotify.com) – artistar per inntektsnivå, 2025-tal.",
+    en: "Source: Spotify Loud & Clear (loudandclear.byspotify.com) – artists per income tier, 2025 data.",
+  },
+  sourceMoneyFlow: {
+    no: "Kjelder: Spotify investorrapportar (30 % margin), IFPI Global Music Report (75/25 innspeling/publisering), Music Business Worldwide (typisk label-split 80/20), NMPA (forlag/låtskrivar 50/50). Tala gjeld ein typisk signert artist — uavhengige artistar sit att med meir.",
+    en: "Sources: Spotify investor reports (30% margin), IFPI Global Music Report (75/25 recording/publishing split), Music Business Worldwide (typical label deal 80/20), NMPA (publisher/songwriter 50/50). Figures are for a typical signed artist — independent artists keep more.",
+  },
+  sourceMinWage: {
+    no: "Kjelder: Spotify Loud & Clear (artist #100 000 = $7 300/år til rettshavarar, ikkje artisten personleg), ILO / OECD minstelønnsdata (2024–2025), omrekna til USD. Artisten sjølv mottek typisk 15–25 % av dette etter at plateselskap, forlag og distributør har teke sin del.",
+    en: "Sources: Spotify Loud & Clear (artist #100,000 = $7,300/yr to rights holders, not the artist personally), ILO / OECD minimum wage data (2024–2025), converted to USD. The artist typically receives 15–25% of this after label, publisher, and distributor take their share.",
+  },
+  sourcePerStream: {
+    no: "Kjelder: The Trichordist, Soundcharts, Digital Music News (per-stream-rate), Spotify investorrapportar (inntekt), U.S. Bureau of Labor Statistics CPI-U (inflasjonsjustering).",
+    en: "Sources: The Trichordist, Soundcharts, Digital Music News (per-stream rate), Spotify investor reports (revenue), U.S. Bureau of Labor Statistics CPI-U (inflation adjustment).",
+  },
+  sourcePerArtist: {
+    no: "Kjelder: Spotify Loud & Clear ($11 mrd utbetalt 2025, ~11M artistar), investorrapportar (abonnenttal). Gjennomsnittet er matematisk korrekt men misvisande — medianen er estimert <$100.",
+    en: "Sources: Spotify Loud & Clear ($11B paid out 2025, ~11M artists), investor reports (subscriber count). The average is mathematically correct but misleading — the median is estimated at <$100.",
+  },
+  sourceStreamsToLive: {
+    no: "Kjelder: Spotify Loud & Clear (per-stream-rate ~$0,004), ILO / OECD minstelønnsdata (2024–2025). Utrekninga: minstelønn/mnd ÷ $0,004/stream.",
+    en: "Sources: Spotify Loud & Clear (per-stream rate ~$0.004), ILO / OECD minimum wage data (2024–2025). Calculation: min wage/mo ÷ $0.004/stream.",
   },
 } as const;
 

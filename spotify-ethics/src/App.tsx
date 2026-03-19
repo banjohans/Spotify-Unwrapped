@@ -9,6 +9,7 @@ import katex from "katex";
 import ListeningCharts from "./components/ListeningCharts";
 import ArtistComparisonChart from "./components/ArtistComparisonChart";
 import { LabelAnalytics } from "./components/LabelAnalytics";
+import IndustryCharts from "./components/IndustryCharts";
 import {
   type Locale,
   type SubscriptionTier,
@@ -239,6 +240,127 @@ function renderLatex(formula: string): string {
     throwOnError: false,
     displayMode: true,
   });
+}
+
+type SubscriptionRange = {
+  from: [number, number];
+  to: [number, number];
+};
+
+type SubscriptionEstimate = {
+  firstDate: Date;
+  lastDate: Date;
+  months: number;
+  totalCost: number;
+  activeMonths: number;
+  activeCost: number;
+  activePaidMonths: number;
+  subscribedMonths: number;
+  avgMonthlyPrice: number;
+  spanAvgMonthlyPrice: number;
+  inactivePaidMonths: number;
+  inactivePaidCost: number;
+  inactivePaidDays: number;
+  inactivePaidDayCost: number;
+  paidRanges: SubscriptionRange[];
+  noSubscriptionMonths: number;
+  noSubscriptionRanges: SubscriptionRange[];
+  inactivePaidRanges: SubscriptionRange[];
+  priceBreakdown: Array<{
+    year: number;
+    month: number;
+    price: number;
+    tier: SubscriptionTier;
+  }>;
+  tierBreakdown: import("./lib/analyze").TierBreakdown;
+};
+
+function monthKey(year: number, month: number): string {
+  return `${year}-${month}`;
+}
+
+function monthIsoKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function monthPointFromKey(key: string): { year: number; month: number } {
+  const [year, month] = key.split("-").map(Number);
+  return { year, month };
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+function groupConsecutiveMonths(
+  months: Array<{ year: number; month: number }>,
+): SubscriptionRange[] {
+  if (months.length === 0) return [];
+
+  const sorted = [...months].sort(
+    (a, b) => a.year - b.year || a.month - b.month,
+  );
+  const ranges: SubscriptionRange[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const curr = sorted[i];
+    const prevIndex = prev.year * 12 + prev.month;
+    const currIndex = curr.year * 12 + curr.month;
+
+    if (currIndex === prevIndex + 1) {
+      prev = curr;
+      continue;
+    }
+
+    ranges.push({
+      from: [start.year, start.month],
+      to: [prev.year, prev.month],
+    });
+    start = curr;
+    prev = curr;
+  }
+
+  ranges.push({ from: [start.year, start.month], to: [prev.year, prev.month] });
+  return ranges;
+}
+
+function formatMonthRange(range: SubscriptionRange, locale: Locale): string {
+  const formatPoint = ([year, month]: [number, number]) =>
+    new Date(year, month - 1, 1).toLocaleDateString(dateLocale(locale), {
+      year: "numeric",
+      month: "short",
+    });
+
+  const from = formatPoint(range.from);
+  const to = formatPoint(range.to);
+  return from === to ? from : `${from} – ${to}`;
+}
+
+function formatMonthDuration(months: number, locale: Locale): string {
+  if (months <= 0) return locale === "en" ? "0 months" : "0 månadar";
+
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  const parts: string[] = [];
+
+  if (years > 0) {
+    parts.push(
+      locale === "en"
+        ? `${years} ${years === 1 ? "year" : "years"}`
+        : `${years} år`,
+    );
+  }
+  if (remainingMonths > 0) {
+    parts.push(
+      locale === "en"
+        ? `${remainingMonths} ${remainingMonths === 1 ? "month" : "months"}`
+        : `${remainingMonths} månadar`,
+    );
+  }
+
+  return parts.join(" ");
 }
 
 // ─── Share image generator (canvas → PNG) ────────────────────────
@@ -658,20 +780,12 @@ ${
 function exportFullReportPDF(
   result: import("./lib/analyze").AnalysisResult,
   cfg: import("./lib/analyze").AnalysisConfig,
-  subscriptionEstimate: {
-    firstDate: Date;
-    lastDate: Date;
-    months: number;
-    totalCost: number;
-    activeMonths: number;
-    activeCost: number;
-    avgMonthlyPrice: number;
-    spanAvgMonthlyPrice: number;
-  } | null,
+  subscriptionEstimate: SubscriptionEstimate | null,
   activeDateRange: { label: string } | null,
   excludedArtists: Set<string>,
   plannedAlbums: Record<string, { artist: string; album: string }>,
   maxArtists: number | "all" = 50,
+  countOnlyActiveSubscriptionMonths = true,
   locale: Locale = "no",
 ) {
   const date = new Date().toLocaleDateString(dateLocale(locale), {
@@ -714,6 +828,28 @@ function exportFullReportPDF(
       a.artist.localeCompare(b.artist) || a.album.localeCompare(b.album),
   );
   const plannedTotal = plannedEntries.length * cfg.albumPriceNOK;
+  const effectiveSubCost = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.activeCost
+      : subscriptionEstimate.totalCost
+    : 0;
+  const effectiveSubMonths = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.activePaidMonths
+      : subscriptionEstimate.subscribedMonths
+    : 0;
+  const effectiveAvgPrice = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.avgMonthlyPrice
+      : subscriptionEstimate.spanAvgMonthlyPrice
+    : 0;
+  const effectiveSubModeLabel = countOnlyActiveSubscriptionMonths
+    ? locale === "en"
+      ? "active subscription months"
+      : "aktive abonnementsmånadar"
+    : locale === "en"
+      ? "all paid subscription months"
+      : "alle betalte abonnementsmånadar";
 
   const _t = (key: import("./lib/i18n").TKey) => t(key, locale);
   const _of = locale === "en" ? "of" : "av";
@@ -729,15 +865,16 @@ function exportFullReportPDF(
   const _economy = locale === "en" ? "Economy" : "Økonomi";
   const _theoValue =
     locale === "en" ? "Theoretical Spotify value" : "Teoretisk Spotify-verdi";
-  const _estSub =
-    locale === "en" ? "Estimated subscription" : "Estimert abonnement";
+  const _estSub = countOnlyActiveSubscriptionMonths
+    ? t("subActiveOnly", locale)
+    : t("estSubFull", locale);
   const _diff = locale === "en" ? "Difference" : "Differanse";
   const _whatMeansTitle =
     locale === "en" ? "What does this mean?" : "Kva betyr dette?";
   const _youPaid =
     locale === "en"
-      ? `You paid approx. <b>${fmtK(subscriptionEstimate?.activeCost ?? 0)}</b> in Spotify subscription over <b>${subscriptionEstimate?.activeMonths ?? 0} active months</b>.`
-      : `Du har betalt ca. <b>${fmtK(subscriptionEstimate?.activeCost ?? 0)}</b> i Spotify-abonnement over <b>${subscriptionEstimate?.activeMonths ?? 0} aktive månadar</b>.`;
+      ? `You paid approx. <b>${fmtK(effectiveSubCost)}</b> in Spotify subscription across <b>${effectiveSubMonths} ${effectiveSubModeLabel}</b>.`
+      : `Du har betalt ca. <b>${fmtK(effectiveSubCost)}</b> i Spotify-abonnement over <b>${effectiveSubMonths} ${effectiveSubModeLabel}</b>.`;
   const _theoArtistValue =
     locale === "en"
       ? `The estimated royalty value associated with your listening activity is <b>${fmtK(totalValue)}</b>.`
@@ -784,13 +921,13 @@ function exportFullReportPDF(
       ? [
           `<b>1. Data filtering:</b> Plays shorter than ${_minSec} seconds are removed. Spotify states 30 sec is the threshold for an official "stream." This excludes test plays, skips, and accidental clicks.`,
           `<b>2. Estimated royalty value:</b> Historical average per-stream royalty rates (${_currUnit}) are applied to each qualifying play, based on industry data from The Trichordist, Soundcharts, and others. Rates differ by time period (see settings). The value is <i>theoretical</i> – it approximates what Spotify adds to the shared pool based on your habits. The estimate thus illustrates approximately how much value your listening may have generated in the system.`,
-          `<b>3. Subscription cost:</b> Defaults to Premium Individual pricing (${_country}), verified via Wayback Machine. Only months with actual listening activity are counted. Spotify's GDPR export does <i>not</i> include payment history or subscription type (<code>Payments.json</code> is empty). Users can select their subscription type in Settings — available options are Individual, Student, Duo, Family, and Free — and define which periods they had each type. Prices are automatically adjusted based on the selection and historical price changes.`,
+          `<b>3. Subscription cost:</b> Defaults to Premium Individual pricing (${_country}), verified via Wayback Machine. In Settings you can choose whether to count only paid months with actual listening activity, or all paid months in the selected period. Spotify's GDPR export does <i>not</i> include payment history or subscription type (<code>Payments.json</code> is empty). Users can select their subscription type in Settings — available options are Individual, Student, Duo, Family, and Free — and define which periods they had each type. Prices are automatically adjusted based on the selection and historical price changes.`,
           `<b>4. Artist aggregation:</b> For each artist: total listening time, estimated royalty value, album distribution, and stream count are summed. "Album equivalent" = estimated streaming value ÷ album price (${_albumPriceFmt}). This provides an overview of how your listening is distributed across artists and catalogs.`,
         ]
       : [
           `<b>1. Filtrering av data:</b> Avspelingar kortare enn ${_minSec} sekund vert fjerna. Spotify har sagt at 30 sek er grensa for ein offisiell «stream». Dette hindrar prøvespeling, hopping og tilfeldige klikk.`,
           `<b>2. Estimert royalty-verdi:</b> Historiske gjennomsnittssatsar (${_currUnit}/stream) vert brukt per kvalifiserande avspeling, basert på bransjedata frå m.a. The Trichordist og Soundcharts. Satsane er ulike for kvart tidsrom (sjå innstillingar). Verdien er <i>teoretisk</i> – den viser omtrent kva Spotify ville lagt i den felles poolen basert på dine lyttevanar. Estimatet illustrerer dermed omtrent kor mykje verdi lyttinga di kan ha generert i systemet.`,
-          `<b>3. Abonnementskostnad:</b> Standard er Premium Individual (${_country}), verifisert via Wayback Machine. Berre månadar med faktisk lytteaktivitet er talde. Spotify sin GDPR-eksport har <i>ikkje</i> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom). Brukaren kan velje abonnementstype i innstillingane — tilgjengelege alternativ er Individual, Student, Duo, Family og Free — og definere kva periodar ein har hatt kvar type. Prisane vert justerte automatisk basert på valet og historiske prisendringar.`,
+          `<b>3. Abonnementskostnad:</b> Standard er Premium Individual (${_country}), verifisert via Wayback Machine. I innstillingane kan du velje om modellen berre skal telle betalte månadar med faktisk lytteaktivitet, eller alle betalte månadar i den valde perioden. Spotify sin GDPR-eksport har <i>ikkje</i> betalingshistorikk eller abonnementstype (<code>Payments.json</code> er tom). Brukaren kan velje abonnementstype i innstillingane — tilgjengelege alternativ er Individual, Student, Duo, Family og Free — og definere kva periodar ein har hatt kvar type. Prisane vert justerte automatisk basert på valet og historiske prisendringar.`,
           `<b>4. Artistaggregering:</b> For kvar artist: total lyttetid, estimert royalty-verdi, albumfordeling og tal på streams vert summert. «Album-ekvivalent» = estimert strøymeverdi ÷ albumpris (${_albumPriceFmt}). Dette gir eit oversyn over korleis lyttinga di fordeler seg på tvers av artistar og katalogar.`,
         ];
   const _methodCaveats =
@@ -814,7 +951,7 @@ function exportFullReportPDF(
           "Satsar varierer med land, abonnementstype og plattformaktivitet. Tala gir eit <i>rimeleg gjennomsnittsbilete</i>, ikkje eksakte utbetalingar.",
           "For dei som følgjer debatten om bakgrunnsmusikk og EU sitt DSM-direktiv (t.d. i TONO), er dette ein del av ein større problematikk: Lyttemusikk taper terreng i fordeling av vederlag, medan bakgrunnsmusikk får ein uforholdsmessig stor del av inntektspotten.",
           "<b>Plateselskap-oppslag</b> nyttar MusicBrainz og Discogs (samfunnsdrivne, kan vere ufullstendige). Klassifiseringa major/indie er tilnærma.",
-          "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar. Unwrapped viser, men tolkar ikkje desse dataa.",
+          "<b>Inferences og Marquee</b>-data reflekterer Spotify sine interne kategoriseringar. Unwrapped viser, men tolkar ikkje desse dataene.",
           "<b>Lyttemønster</b>-klassifiseringa (aktiv vs. assistert) er basert på <code>reason_start</code>-feltet i Spotify sin GDPR-data.",
           "Frå 2024 krev Spotify at ein song må ha <b>minst 1 000 streams per år</b> for å generere royalties. Denne modellen tek ikkje høgde for denne grensa.",
           "Tala i denne analysen viser estimert <b>brutto</b> royalty-verdi – ikkje kva artisten faktisk mottek. Inntektene frå streaming går til heile <b>verdikjeda</b> bak opptaket: plateselskap, distributørar, produsentar, studiomusikerar, miks- og masteringteknikarar og andre rettshavarar. Det reelle beløpet som når fram til songskrivaren eller utøvaren er i praksis ein brøkdel av bruttotalet. Dette inneber også at systemet økonomisk favoriserer musikk som kan lagast med få medverkande, sidan tradisjonell produksjon med mange involverte fører til at kvar enkelt mottek ein stadig mindre del av ein allereie låg sum.",
@@ -1018,7 +1155,7 @@ ${
     </div>
     <div class="stat-box">
       <div class="label">${_avgPriceMo}</div>
-      <div class="value">${fmtK(subscriptionEstimate.avgMonthlyPrice)}</div>
+      <div class="value">${fmtK(effectiveAvgPrice)}</div>
     </div>
     <div class="stat-box">
       <div class="label">${_uniqueAlbumsListened}</div>
@@ -1041,19 +1178,19 @@ ${
     </div>
     <div class="finance-box">
       <div class="label">${_estSub}</div>
-      <div class="value neutral">${fmtK(subscriptionEstimate.activeCost)}</div>
+      <div class="value neutral">${fmtK(effectiveSubCost)}</div>
     </div>
     <div class="finance-box">
       <div class="label">${_diff}</div>
-      <div class="value ${subscriptionEstimate.activeCost - totalValue > 0 ? "red" : "green"}">
-        ${fmtK(subscriptionEstimate.activeCost - totalValue)}
+      <div class="value ${effectiveSubCost - totalValue > 0 ? "red" : "green"}">
+        ${fmtK(effectiveSubCost - totalValue)}
       </div>
     </div>
   </div>
   <div class="info-box">
     <b>${_whatMeansTitle}</b> ${_youPaid}
     ${_theoArtistValue}
-    ${locale === "en" ? "The difference" : "Differansen"} (${fmtK(subscriptionEstimate.activeCost - totalValue)}) ${locale === "en" ? "reflects the gap between your estimated listening-based royalty value and your subscription payment within Spotify\u2019s pooled royalty system" : "viser differansen mellom den estimerte royalty-verdien fr\u00e5 lyttinga di og abonnementsbetalinga di i Spotify sitt pro-rata-system"}.
+    ${locale === "en" ? "The difference" : "Differansen"} (${fmtK(effectiveSubCost - totalValue)}) ${locale === "en" ? "reflects the gap between your estimated listening-based royalty value and your subscription payment within Spotify\u2019s pooled royalty system" : "viser differansen mellom den estimerte royalty-verdien frå lyttinga di og abonnementsbetalinga di i Spotify sitt pro-rata-system"}.
   </div>
 </div>`
     : ""
@@ -1234,6 +1371,7 @@ export default function App() {
   const [methodologyInfoOpen, setMethodologyInfoOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
   const [shareToast, setShareToast] = useState<string | null>(null);
+  const [appView, setAppView] = useState<"industry" | "mydata">("mydata");
 
   // Extra Spotify data files
   const [inferences, setInferences] = useState<string[]>([]);
@@ -1309,6 +1447,24 @@ export default function App() {
       JSON.stringify(subscriptionSegments),
     );
   }, [subscriptionSegments]);
+
+  const [
+    countOnlyActiveSubscriptionMonths,
+    setCountOnlyActiveSubscriptionMonths,
+  ] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("spotify-sub-active-only");
+      return saved ? JSON.parse(saved) : true;
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(
+      "spotify-sub-active-only",
+      JSON.stringify(countOnlyActiveSubscriptionMonths),
+    );
+  }, [countOnlyActiveSubscriptionMonths]);
 
   const [cfg, setCfg] = useState<AnalysisConfig>({
     albumPriceNOK: DEFAULT_ALBUM_PRICE["no"],
@@ -1555,7 +1711,7 @@ export default function App() {
     return filteredArtists.reduce((sum, a) => sum + a.estValueNOK, 0);
   }, [filteredArtists]);
 
-  const subscriptionEstimate = useMemo(() => {
+  const subscriptionEstimate = useMemo<SubscriptionEstimate | null>(() => {
     if (!dateFilteredRows.length) return null;
 
     const dates = dateFilteredRows
@@ -1578,12 +1734,20 @@ export default function App() {
       dates.map((d) => `${d.getFullYear()}-${d.getMonth() + 1}`),
     );
     const activeMonths = uniqueMonthSet.size;
+    const uniqueDaySet = new Set(
+      dates.map((d) => d.toISOString().slice(0, 10)),
+    );
+    const activeDayCountByMonth = new Map<string, number>();
+    for (const day of uniqueDaySet) {
+      const month = day.slice(0, 7);
+      activeDayCountByMonth.set(
+        month,
+        (activeDayCountByMonth.get(month) ?? 0) + 1,
+      );
+    }
 
     // Bygg liste av aktive månadar for historisk prisutrekning
-    const activeMonthList = Array.from(uniqueMonthSet).map((key) => {
-      const [y, m] = key.split("-").map(Number);
-      return { year: y, month: m };
-    });
+    const activeMonthList = Array.from(uniqueMonthSet).map(monthPointFromKey);
 
     // Kalkuler total kostnad basert på historisk pris per månad
     const segs =
@@ -1611,6 +1775,37 @@ export default function App() {
       segs,
     );
 
+    const activePaidMonthDetails = historical.monthDetails.filter(
+      (detail) => detail.price > 0,
+    );
+    const subscribedMonthDetails = spanHistorical.monthDetails.filter(
+      (detail) => detail.price > 0,
+    );
+    const noSubscriptionMonthDetails = spanHistorical.monthDetails.filter(
+      (detail) => detail.price === 0,
+    );
+    const inactivePaidMonthDetails = subscribedMonthDetails.filter(
+      (detail) => !uniqueMonthSet.has(monthKey(detail.year, detail.month)),
+    );
+
+    let inactivePaidDayCost = 0;
+    let inactivePaidDays = 0;
+    for (const detail of subscribedMonthDetails) {
+      const days = daysInMonth(detail.year, detail.month);
+      const activeDays =
+        activeDayCountByMonth.get(monthIsoKey(detail.year, detail.month)) ?? 0;
+      const unusedDays = Math.max(0, days - activeDays);
+      inactivePaidDays += unusedDays;
+      inactivePaidDayCost += (detail.price * unusedDays) / days;
+    }
+
+    const inactivePaidCost = inactivePaidMonthDetails.reduce(
+      (sum, detail) => sum + detail.price,
+      0,
+    );
+    const activePaidMonths = activePaidMonthDetails.length;
+    const subscribedMonths = subscribedMonthDetails.length;
+
     return {
       firstDate,
       lastDate,
@@ -1618,12 +1813,49 @@ export default function App() {
       totalCost: spanHistorical.totalCost,
       activeMonths,
       activeCost: historical.totalCost,
-      avgMonthlyPrice: historical.weightedAvgPrice,
-      spanAvgMonthlyPrice: spanHistorical.weightedAvgPrice,
+      activePaidMonths,
+      subscribedMonths,
+      avgMonthlyPrice:
+        activePaidMonths > 0 ? historical.totalCost / activePaidMonths : 0,
+      spanAvgMonthlyPrice:
+        subscribedMonths > 0 ? spanHistorical.totalCost / subscribedMonths : 0,
+      inactivePaidMonths: inactivePaidMonthDetails.length,
+      inactivePaidCost,
+      inactivePaidDays,
+      inactivePaidDayCost,
+      paidRanges: groupConsecutiveMonths(
+        subscribedMonthDetails.map(({ year, month }) => ({ year, month })),
+      ),
+      noSubscriptionMonths: noSubscriptionMonthDetails.length,
+      noSubscriptionRanges: groupConsecutiveMonths(
+        noSubscriptionMonthDetails.map(({ year, month }) => ({ year, month })),
+      ),
+      inactivePaidRanges: groupConsecutiveMonths(
+        inactivePaidMonthDetails.map(({ year, month }) => ({ year, month })),
+      ),
       priceBreakdown: historical.monthDetails,
       tierBreakdown: historical.tierBreakdown,
     };
   }, [dateFilteredRows, locale, subscriptionSegments]);
+
+  const effectiveSubscriptionCost = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.activeCost
+      : subscriptionEstimate.totalCost
+    : 0;
+  const effectiveSubscriptionMonths = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.activePaidMonths
+      : subscriptionEstimate.subscribedMonths
+    : 0;
+  const effectiveSubscriptionAvgPrice = subscriptionEstimate
+    ? countOnlyActiveSubscriptionMonths
+      ? subscriptionEstimate.avgMonthlyPrice
+      : subscriptionEstimate.spanAvgMonthlyPrice
+    : 0;
+  const subscribedDurationLabel = subscriptionEstimate
+    ? formatMonthDuration(subscriptionEstimate.subscribedMonths, locale)
+    : "";
 
   const searchedArtists = useMemo(() => {
     if (!artistSearchQuery.trim()) return filteredArtists;
@@ -1683,7 +1915,7 @@ export default function App() {
   const plannedCount = Object.keys(plannedAlbums).length;
   const plannedCost = plannedCount * cfg.albumPriceNOK;
   const albumBudget = subscriptionEstimate
-    ? Math.floor(subscriptionEstimate.activeCost / cfg.albumPriceNOK)
+    ? Math.floor(effectiveSubscriptionCost / cfg.albumPriceNOK)
     : 0;
   const albumsRemaining = Math.max(0, albumBudget - plannedCount);
 
@@ -1865,1634 +2097,1860 @@ export default function App() {
         </div>
       </header>
 
-      <section className="card" style={{ marginTop: 40 }}>
-        <div className="cardHeader">
-          <h2>{t("uploadTitle", locale)}</h2>
-          {!!rows.length && (
-            <div className="pill">
-              {rows.length.toLocaleString()} {t("rows", locale)}
+      <nav className="mainNav">
+        <button
+          className={`mainNavBtn ${appView === "mydata" ? "active" : ""}`}
+          onClick={() => setAppView("mydata")}
+        >
+          {t("myDataNavLabel", locale)}
+        </button>
+        <button
+          className={`mainNavBtn ${appView === "industry" ? "active" : ""}`}
+          onClick={() => setAppView("industry")}
+        >
+          {t("industryNavLabel", locale)}
+        </button>
+      </nav>
+
+      {appView === "industry" && <IndustryCharts locale={locale} />}
+
+      {appView === "mydata" && (
+        <>
+          <section className="card" style={{ marginTop: 40 }}>
+            <div className="cardHeader">
+              <h2>{t("uploadTitle", locale)}</h2>
+              {!!rows.length && (
+                <div className="pill">
+                  {rows.length.toLocaleString()} {t("rows", locale)}
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div style={{ textAlign: "center", padding: "40px 20px" }}>
-          <label
-            style={{
-              display: "inline-block",
-              cursor: "pointer",
-            }}
-          >
-            <input
-              className="fileInput"
-              type="file"
-              multiple
-              accept=".json,application/json"
-              onChange={(e) => onFiles(e.target.files)}
-              style={{ display: "none" }}
-            />
-            <button
-              className="btn"
-              style={{ fontSize: "18px", padding: "16px 32px" }}
-              onClick={(e) => {
-                e.currentTarget
-                  .closest("label")
-                  ?.querySelector("input")
-                  ?.click();
-              }}
-            >
-              {t("uploadBtn", locale)}
-            </button>
-          </label>
-          {err && (
-            <div className="error" style={{ marginTop: 16 }}>
-              {err}
-            </div>
-          )}
-        </div>
-
-        {/* File guide */}
-        <div className="fileGuideSection">
-          <button
-            className="collapsibleToggle fileGuideToggle"
-            onClick={() => setFileGuideOpen(!fileGuideOpen)}
-            aria-expanded={fileGuideOpen}
-          >
-            <span
-              className={`collapsibleChevron ${fileGuideOpen ? "open" : ""}`}
-            >
-              ▾
-            </span>
-            {t("fileGuideToggle", locale)}
-          </button>
-
-          {fileGuideOpen && (
-            <div className="fileGuideContent">
-              <p className="subtle" style={{ marginBottom: 16 }}>
-                {t("fileGuideIntro", locale)}
-              </p>
-
-              <h4 className="fileGuideGroupTitle">
-                {t("fileGuideRequired", locale)}
-              </h4>
-              <div className="fileGuideGrid">
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    Streaming_History_Audio_*.json
-                    <span className="fileGuideBadge primary">
-                      {locale === "no" ? "Hovudfil" : "Main file"}
-                    </span>
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Fullstendig strøymehistorikk med tidsstempel, artist, album, låttittel, ms lytta, avspelingsgrunn (reason_start/end), shuffle, offline m.m. Filnamn inkluderer årsperiode, t.d. Streaming_History_Audio_2018-2021_1.json."
-                      : "Complete streaming history with timestamp, artist, album, track name, ms played, playback reason (reason_start/end), shuffle, offline, etc. Filenames include year range, e.g. Streaming_History_Audio_2018-2021_1.json."}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "All hovudanalyse — royalty-estimat, artistoversikt, aktiv/assistert lytting, diagram."
-                      : "All main analysis — royalty estimates, artist overview, active/assisted listening, charts."}
-                  </div>
-                </div>
-
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    Streaming_History_Video_*.json
-                    <span className="fileGuideBadge primary">
-                      {locale === "no" ? "Hovudfil" : "Main file"}
-                    </span>
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Strøymehistorikk for video og podcastar, same format som Audio-filene."
-                      : "Streaming history for video and podcasts, same format as the Audio files."}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Vert analysert saman med Audio-filene for komplett oversikt."
-                      : "Analyzed together with Audio files for a complete overview."}
-                  </div>
-                </div>
-
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    StreamingHistory_music_*.json
-                    <span className="fileGuideBadge">
-                      {locale === "no" ? "Alternativ" : "Alternative"}
-                    </span>
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Enklare strøymehistorikk (siste året) frå vanleg «Account Data»-eksport. Har sluttid, artistnamn, låtnamn og ms lytta. Manglar album, avspelingsgrunn, URI m.m."
-                      : 'Simpler streaming history (last year) from a regular "Account Data" export. Has end time, artist name, track name, and ms played. Missing album, playback reason, URI, etc.'}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Kan brukast som fallback — gir grunnleggande statistikk og royalty-estimat, men ingen aktiv/assistert-analyse."
-                      : "Can be used as fallback — provides basic stats and royalty estimates, but no active/assisted analysis."}
-                  </div>
-                </div>
-              </div>
-
-              <h4 className="fileGuideGroupTitle">
-                {t("fileGuideOptional", locale)}
-              </h4>
-              <div className="fileGuideGrid">
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    Inferences.json
-                    {inferences.length > 0 && (
-                      <span className="fileGuideBadge loaded">
-                        {t("fileGuideLoaded", locale)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Spotify sine reklame-profilar av deg: demografiske segment, innhaldspreferansar, og annonsesegment."
-                      : "Spotify's advertising profiles of you: demographic segments, content preferences, and ad segments."}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Viser ein eigen «Slik ser Spotify deg»-seksjon som avslører korleis du vert profilert for annonsørar."
-                      : 'Shows a dedicated "How Spotify sees you" section revealing how you\'re profiled for advertisers.'}
-                  </div>
-                </div>
-
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    Marquee.json
-                    {marqueeArtists.length > 0 && (
-                      <span className="fileGuideBadge loaded">
-                        {t("fileGuideLoaded", locale)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Liste over artistar Spotify har kategorisert deg som lyttar av, med segment (t.d. «Previously Active Listeners», «Light listeners»). Brukt i Marquee-marknadsføringsverktøyet."
-                      : 'List of artists Spotify has categorized you as a listener of, with segments (e.g. "Previously Active Listeners", "Light listeners"). Used in the Marquee marketing tool.'}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Viser korleis Spotify segmenterer deg som lyttar — og gjer deg til ei målgruppe for betalt promotering."
-                      : "Shows how Spotify segments you as a listener — turning you into a target audience for paid promotion."}
-                  </div>
-                </div>
-
-                <div className="fileGuideItem">
-                  <div className="fileGuideName">
-                    Userdata.json
-                    {userdata && (
-                      <span className="fileGuideBadge loaded">
-                        {t("fileGuideLoaded", locale)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="fileGuideDesc">
-                    <strong>{t("fileGuideContains", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Grunnleggande kontoinformasjon: brukarnamn, land, opprettingsdato."
-                      : "Basic account info: username, country, creation date."}
-                    <br />
-                    <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
-                    {locale === "no"
-                      ? "Viser kor lenge du har vore Spotify-brukar."
-                      : "Shows how long you've been a Spotify user."}
-                  </div>
-                </div>
-              </div>
-
-              <h4 className="fileGuideGroupTitle">
-                {t("fileGuideNotUsed", locale)}
-              </h4>
-              <div className="fileGuideGrid dimmed">
-                {[
-                  {
-                    name: "Follow.json",
-                    desc:
-                      locale === "no"
-                        ? "Sosial graf — kven du følgjer og kven som følgjer deg."
-                        : "Social graph — who you follow and who follows you.",
-                  },
-                  {
-                    name: "Playlist1.json",
-                    desc:
-                      locale === "no"
-                        ? "Spillelistene dine med alle sporar."
-                        : "Your playlists with all tracks.",
-                  },
-                  {
-                    name: "Payments.json",
-                    desc:
-                      locale === "no"
-                        ? "Betalingsinformasjon (vanlegvis tom)."
-                        : "Payment information (usually empty).",
-                  },
-                  {
-                    name: "YourLibrary.json",
-                    desc:
-                      locale === "no"
-                        ? "Lagra sporar, artistar, album og podcastar."
-                        : "Saved tracks, artists, albums, and podcasts.",
-                  },
-                  {
-                    name: "SearchQueries.json",
-                    desc:
-                      locale === "no"
-                        ? "Dei siste søka dine på Spotify."
-                        : "Your recent Spotify searches.",
-                  },
-                  {
-                    name: "Identifiers.json",
-                    desc:
-                      locale === "no"
-                        ? "E-postadressa knytt til kontoen."
-                        : "Email address linked to the account.",
-                  },
-                ].map((item) => (
-                  <div className="fileGuideItem" key={item.name}>
-                    <div className="fileGuideName">{item.name}</div>
-                    <div className="fileGuideDesc">{item.desc}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {(uploadedFiles.length > 0 ||
-          inferences.length > 0 ||
-          marqueeArtists.length > 0 ||
-          userdata) && (
-          <div className="uploadedFilesList">
-            <div className="filesHeader">
-              <h3>
-                {t("uploadedFilesLabel", locale)} ({uploadedFiles.length})
-              </h3>
-              <button
-                className="btnGhost"
-                onClick={() => {
-                  setUploadedFiles([]);
-                  setRows([]);
-                  setInferences([]);
-                  setMarqueeArtists([]);
-                  setUserdata(null);
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              <label
+                style={{
+                  display: "inline-block",
+                  cursor: "pointer",
                 }}
               >
-                {t("removeAll", locale)}
-              </button>
-            </div>
-            <div className="filesList">
-              {uploadedFiles.map((file) => (
-                <div key={file.name} className="fileItem">
-                  <div className="fileInfo">
-                    <span className="fileName">{file.name}</span>
-                    <span className="fileStats">
-                      {file.rowCount.toLocaleString()} {t("rows", locale)}
-                    </span>
-                  </div>
-                  <button
-                    className="fileRemove"
-                    onClick={() => {
-                      setUploadedFiles((prev) =>
-                        prev.filter((f) => f.name !== file.name),
-                      );
-                    }}
-                    title={t("removeFile", locale)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-              {inferences.length > 0 && (
-                <div className="fileItem extraFile">
-                  <div className="fileInfo">
-                    <span className="fileName">Inferences.json</span>
-                    <span className="fileStats">
-                      {inferences.length}{" "}
-                      {locale === "no" ? "segment" : "segments"}
-                    </span>
-                  </div>
-                  <button
-                    className="fileRemove"
-                    onClick={() => setInferences([])}
-                    title={t("removeFile", locale)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              {marqueeArtists.length > 0 && (
-                <div className="fileItem extraFile">
-                  <div className="fileInfo">
-                    <span className="fileName">Marquee.json</span>
-                    <span className="fileStats">
-                      {marqueeArtists.length}{" "}
-                      {locale === "no" ? "artistar" : "artists"}
-                    </span>
-                  </div>
-                  <button
-                    className="fileRemove"
-                    onClick={() => setMarqueeArtists([])}
-                    title={t("removeFile", locale)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-              {userdata && (
-                <div className="fileItem extraFile">
-                  <div className="fileInfo">
-                    <span className="fileName">Userdata.json</span>
-                    <span className="fileStats">{userdata.username ?? ""}</span>
-                  </div>
-                  <button
-                    className="fileRemove"
-                    onClick={() => setUserdata(null)}
-                    title={t("removeFile", locale)}
-                  >
-                    ✕
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section className="card settingsCard">
-        <button
-          className="settingsToggle"
-          onClick={() => setSettingsOpen(!settingsOpen)}
-          aria-expanded={settingsOpen}
-        >
-          <span className={`collapsibleChevron ${settingsOpen ? "open" : ""}`}>
-            ▾
-          </span>
-          <span className="settingsToggleTitle">
-            {t("settingsTitle", locale)}
-          </span>
-          <span className="settingsToggleHint">
-            {t("settingsDesc", locale)}
-          </span>
-        </button>
-
-        {settingsOpen && (
-          <div className="settingsContent">
-            <div className="controlsInline">
-              <label className="fieldInline">
-                <span>{t("albumPriceLabel", locale)}</span>
                 <input
-                  type="number"
-                  step="10"
-                  value={cfg.albumPriceNOK}
-                  onChange={(e) =>
-                    setCfg({ ...cfg, albumPriceNOK: Number(e.target.value) })
-                  }
+                  className="fileInput"
+                  type="file"
+                  multiple
+                  accept=".json,application/json"
+                  onChange={(e) => onFiles(e.target.files)}
+                  style={{ display: "none" }}
                 />
+                <button
+                  className="btn"
+                  style={{ fontSize: "18px", padding: "16px 32px" }}
+                  onClick={(e) => {
+                    e.currentTarget
+                      .closest("label")
+                      ?.querySelector("input")
+                      ?.click();
+                  }}
+                >
+                  {t("uploadBtn", locale)}
+                </button>
               </label>
-
-              <label className="fieldInline">
-                <span>{t("minMsLabel", locale)}</span>
-                <input
-                  type="number"
-                  step="1000"
-                  value={cfg.minMsPlayedToCount}
-                  onChange={(e) =>
-                    setCfg({
-                      ...cfg,
-                      minMsPlayedToCount: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
+              {err && (
+                <div className="error" style={{ marginTop: 16 }}>
+                  {err}
+                </div>
+              )}
             </div>
 
-            {/* Price History Tables */}
-            <div className="priceHistorySection">
-              <div className="priceHistoryInfo">
-                <h4>{t("priceHistoryTitle", locale)}</h4>
-                <table className="priceHistoryTable">
-                  <thead>
-                    <tr>
-                      <th>{t("periodCol", locale)}</th>
-                      <th>{t("priceCol", locale)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PRICE_HISTORY[locale].map((period, i) => {
-                      const nextPeriod = PRICE_HISTORY[locale][i + 1];
-                      const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
-                      const toStr = nextPeriod
-                        ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                        : locale === "en"
-                          ? "now"
-                          : "no";
-                      return (
-                        <tr key={i}>
-                          <td>
-                            {fromStr} → {toStr}
-                          </td>
-                          <td>{currencyPerMonth(period.price, locale)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <p
-                  className="subtle"
-                  style={{ marginTop: 6, fontSize: "0.85em" }}
-                >
-                  {t("priceHistoryNote", locale)}
-                </p>
-              </div>
-
-              <div className="priceHistoryInfo">
-                <h4>{t("royaltyHistoryTitle", locale)}</h4>
-                <table className="priceHistoryTable">
-                  <thead>
-                    <tr>
-                      <th>{t("periodCol", locale)}</th>
-                      <th>{t("ratePerStreamCol", locale)}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ROYALTY_HISTORY[locale].map((period, i) => {
-                      const nextPeriod = ROYALTY_HISTORY[locale][i + 1];
-                      const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
-                      const toStr = nextPeriod
-                        ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
-                        : locale === "en"
-                          ? "now"
-                          : "no";
-                      return (
-                        <tr key={i}>
-                          <td>
-                            {fromStr} → {toStr}
-                          </td>
-                          <td>
-                            {currencyPerStream(period.ratePerStream, locale)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <p
-                  className="subtle"
-                  style={{ marginTop: 6, fontSize: "0.85em" }}
-                >
-                  {t("royaltyHistoryNote", locale)}
-                </p>
-              </div>
-            </div>
-
-            {/* Subscription History Timeline Builder */}
-            <div className="subHistorySection">
-              <h4>{t("subHistoryTitle", locale)}</h4>
-              <p
-                className="subtle"
-                style={{ marginBottom: 10, fontSize: "0.85em" }}
+            {/* File guide */}
+            <div className="fileGuideSection">
+              <button
+                className="collapsibleToggle fileGuideToggle"
+                onClick={() => setFileGuideOpen(!fileGuideOpen)}
+                aria-expanded={fileGuideOpen}
               >
-                {t("subHistoryDesc", locale)}
-              </p>
+                <span
+                  className={`collapsibleChevron ${fileGuideOpen ? "open" : ""}`}
+                >
+                  ▾
+                </span>
+                {t("fileGuideToggle", locale)}
+              </button>
 
-              {/* Quick presets */}
-              <div className="subPresets">
-                <button
-                  className={`btn btnSmall ${subscriptionSegments.length === 0 ? "active" : ""}`}
-                  onClick={() => setSubscriptionSegments([])}
-                >
-                  {t("presetAlwaysPremium", locale)}
-                </button>
-                <button
-                  className="btn btnSmall"
-                  onClick={() =>
-                    setSubscriptionSegments([
-                      { tier: "free", from: [2009, 1], to: null },
-                    ])
-                  }
-                >
-                  {t("presetAlwaysFree", locale)}
-                </button>
-                <button
-                  className="btn btnSmall"
-                  onClick={() =>
-                    setSubscriptionSegments((prev) => [
-                      ...prev,
+              {fileGuideOpen && (
+                <div className="fileGuideContent">
+                  <p className="subtle" style={{ marginBottom: 16 }}>
+                    {t("fileGuideIntro", locale)}
+                  </p>
+
+                  <h4 className="fileGuideGroupTitle">
+                    {t("fileGuideRequired", locale)}
+                  </h4>
+                  <div className="fileGuideGrid">
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        Streaming_History_Audio_*.json
+                        <span className="fileGuideBadge primary">
+                          {locale === "no" ? "Hovudfil" : "Main file"}
+                        </span>
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Fullstendig strøymehistorikk med tidsstempel, artist, album, låttittel, ms lytta, avspelingsgrunn (reason_start/end), shuffle, offline m.m. Filnamn inkluderer årsperiode, t.d. Streaming_History_Audio_2018-2021_1.json."
+                          : "Complete streaming history with timestamp, artist, album, track name, ms played, playback reason (reason_start/end), shuffle, offline, etc. Filenames include year range, e.g. Streaming_History_Audio_2018-2021_1.json."}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "All hovudanalyse — royalty-estimat, artistoversikt, aktiv/assistert lytting, diagram."
+                          : "All main analysis — royalty estimates, artist overview, active/assisted listening, charts."}
+                      </div>
+                    </div>
+
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        Streaming_History_Video_*.json
+                        <span className="fileGuideBadge primary">
+                          {locale === "no" ? "Hovudfil" : "Main file"}
+                        </span>
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Strøymehistorikk for video og podcastar, same format som Audio-filene."
+                          : "Streaming history for video and podcasts, same format as the Audio files."}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Vert analysert saman med Audio-filene for komplett oversikt."
+                          : "Analyzed together with Audio files for a complete overview."}
+                      </div>
+                    </div>
+
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        StreamingHistory_music_*.json
+                        <span className="fileGuideBadge">
+                          {locale === "no" ? "Alternativ" : "Alternative"}
+                        </span>
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Enklare strøymehistorikk (siste året) frå vanleg «Account Data»-eksport. Har sluttid, artistnamn, låtnamn og ms lytta. Manglar album, avspelingsgrunn, URI m.m."
+                          : 'Simpler streaming history (last year) from a regular "Account Data" export. Has end time, artist name, track name, and ms played. Missing album, playback reason, URI, etc.'}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Kan brukast som fallback — gir grunnleggande statistikk og royalty-estimat, men ingen aktiv/assistert-analyse."
+                          : "Can be used as fallback — provides basic stats and royalty estimates, but no active/assisted analysis."}
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 className="fileGuideGroupTitle">
+                    {t("fileGuideOptional", locale)}
+                  </h4>
+                  <div className="fileGuideGrid">
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        Inferences.json
+                        {inferences.length > 0 && (
+                          <span className="fileGuideBadge loaded">
+                            {t("fileGuideLoaded", locale)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Spotify sine reklame-profilar av deg: demografiske segment, innhaldspreferansar, og annonsesegment."
+                          : "Spotify's advertising profiles of you: demographic segments, content preferences, and ad segments."}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Viser ein eigen «Slik ser Spotify deg»-seksjon som avslører korleis du vert profilert for annonsørar."
+                          : 'Shows a dedicated "How Spotify sees you" section revealing how you\'re profiled for advertisers.'}
+                      </div>
+                    </div>
+
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        Marquee.json
+                        {marqueeArtists.length > 0 && (
+                          <span className="fileGuideBadge loaded">
+                            {t("fileGuideLoaded", locale)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Liste over artistar Spotify har kategorisert deg som lyttar av, med segment (t.d. «Previously Active Listeners», «Light listeners»). Brukt i Marquee-marknadsføringsverktøyet."
+                          : 'List of artists Spotify has categorized you as a listener of, with segments (e.g. "Previously Active Listeners", "Light listeners"). Used in the Marquee marketing tool.'}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Viser korleis Spotify segmenterer deg som lyttar — og gjer deg til ei målgruppe for betalt promotering."
+                          : "Shows how Spotify segments you as a listener — turning you into a target audience for paid promotion."}
+                      </div>
+                    </div>
+
+                    <div className="fileGuideItem">
+                      <div className="fileGuideName">
+                        Userdata.json
+                        {userdata && (
+                          <span className="fileGuideBadge loaded">
+                            {t("fileGuideLoaded", locale)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="fileGuideDesc">
+                        <strong>{t("fileGuideContains", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Grunnleggande kontoinformasjon: brukarnamn, land, opprettingsdato."
+                          : "Basic account info: username, country, creation date."}
+                        <br />
+                        <strong>{t("fileGuideUsedFor", locale)}:</strong>{" "}
+                        {locale === "no"
+                          ? "Viser kor lenge du har vore Spotify-brukar."
+                          : "Shows how long you've been a Spotify user."}
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 className="fileGuideGroupTitle">
+                    {t("fileGuideNotUsed", locale)}
+                  </h4>
+                  <div className="fileGuideGrid dimmed">
+                    {[
                       {
-                        tier: "individual",
-                        from: [new Date().getFullYear(), 1],
-                        to: null,
+                        name: "Follow.json",
+                        desc:
+                          locale === "no"
+                            ? "Sosial graf — kven du følgjer og kven som følgjer deg."
+                            : "Social graph — who you follow and who follows you.",
                       },
-                    ])
-                  }
-                >
-                  + {t("addSegment", locale)}
-                </button>
+                      {
+                        name: "Playlist1.json",
+                        desc:
+                          locale === "no"
+                            ? "Spillelistene dine med alle sporar."
+                            : "Your playlists with all tracks.",
+                      },
+                      {
+                        name: "Payments.json",
+                        desc:
+                          locale === "no"
+                            ? "Betalingsinformasjon (vanlegvis tom)."
+                            : "Payment information (usually empty).",
+                      },
+                      {
+                        name: "YourLibrary.json",
+                        desc:
+                          locale === "no"
+                            ? "Lagra sporar, artistar, album og podcastar."
+                            : "Saved tracks, artists, albums, and podcasts.",
+                      },
+                      {
+                        name: "SearchQueries.json",
+                        desc:
+                          locale === "no"
+                            ? "Dei siste søka dine på Spotify."
+                            : "Your recent Spotify searches.",
+                      },
+                      {
+                        name: "Identifiers.json",
+                        desc:
+                          locale === "no"
+                            ? "E-postadressa knytt til kontoen."
+                            : "Email address linked to the account.",
+                      },
+                    ].map((item) => (
+                      <div className="fileGuideItem" key={item.name}>
+                        <div className="fileGuideName">{item.name}</div>
+                        <div className="fileGuideDesc">{item.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {(uploadedFiles.length > 0 ||
+              inferences.length > 0 ||
+              marqueeArtists.length > 0 ||
+              userdata) && (
+              <div className="uploadedFilesList">
+                <div className="filesHeader">
+                  <h3>
+                    {t("uploadedFilesLabel", locale)} ({uploadedFiles.length})
+                  </h3>
+                  <button
+                    className="btnGhost"
+                    onClick={() => {
+                      setUploadedFiles([]);
+                      setRows([]);
+                      setInferences([]);
+                      setMarqueeArtists([]);
+                      setUserdata(null);
+                    }}
+                  >
+                    {t("removeAll", locale)}
+                  </button>
+                </div>
+                <div className="filesList">
+                  {uploadedFiles.map((file) => (
+                    <div key={file.name} className="fileItem">
+                      <div className="fileInfo">
+                        <span className="fileName">{file.name}</span>
+                        <span className="fileStats">
+                          {file.rowCount.toLocaleString()} {t("rows", locale)}
+                        </span>
+                      </div>
+                      <button
+                        className="fileRemove"
+                        onClick={() => {
+                          setUploadedFiles((prev) =>
+                            prev.filter((f) => f.name !== file.name),
+                          );
+                        }}
+                        title={t("removeFile", locale)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {inferences.length > 0 && (
+                    <div className="fileItem extraFile">
+                      <div className="fileInfo">
+                        <span className="fileName">Inferences.json</span>
+                        <span className="fileStats">
+                          {inferences.length}{" "}
+                          {locale === "no" ? "segment" : "segments"}
+                        </span>
+                      </div>
+                      <button
+                        className="fileRemove"
+                        onClick={() => setInferences([])}
+                        title={t("removeFile", locale)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {marqueeArtists.length > 0 && (
+                    <div className="fileItem extraFile">
+                      <div className="fileInfo">
+                        <span className="fileName">Marquee.json</span>
+                        <span className="fileStats">
+                          {marqueeArtists.length}{" "}
+                          {locale === "no" ? "artistar" : "artists"}
+                        </span>
+                      </div>
+                      <button
+                        className="fileRemove"
+                        onClick={() => setMarqueeArtists([])}
+                        title={t("removeFile", locale)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  {userdata && (
+                    <div className="fileItem extraFile">
+                      <div className="fileInfo">
+                        <span className="fileName">Userdata.json</span>
+                        <span className="fileStats">
+                          {userdata.username ?? ""}
+                        </span>
+                      </div>
+                      <button
+                        className="fileRemove"
+                        onClick={() => setUserdata(null)}
+                        title={t("removeFile", locale)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
+            )}
+          </section>
 
-              {/* Segment list */}
-              {subscriptionSegments.length > 0 && (
-                <div className="subSegmentList">
-                  {subscriptionSegments.map((seg, idx) => {
-                    // Validate tier against launch dates
-                    const launchDate =
-                      TIER_LAUNCH_DATES[
-                        seg.tier as keyof typeof TIER_LAUNCH_DATES
-                      ];
-                    const isBeforeLaunch =
-                      launchDate &&
-                      (seg.from[0] < launchDate[0] ||
-                        (seg.from[0] === launchDate[0] &&
-                          seg.from[1] < launchDate[1]));
+          <section className="card settingsCard">
+            <button
+              className="settingsToggle"
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              aria-expanded={settingsOpen}
+            >
+              <span
+                className={`collapsibleChevron ${settingsOpen ? "open" : ""}`}
+              >
+                ▾
+              </span>
+              <span className="settingsToggleTitle">
+                {t("settingsTitle", locale)}
+              </span>
+              <span className="settingsToggleHint">
+                {t("settingsDesc", locale)}
+              </span>
+            </button>
 
-                    return (
-                      <div className="subSegmentRow" key={idx}>
-                        <select
-                          className="subTierSelect"
-                          value={seg.tier}
-                          onChange={(e) => {
-                            const next = [...subscriptionSegments];
-                            next[idx] = {
-                              ...next[idx],
-                              tier: e.target.value as SubscriptionTier,
-                            };
-                            setSubscriptionSegments(next);
-                          }}
-                        >
-                          <option value="individual">
-                            {t("tierIndividual", locale)}
-                          </option>
-                          <option value="free">{t("tierFree", locale)}</option>
-                          <option value="student">
-                            {t("tierStudent", locale)}
-                          </option>
-                          <option value="duo">{t("tierDuo", locale)}</option>
-                          <option value="family">
-                            {t("tierFamily", locale)}
-                          </option>
-                          <option value="unknown">
-                            {t("tierUnknown", locale)}
-                          </option>
-                        </select>
+            {settingsOpen && (
+              <div className="settingsContent">
+                <div className="controlsInline">
+                  <label className="fieldInline">
+                    <span>{t("albumPriceLabel", locale)}</span>
+                    <input
+                      type="number"
+                      step="10"
+                      value={cfg.albumPriceNOK}
+                      onChange={(e) =>
+                        setCfg({
+                          ...cfg,
+                          albumPriceNOK: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
 
-                        <label className="subDateField">
-                          <span>{t("segmentFrom", locale)}</span>
-                          <input
-                            type="month"
-                            value={`${seg.from[0]}-${String(seg.from[1]).padStart(2, "0")}`}
-                            onChange={(e) => {
-                              const [y, m] = e.target.value
-                                .split("-")
-                                .map(Number);
-                              if (y && m) {
+                  <label className="fieldInline">
+                    <span>{t("minMsLabel", locale)}</span>
+                    <input
+                      type="number"
+                      step="1000"
+                      value={cfg.minMsPlayedToCount}
+                      onChange={(e) =>
+                        setCfg({
+                          ...cfg,
+                          minMsPlayedToCount: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+
+                <label className="checkboxField">
+                  <input
+                    type="checkbox"
+                    checked={countOnlyActiveSubscriptionMonths}
+                    onChange={(e) =>
+                      setCountOnlyActiveSubscriptionMonths(e.target.checked)
+                    }
+                  />
+                  <span>
+                    <strong>{t("subscriptionUsageToggleLabel", locale)}</strong>
+                    <small>{t("subscriptionUsageToggleHint", locale)}</small>
+                  </span>
+                </label>
+
+                {/* Price History Tables */}
+                <div className="priceHistorySection">
+                  <div className="priceHistoryInfo">
+                    <h4>{t("priceHistoryTitle", locale)}</h4>
+                    <table className="priceHistoryTable">
+                      <thead>
+                        <tr>
+                          <th>{t("periodCol", locale)}</th>
+                          <th>{t("priceCol", locale)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PRICE_HISTORY[locale].map((period, i) => {
+                          const nextPeriod = PRICE_HISTORY[locale][i + 1];
+                          const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                          const toStr = nextPeriod
+                            ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                            : locale === "en"
+                              ? "now"
+                              : "no";
+                          return (
+                            <tr key={i}>
+                              <td>
+                                {fromStr} → {toStr}
+                              </td>
+                              <td>{currencyPerMonth(period.price, locale)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <p
+                      className="subtle"
+                      style={{ marginTop: 6, fontSize: "0.85em" }}
+                    >
+                      {t("priceHistoryNote", locale)}
+                    </p>
+                  </div>
+
+                  <div className="priceHistoryInfo">
+                    <h4>{t("royaltyHistoryTitle", locale)}</h4>
+                    <table className="priceHistoryTable">
+                      <thead>
+                        <tr>
+                          <th>{t("periodCol", locale)}</th>
+                          <th>{t("ratePerStreamCol", locale)}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ROYALTY_HISTORY[locale].map((period, i) => {
+                          const nextPeriod = ROYALTY_HISTORY[locale][i + 1];
+                          const fromStr = `${period.from[0]}-${String(period.from[1]).padStart(2, "0")}`;
+                          const toStr = nextPeriod
+                            ? `${nextPeriod.from[0]}-${String(nextPeriod.from[1] - 1).padStart(2, "0")}`
+                            : locale === "en"
+                              ? "now"
+                              : "no";
+                          return (
+                            <tr key={i}>
+                              <td>
+                                {fromStr} → {toStr}
+                              </td>
+                              <td>
+                                {currencyPerStream(
+                                  period.ratePerStream,
+                                  locale,
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <p
+                      className="subtle"
+                      style={{ marginTop: 6, fontSize: "0.85em" }}
+                    >
+                      {t("royaltyHistoryNote", locale)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Subscription History Timeline Builder */}
+                <div className="subHistorySection">
+                  <h4>{t("subHistoryTitle", locale)}</h4>
+                  <p
+                    className="subtle"
+                    style={{ marginBottom: 10, fontSize: "0.85em" }}
+                  >
+                    {t("subHistoryDesc", locale)}
+                  </p>
+
+                  {/* Quick presets */}
+                  <div className="subPresets">
+                    <button
+                      className={`btn btnSmall ${subscriptionSegments.length === 0 ? "active" : ""}`}
+                      onClick={() => setSubscriptionSegments([])}
+                    >
+                      {t("presetAlwaysPremium", locale)}
+                    </button>
+                    <button
+                      className="btn btnSmall"
+                      onClick={() =>
+                        setSubscriptionSegments([
+                          { tier: "free", from: [2009, 1], to: null },
+                        ])
+                      }
+                    >
+                      {t("presetAlwaysFree", locale)}
+                    </button>
+                    <button
+                      className="btn btnSmall"
+                      onClick={() =>
+                        setSubscriptionSegments((prev) => [
+                          ...prev,
+                          {
+                            tier: "individual",
+                            from: [new Date().getFullYear(), 1],
+                            to: null,
+                          },
+                        ])
+                      }
+                    >
+                      + {t("addSegment", locale)}
+                    </button>
+                  </div>
+
+                  {/* Segment list */}
+                  {subscriptionSegments.length > 0 && (
+                    <div className="subSegmentList">
+                      {subscriptionSegments.map((seg, idx) => {
+                        // Validate tier against launch dates
+                        const launchDate =
+                          TIER_LAUNCH_DATES[
+                            seg.tier as keyof typeof TIER_LAUNCH_DATES
+                          ];
+                        const isBeforeLaunch =
+                          launchDate &&
+                          (seg.from[0] < launchDate[0] ||
+                            (seg.from[0] === launchDate[0] &&
+                              seg.from[1] < launchDate[1]));
+
+                        return (
+                          <div className="subSegmentRow" key={idx}>
+                            <select
+                              className="subTierSelect"
+                              value={seg.tier}
+                              onChange={(e) => {
                                 const next = [...subscriptionSegments];
                                 next[idx] = {
                                   ...next[idx],
-                                  from: [y, m],
+                                  tier: e.target.value as SubscriptionTier,
                                 };
                                 setSubscriptionSegments(next);
-                              }
-                            }}
-                          />
-                        </label>
+                              }}
+                            >
+                              <option value="individual">
+                                {t("tierIndividual", locale)}
+                              </option>
+                              <option value="free">
+                                {t("tierFree", locale)}
+                              </option>
+                              <option value="student">
+                                {t("tierStudent", locale)}
+                              </option>
+                              <option value="duo">
+                                {t("tierDuo", locale)}
+                              </option>
+                              <option value="family">
+                                {t("tierFamily", locale)}
+                              </option>
+                              <option value="unknown">
+                                {t("tierUnknown", locale)}
+                              </option>
+                            </select>
 
-                        <label className="subDateField">
-                          <span>{t("segmentTo", locale)}</span>
-                          <div className="subToField">
-                            <input
-                              type="month"
-                              value={
-                                seg.to
-                                  ? `${seg.to[0]}-${String(seg.to[1]).padStart(2, "0")}`
-                                  : ""
-                              }
-                              onChange={(e) => {
-                                const next = [...subscriptionSegments];
-                                if (!e.target.value) {
-                                  next[idx] = { ...next[idx], to: null };
-                                } else {
+                            <label className="subDateField">
+                              <span>{t("segmentFrom", locale)}</span>
+                              <input
+                                type="month"
+                                value={`${seg.from[0]}-${String(seg.from[1]).padStart(2, "0")}`}
+                                onChange={(e) => {
                                   const [y, m] = e.target.value
                                     .split("-")
                                     .map(Number);
                                   if (y && m) {
+                                    const next = [...subscriptionSegments];
                                     next[idx] = {
                                       ...next[idx],
-                                      to: [y, m],
+                                      from: [y, m],
                                     };
+                                    setSubscriptionSegments(next);
                                   }
-                                }
-                                setSubscriptionSegments(next);
-                              }}
-                              placeholder={t("segmentOngoing", locale)}
-                            />
-                            {seg.to && (
-                              <button
-                                className="btnGhost btnTiny"
-                                onClick={() => {
-                                  const next = [...subscriptionSegments];
-                                  next[idx] = { ...next[idx], to: null };
-                                  setSubscriptionSegments(next);
                                 }}
-                                title={t("segmentOngoing", locale)}
-                              >
-                                ∞
-                              </button>
+                              />
+                            </label>
+
+                            <label className="subDateField">
+                              <span>{t("segmentTo", locale)}</span>
+                              <div className="subToField">
+                                <input
+                                  type="month"
+                                  value={
+                                    seg.to
+                                      ? `${seg.to[0]}-${String(seg.to[1]).padStart(2, "0")}`
+                                      : ""
+                                  }
+                                  onChange={(e) => {
+                                    const next = [...subscriptionSegments];
+                                    if (!e.target.value) {
+                                      next[idx] = { ...next[idx], to: null };
+                                    } else {
+                                      const [y, m] = e.target.value
+                                        .split("-")
+                                        .map(Number);
+                                      if (y && m) {
+                                        next[idx] = {
+                                          ...next[idx],
+                                          to: [y, m],
+                                        };
+                                      }
+                                    }
+                                    setSubscriptionSegments(next);
+                                  }}
+                                  placeholder={t("segmentOngoing", locale)}
+                                />
+                                {seg.to && (
+                                  <button
+                                    className="btnGhost btnTiny"
+                                    onClick={() => {
+                                      const next = [...subscriptionSegments];
+                                      next[idx] = { ...next[idx], to: null };
+                                      setSubscriptionSegments(next);
+                                    }}
+                                    title={t("segmentOngoing", locale)}
+                                  >
+                                    ∞
+                                  </button>
+                                )}
+                              </div>
+                            </label>
+
+                            <button
+                              className="btnGhost btnSmall"
+                              onClick={() => {
+                                setSubscriptionSegments((prev) =>
+                                  prev.filter((_, i) => i !== idx),
+                                );
+                              }}
+                            >
+                              {t("removeSegment", locale)}
+                            </button>
+
+                            {isBeforeLaunch && (
+                              <div className="subTierWarning">
+                                {t("tierNotAvailable", locale).replace(
+                                  "{date}",
+                                  `${launchDate[0]}-${String(launchDate[1]).padStart(2, "0")}`,
+                                )}
+                              </div>
                             )}
                           </div>
-                        </label>
-
-                        <button
-                          className="btnGhost btnSmall"
-                          onClick={() => {
-                            setSubscriptionSegments((prev) =>
-                              prev.filter((_, i) => i !== idx),
-                            );
-                          }}
-                        >
-                          {t("removeSegment", locale)}
-                        </button>
-
-                        {isBeforeLaunch && (
-                          <div className="subTierWarning">
-                            {t("tierNotAvailable", locale).replace(
-                              "{date}",
-                              `${launchDate[0]}-${String(launchDate[1]).padStart(2, "0")}`,
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
-      {rows.length > 0 && availableYears.length > 0 && (
-        <section className="card">
-          <div className="cardHeader">
-            <h2>{t("dateFilterTitle", locale)}</h2>
-            <div className="subtle">{t("dateFilterDesc", locale)}</div>
-          </div>
-
-          <div className="dateFilterControls">
-            <div className="dateFilterTabs">
-              <button
-                className={`dateTab ${dateFilterMode === "all" ? "active" : ""}`}
-                onClick={() => {
-                  setDateFilterMode("all");
-                  setCurrentPage(1);
-                }}
-              >
-                {t("allTime", locale)}
-              </button>
-              {availableYears.map((year) => (
-                <button
-                  key={year}
-                  className={`dateTab ${dateFilterMode === "year" && dateFilterYear === year ? "active" : ""}`}
-                  onClick={() => {
-                    setDateFilterMode("year");
-                    setDateFilterYear(year);
-                    setCurrentPage(1);
-                  }}
-                >
-                  {year}
-                </button>
-              ))}
-              <button
-                className={`dateTab ${dateFilterMode === "custom" ? "active" : ""}`}
-                onClick={() => {
-                  setDateFilterMode("custom");
-                  setCurrentPage(1);
-                }}
-              >
-                {t("custom", locale)}
-              </button>
-            </div>
-
-            {dateFilterMode === "custom" && (
-              <div className="dateCustomRange">
-                <label className="dateField">
-                  <span>{t("fromLabel", locale)}</span>
-                  <input
-                    type="date"
-                    value={dateFilterStart}
-                    onChange={(e) => {
-                      setDateFilterStart(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </label>
-                <span className="dateSep">–</span>
-                <label className="dateField">
-                  <span>{t("toLabel", locale)}</span>
-                  <input
-                    type="date"
-                    value={dateFilterEnd}
-                    onChange={(e) => {
-                      setDateFilterEnd(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                  />
-                </label>
-              </div>
-            )}
-
-            {activeDateRange && (
-              <div className="dateFilterInfo">
-                {t("showingDataFor", locale)} <b>{activeDateRange.label}</b>
-                {" · "}
-                {dateFilteredRows.length.toLocaleString()} {t("rows", locale)}
-                {rows.length !== dateFilteredRows.length && (
-                  <span className="subtle">
-                    {" "}
-                    ({t("ofTotal", locale)} {rows.length.toLocaleString()}{" "}
-                    {t("totalSuffix", locale)})
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {result && (
-        <>
-          <section className="card">
-            <div className="cardHeader">
-              <h2>
-                {t("listeningPatternsTitle", locale)}
-                {activeDateRange ? ` (${activeDateRange.label})` : ""}
-              </h2>
-              <p className="subtle">{t("listeningPatternsDesc", locale)}</p>
-            </div>
-
-            {/* Listening Charts */}
-            <ListeningCharts
-              rows={dateFilteredRows}
-              result={result}
-              locale={locale}
-              minMsPlayed={cfg.minMsPlayedToCount}
-              availableYears={availableYears}
-              dateFilterMode={dateFilterMode}
-              dateFilterYear={dateFilterYear}
-              onDateFilterChange={(mode, year) => {
-                setDateFilterMode(mode);
-                if (mode === "year" && year) {
-                  setDateFilterYear(year);
-                } else if (mode === "all") {
-                  setDateFilterYear(null);
-                }
-              }}
-            />
-
-            {/* Stats Summary (below charts) */}
-            <div className="chartSummarySection">
-              {/* Key metrics row */}
-              <div className="keyMetricsRow">
-                <div className="keyMetric">
-                  <span className="keyMetricValue">
-                    {formatHrs(result.totalMsPlayed, locale)}
-                  </span>
-                  <span className="keyMetricLabel">
-                    {t("totalListeningTime", locale)}
-                  </span>
-                </div>
-                <div className="keyMetricSep">·</div>
-                <div className="keyMetric">
-                  <span className="keyMetricValue">
-                    {formatNum(result.countedRows, locale)}
-                  </span>
-                  <span className="keyMetricLabel">
-                    {t("totalStreams", locale)}
-                  </span>
-                </div>
-                <div className="keyMetricSep">·</div>
-                <div className="keyMetric">
-                  <span className="keyMetricValue">
-                    {result.artists.length.toLocaleString()}
-                  </span>
-                  <span className="keyMetricLabel">
-                    {t("uniqueArtists", locale)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Economic comparison box */}
-              {subscriptionEstimate && (
-                <div className="economicComparisonBox">
-                  <div className="economicRow">
-                    <div className="economicItem">
-                      <span className="economicLabel">
-                        {t("estSubCost", locale)}
-                      </span>
-                      <span className="economicValue">
-                        {formatCurrency(
-                          subscriptionEstimate.activeCost,
-                          locale,
-                        )}
-                      </span>
-                      <span className="economicHint">
-                        {subscriptionEstimate.activeMonths}{" "}
-                        {t("monthsAbbr", locale)}
-                      </span>
+                        );
+                      })}
                     </div>
-                    <div className="economicVs">vs</div>
-                    <div className="economicItem">
-                      <span className="economicLabel">
-                        {t("totalTheoValue", locale)}
-                      </span>
-                      <span className="economicValue green">
-                        {formatCurrency(totalAllArtistsValue, locale)}
-                      </span>
-                      <span className="economicHint">
-                        {locale === "en"
-                          ? "associated with your artists"
-                          : "knytt til dine artistar"}
-                      </span>
-                    </div>
-                    <div className="economicEquals">=</div>
-                    <div className="economicItem economicDifference">
-                      <span className="economicLabel">
-                        {t("difference", locale)}
-                      </span>
-                      <span
-                        className="economicValue"
-                        style={{
-                          color:
-                            subscriptionEstimate.activeCost -
-                              totalAllArtistsValue >
-                            0
-                              ? "rgb(239, 68, 68)"
-                              : "rgb(30, 215, 96)",
-                        }}
-                      >
-                        {formatCurrency(
-                          subscriptionEstimate.activeCost -
-                            totalAllArtistsValue,
-                          locale,
-                        )}
-                      </span>
-                      <span className="economicHint">
-                        {locale === "en"
-                          ? "distributed through the pool"
-                          : "fordelt gjennom potten"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="economicPeriod">
-                    {t("periodCol", locale)}:{" "}
-                    <b>
-                      {subscriptionEstimate.firstDate.toLocaleDateString(
-                        dateLocale(locale),
-                        { year: "numeric", month: "short" },
-                      )}
-                      {" – "}
-                      {subscriptionEstimate.lastDate.toLocaleDateString(
-                        dateLocale(locale),
-                        { year: "numeric", month: "short" },
-                      )}
-                    </b>
-                  </div>
-                </div>
-              )}
-
-              {/* Tier impact insight */}
-              {result && subscriptionSegments.length > 0 && (
-                <div className="tierImpactBox">
-                  <h4 className="tierImpactTitle">
-                    {t("tierImpactTitle", locale)}
-                  </h4>
-                  {result.freeMonths > 0 ? (
-                    <>
-                      <p className="tierImpactText">
-                        {t("tierImpactFree", locale).replace(
-                          "{months}",
-                          String(result.freeMonths),
-                        )}
-                      </p>
-                      <p className="tierImpactDelta">
-                        {t("tierImpactFreeDelta", locale).replace(
-                          "{amount}",
-                          formatCurrency(result.tierImpactDelta, locale),
-                        )}
-                      </p>
-                      <p
-                        className="tierImpactMethodology"
-                        dangerouslySetInnerHTML={{
-                          __html: t("tierMethodologyNote", locale),
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <p className="tierImpactAllPaid">
-                      {t("tierImpactAllPaid", locale)}
-                    </p>
                   )}
-                  {subscriptionEstimate?.tierBreakdown?.student &&
-                    subscriptionEstimate.tierBreakdown.student.months > 0 && (
-                      <p className="tierImpactNote">
-                        {t("tierStudentNote", locale)}
-                      </p>
-                    )}
                 </div>
-              )}
-
-              {/* Collapsible methodology info */}
-              <div className="methodologyToggle">
-                <button
-                  className="collapsibleToggle"
-                  onClick={() => setMethodologyInfoOpen(!methodologyInfoOpen)}
-                  aria-expanded={methodologyInfoOpen}
-                >
-                  <span
-                    className={`collapsibleChevron ${
-                      methodologyInfoOpen ? "open" : ""
-                    }`}
-                  >
-                    ▾
-                  </span>
-                  {locale === "en"
-                    ? "About these estimates"
-                    : "Om desse estimata"}
-                </button>
-                {methodologyInfoOpen && (
-                  <div className="methodologyContent">
-                    <p
-                      className="subtle"
-                      dangerouslySetInnerHTML={{
-                        __html: t("proRataNote", locale),
-                      }}
-                    />
-                    <p
-                      className="subtle"
-                      style={{ marginTop: 10 }}
-                      dangerouslySetInnerHTML={{
-                        __html: t("subPricingNote", locale),
-                      }}
-                    />
-                    {subscriptionSegments.length > 0 && (
-                      <p
-                        className="subtle"
-                        style={{ marginTop: 10 }}
-                        dangerouslySetInnerHTML={{
-                          __html: t("tierMethodologyNote", locale),
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
               </div>
-            </div>
+            )}
           </section>
 
-          <section className="card">
-            <div className="cardHeader stickyHeader">
-              <div>
-                <h2>
-                  {t("yourArtistsTitle", locale)} ({filteredArtists.length}) –{" "}
-                  {allAlbumKeys.length} {t("uniqueAlbumsLabel", locale)}
-                </h2>
-                {subscriptionEstimate && (
-                  <p className="stickySubtitle">
-                    {locale === "en" ? (
-                      <>
-                        For what you paid for Spotify Premium (
-                        {formatCurrency(
-                          subscriptionEstimate.activeCost,
-                          locale,
-                        )}
-                        ) you could have bought approx.{" "}
-                        <strong>{albumBudget} albums</strong> at{" "}
-                        {formatCurrency(cfg.albumPriceNOK, locale)} each.
-                      </>
-                    ) : (
-                      <>
-                        For det du har betalt i Spotify Premium (
-                        {formatCurrency(
-                          subscriptionEstimate.activeCost,
-                          locale,
-                        )}
-                        ) kunne du ha kjøpt ca.{" "}
-                        <strong>{albumBudget} album</strong> à{" "}
-                        {formatCurrency(cfg.albumPriceNOK, locale)} direkte.
-                      </>
-                    )}
-                  </p>
-                )}
+          {rows.length > 0 && availableYears.length > 0 && (
+            <section className="card">
+              <div className="cardHeader">
+                <h2>{t("dateFilterTitle", locale)}</h2>
+                <div className="subtle">{t("dateFilterDesc", locale)}</div>
               </div>
 
-              <div className="headerActions">
-                <button
-                  className="btn"
-                  onClick={() => {
-                    const next = { ...plannedAlbums };
-                    for (const key of shownAlbumKeys) {
-                      const [artist, album] = key.split("|||");
-                      next[key] = { artist, album };
-                    }
-                    setPlannedAlbums(next);
-                  }}
-                >
-                  {t("addAllToPlan", locale)}
-                </button>
-
-                {plannedCount > 0 && (
+              <div className="dateFilterControls">
+                <div className="dateFilterTabs">
                   <button
-                    className="btnGhost"
-                    onClick={() => setPlannedAlbums({})}
+                    className={`dateTab ${dateFilterMode === "all" ? "active" : ""}`}
+                    onClick={() => {
+                      setDateFilterMode("all");
+                      setCurrentPage(1);
+                    }}
                   >
-                    {t("clear", locale)}
+                    {t("allTime", locale)}
                   </button>
-                )}
-              </div>
-
-              {/* Dropdown for planlagde album */}
-              {plannedCount > 0 && (
-                <div className="plannedDropdown">
-                  <button
-                    className="plannedDropdownToggle"
-                    onClick={() => setPlannedAlbumsOpen((o) => !o)}
-                  >
-                    <span className="plannedDropdownSummary">
-                      <span className="plannedBadge">{plannedCount}</span>
-                      {t("albumsAddedMiddot", locale)} &middot;{" "}
-                      {formatCurrency(plannedCost, locale)}
-                    </span>
-                    <span
-                      className={`plannedChevron ${plannedAlbumsOpen ? "open" : ""}`}
+                  {availableYears.map((year) => (
+                    <button
+                      key={year}
+                      className={`dateTab ${dateFilterMode === "year" && dateFilterYear === year ? "active" : ""}`}
+                      onClick={() => {
+                        setDateFilterMode("year");
+                        setDateFilterYear(year);
+                        setCurrentPage(1);
+                      }}
                     >
-                      ▾
-                    </span>
+                      {year}
+                    </button>
+                  ))}
+                  <button
+                    className={`dateTab ${dateFilterMode === "custom" ? "active" : ""}`}
+                    onClick={() => {
+                      setDateFilterMode("custom");
+                      setCurrentPage(1);
+                    }}
+                  >
+                    {t("custom", locale)}
                   </button>
+                </div>
 
-                  {subscriptionEstimate && (
-                    <div className="albumBudgetBar">
-                      <div className="albumBudgetProgress">
-                        <div
-                          className="albumBudgetFill"
-                          style={{
-                            width: `${Math.min(100, albumBudget > 0 ? (plannedCount / albumBudget) * 100 : 0)}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="albumBudgetText">
-                        {albumsRemaining > 0 ? (
-                          <>
-                            <span className="albumBudgetRemaining">
-                              {albumsRemaining} {t("albumsLeft", locale)}
-                            </span>{" "}
-                            — {albumBudget} {t("couldHaveOwned", locale)} (
-                            {formatCurrency(
-                              subscriptionEstimate.activeCost,
-                              locale,
-                            )}
-                            )
-                          </>
-                        ) : (
-                          <span className="green">
-                            ✓ {plannedCount - albumBudget}{" "}
-                            {t("moreThanBudget", locale)} ({albumBudget}{" "}
-                            {locale === "en" ? "albums" : "album"} ≈{" "}
-                            {formatCurrency(
-                              subscriptionEstimate.activeCost,
-                              locale,
-                            )}
-                            )
-                          </span>
-                        )}
-                      </div>
+                {dateFilterMode === "custom" && (
+                  <div className="dateCustomRange">
+                    <label className="dateField">
+                      <span>{t("fromLabel", locale)}</span>
+                      <input
+                        type="date"
+                        value={dateFilterStart}
+                        onChange={(e) => {
+                          setDateFilterStart(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </label>
+                    <span className="dateSep">–</span>
+                    <label className="dateField">
+                      <span>{t("toLabel", locale)}</span>
+                      <input
+                        type="date"
+                        value={dateFilterEnd}
+                        onChange={(e) => {
+                          setDateFilterEnd(e.target.value);
+                          setCurrentPage(1);
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+
+                {activeDateRange && (
+                  <div className="dateFilterInfo">
+                    {t("showingDataFor", locale)} <b>{activeDateRange.label}</b>
+                    {" · "}
+                    {dateFilteredRows.length.toLocaleString()}{" "}
+                    {t("rows", locale)}
+                    {rows.length !== dateFilteredRows.length && (
+                      <span className="subtle">
+                        {" "}
+                        ({t(
+                          "ofTotal",
+                          locale,
+                        )} {rows.length.toLocaleString()}{" "}
+                        {t("totalSuffix", locale)})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {result && (
+            <>
+              <section className="card">
+                <div className="cardHeader">
+                  <h2>
+                    {t("listeningPatternsTitle", locale)}
+                    {activeDateRange ? ` (${activeDateRange.label})` : ""}
+                  </h2>
+                  <p className="subtle">{t("listeningPatternsDesc", locale)}</p>
+                </div>
+
+                {/* Listening Charts */}
+                <ListeningCharts
+                  rows={dateFilteredRows}
+                  result={result}
+                  locale={locale}
+                  minMsPlayed={cfg.minMsPlayedToCount}
+                  availableYears={availableYears}
+                  dateFilterMode={dateFilterMode}
+                  dateFilterYear={dateFilterYear}
+                  onDateFilterChange={(mode, year) => {
+                    setDateFilterMode(mode);
+                    if (mode === "year" && year) {
+                      setDateFilterYear(year);
+                    } else if (mode === "all") {
+                      setDateFilterYear(null);
+                    }
+                  }}
+                />
+
+                {/* Stats Summary (below charts) */}
+                <div className="chartSummarySection">
+                  {/* Key metrics row */}
+                  <div className="keyMetricsRow">
+                    <div className="keyMetric">
+                      <span className="keyMetricValue">
+                        {formatHrs(result.totalMsPlayed, locale)}
+                      </span>
+                      <span className="keyMetricLabel">
+                        {t("totalListeningTime", locale)}
+                      </span>
                     </div>
-                  )}
+                    <div className="keyMetricSep">·</div>
+                    <div className="keyMetric">
+                      <span className="keyMetricValue">
+                        {formatNum(result.countedRows, locale)}
+                      </span>
+                      <span className="keyMetricLabel">
+                        {t("totalStreams", locale)}
+                      </span>
+                    </div>
+                    <div className="keyMetricSep">·</div>
+                    <div className="keyMetric">
+                      <span className="keyMetricValue">
+                        {result.artists.length.toLocaleString()}
+                      </span>
+                      <span className="keyMetricLabel">
+                        {t("uniqueArtists", locale)}
+                      </span>
+                    </div>
+                  </div>
 
-                  {plannedAlbumsOpen && (
-                    <div className="plannedDropdownList">
-                      {Object.entries(plannedAlbums).map(([key, val]) => (
-                        <div className="plannedDropdownItem" key={key}>
-                          <div className="plannedDropdownInfo">
-                            <span className="plannedAlbumName">
-                              {val.album}
-                            </span>
-                            <span className="plannedArtistName">
-                              {val.artist}
-                            </span>
-                          </div>
-                          <button
-                            className="plannedRemoveBtn"
-                            title={t("removeBtn", locale)}
-                            onClick={() => {
-                              setPlannedAlbums((prev) => {
-                                const next = { ...prev };
-                                delete next[key];
-                                return next;
-                              });
+                  {/* Economic comparison box */}
+                  {subscriptionEstimate && (
+                    <div className="economicComparisonBox">
+                      <div className="economicRow">
+                        <div className="economicItem">
+                          <span className="economicLabel">
+                            {countOnlyActiveSubscriptionMonths
+                              ? t("subActiveOnly", locale)
+                              : t("estSubFull", locale)}
+                          </span>
+                          <span className="economicValue">
+                            {formatCurrency(effectiveSubscriptionCost, locale)}
+                          </span>
+                          <span className="economicHint">
+                            {effectiveSubscriptionMonths}{" "}
+                            {t("monthsAbbr", locale)} ·{" "}
+                            {formatCurrency(
+                              effectiveSubscriptionAvgPrice,
+                              locale,
+                            )}{" "}
+                            {t("weightedAvg", locale)}
+                          </span>
+                        </div>
+                        <div className="economicVs">vs</div>
+                        <div className="economicItem">
+                          <span className="economicLabel">
+                            {t("totalTheoValue", locale)}
+                          </span>
+                          <span className="economicValue green">
+                            {formatCurrency(totalAllArtistsValue, locale)}
+                          </span>
+                          <span className="economicHint">
+                            {locale === "en"
+                              ? "associated with your artists"
+                              : "knytt til dine artistar"}
+                          </span>
+                        </div>
+                        <div className="economicEquals">=</div>
+                        <div className="economicItem economicDifference">
+                          <span className="economicLabel">
+                            {t("difference", locale)}
+                          </span>
+                          <span
+                            className="economicValue"
+                            style={{
+                              color:
+                                effectiveSubscriptionCost -
+                                  totalAllArtistsValue >
+                                0
+                                  ? "rgb(239, 68, 68)"
+                                  : "rgb(30, 215, 96)",
                             }}
                           >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                      <div className="plannedDropdownTotal">
-                        <span>
-                          {locale === "en"
-                            ? `Total ${plannedCount} albums`
-                            : `Totalt ${plannedCount} album`}
-                        </span>
-                        <span className="green">
-                          {formatCurrency(plannedCost, locale)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Top-N veljar */}
-            <div className="topNSelector">
-              <span className="topNLabel">{t("showStatsFor", locale)}</span>
-              <div className="topNTabs">
-                {([5, 10, 20, 30, 50, "all"] as const).map((n) => {
-                  const isAll = n === "all";
-                  const label = isAll
-                    ? `${t("allLabel", locale)} (${filteredArtists.length})`
-                    : `${t("topPrefix", locale)} ${n}`;
-                  const disabled = !isAll && n > filteredArtists.length;
-                  return (
-                    <button
-                      key={String(n)}
-                      className={`dateTab ${summaryTopN === n ? "active" : ""}`}
-                      onClick={() => setSummaryTopN(n)}
-                      disabled={disabled}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Samandrag */}
-            <div className="sectionSummary">
-              <div className="summaryItem">
-                <span className="summaryLabel">
-                  {t("totalListeningTime", locale)},{" "}
-                  {summaryTopN === "all"
-                    ? `${t("allLabel", locale).toLowerCase()} ${topNArtists.length}`
-                    : `${t("topPrefix", locale).toLowerCase()} ${topNArtists.length}`}{" "}
-                  {t("yourArtists", locale)}
-                </span>
-                <span className="summaryValue">
-                  {formatHrs(topNMs, locale)}
-                </span>
-              </div>
-              <div className="summarySep" />
-              <div className="summaryItem">
-                <span className="summaryLabel">
-                  {t("theorSpotifyValue", locale)}
-                </span>
-                <span className="summaryValue">
-                  {formatCurrency(topNValue, locale)}
-                </span>
-              </div>
-              <div className="summarySep" />
-              <div className="summaryItem">
-                <span className="summaryLabel">{t("albumsLabel", locale)}</span>
-                <span className="summaryValue">{topNAlbumKeys.length}</span>
-              </div>
-              <div className="summarySep" />
-              <div className="summaryItem">
-                <span className="summaryLabel">{t("buyPhysical", locale)}</span>
-                <span className="summaryValue green">
-                  {formatCurrency(topNCost, locale)}
-                </span>
-              </div>
-            </div>
-
-            {/* Søk og paginering */}
-            <div className="paginationControls" ref={paginationRef}>
-              <div className="searchBox">
-                <input
-                  type="text"
-                  placeholder={t("searchArtist", locale)}
-                  value={artistSearchQuery}
-                  onChange={(e) => {
-                    setArtistSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="searchInput"
-                />
-                {artistSearchQuery && (
-                  <button
-                    className="clearSearch"
-                    onClick={() => {
-                      setArtistSearchQuery("");
-                      setCurrentPage(1);
-                    }}
-                    title={t("clearSearch", locale)}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              <div className="paginationInfo">
-                {t("showing", locale)} {startIndex + 1}–
-                {Math.min(endIndex, searchedArtists.length)}{" "}
-                {t("ofWord", locale)} {searchedArtists.length}
-              </div>
-
-              <div className="paginationNav">
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage(1);
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === 1}
-                >
-                  ««
-                </button>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage((p) => Math.max(1, p - 1));
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === 1}
-                >
-                  ‹
-                </button>
-                <span className="pageNumbers">
-                  {t("pageLabel", locale)} {currentPage} {t("ofWord", locale)}{" "}
-                  {totalPages}
-                </span>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage((p) => Math.min(totalPages, p + 1));
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === totalPages}
-                >
-                  ›
-                </button>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage(totalPages);
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === totalPages}
-                >
-                  »»
-                </button>
-              </div>
-
-              <div className="perPageSelect">
-                <label>
-                  {t("perPage", locale)}
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                      scrollToPagination();
-                    }}
-                  >
-                    <option value={30}>30</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                    <option value={250}>250</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            {/* Grid-liste i staden for tabell -> stabil layout */}
-            <div className="artistList">
-              {shownArtists.map((a) => {
-                // Finn faktisk posisjon i filteredArtists
-                const actualRank =
-                  filteredArtists.findIndex(
-                    (artist) => artist.artist === a.artist,
-                  ) + 1;
-
-                return (
-                  <div className="artistRow" key={a.artist}>
-                    <div className="artistMain">
-                      <div
-                        className="artistName"
-                        onClick={() => setSelectedArtist(a.artist)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        #{actualRank} {a.artist}
-                      </div>
-                      <div className="artistMeta">
-                        <span className="metaItem">
-                          <span className="metaLabel">
-                            {t("listeningTime", locale)}
-                          </span>{" "}
-                          <b>{formatHrs(a.msPlayed, locale)}</b>
-                        </span>
-                        <span className="dot">•</span>
-                        <span className="metaItem">
-                          <span className="metaLabel">
-                            {t("streamsLabel", locale)}
-                          </span>{" "}
-                          <b>{formatNum(a.estStreams, locale)}</b>
-                        </span>
-                        <span className="dot">•</span>
-                        <span className="metaItem">
-                          <span className="metaLabel">
-                            {t("theorValue", locale)}
-                          </span>{" "}
-                          <b>{formatCurrency(a.estValueNOK, locale)}</b>
-                        </span>
-                        <span className="dot">•</span>
-                        <span className="metaItem">
-                          <span className="metaLabel">
-                            {t("albumEquiv", locale)}
-                          </span>{" "}
-                          <b>{a.albumEquivalent.toFixed(2)}</b>
-                        </span>
-                      </div>
-                      {a.loyaltyScore > 0 && (
-                        <div
-                          className="loyaltyBadge"
-                          title={
-                            a.firstListen
-                              ? `${t("loyaltySince", locale)} ${a.firstListen} · ${a.distinctMonths} ${t("loyaltyMonths", locale)}`
-                              : ""
-                          }
-                        >
-                          <span className="loyaltyBar">
-                            <span
-                              className="loyaltyFill"
-                              style={{ width: `${a.loyaltyScore}%` }}
-                            />
+                            {formatCurrency(
+                              effectiveSubscriptionCost - totalAllArtistsValue,
+                              locale,
+                            )}
                           </span>
-                          <span className="loyaltyText">
-                            {t("loyaltyLabel", locale)} {a.loyaltyScore}%
-                            {a.firstListen && (
-                              <span className="loyaltySince">
-                                {" · "}
-                                {t("loyaltySince", locale)}{" "}
-                                {a.firstListen.slice(0, 7)}
+                          <span className="economicHint">
+                            {locale === "en"
+                              ? "distributed through the pool"
+                              : "fordelt gjennom potten"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="economicPeriod">
+                        {t("periodCol", locale)}:{" "}
+                        <b>
+                          {subscriptionEstimate.firstDate.toLocaleDateString(
+                            dateLocale(locale),
+                            { year: "numeric", month: "short" },
+                          )}
+                          {" – "}
+                          {subscriptionEstimate.lastDate.toLocaleDateString(
+                            dateLocale(locale),
+                            { year: "numeric", month: "short" },
+                          )}
+                        </b>
+                      </div>
+
+                      <div className="subscriptionInsightsGrid">
+                        <div className="subscriptionInsightCard">
+                          <span className="economicLabel">
+                            {t("paidDurationLabel", locale)}
+                          </span>
+                          <span className="subscriptionInsightValue">
+                            {subscribedDurationLabel}
+                          </span>
+                          <span className="economicHint">
+                            {t("paidDurationHint", locale).replace(
+                              "{months}",
+                              String(subscriptionEstimate.subscribedMonths),
+                            )}
+                          </span>
+                          {subscriptionEstimate.paidRanges.length > 0 ? (
+                            <div className="subscriptionInsightRangeList">
+                              {subscriptionEstimate.paidRanges.map((range) => {
+                                const rangeLabel = formatMonthRange(
+                                  range,
+                                  locale,
+                                );
+                                return (
+                                  <span
+                                    key={`paid-${range.from.join("-")}-${range.to.join("-")}`}
+                                    className="subscriptionInsightRangeTag"
+                                  >
+                                    {rangeLabel}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="subscriptionInsightRanges">
+                              {locale === "en" ? "None" : "Ingen"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="subscriptionInsightCard">
+                          <span className="economicLabel">
+                            {t("noSubscriptionLabel", locale)}
+                          </span>
+                          {subscriptionSegments.length === 0 ? (
+                            <>
+                              <span
+                                className="subscriptionInsightValue"
+                                style={{ opacity: 0.35 }}
+                              >
+                                —
                               </span>
+                              <span className="economicHint">
+                                {t("noSubscriptionNeedsHistory", locale)}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="subscriptionInsightValue">
+                                {subscriptionEstimate.noSubscriptionMonths}{" "}
+                                {t("monthsAbbr", locale)}
+                              </span>
+                              <span className="economicHint">
+                                {t("noSubscriptionHint", locale).replace(
+                                  "{months}",
+                                  String(
+                                    subscriptionEstimate.noSubscriptionMonths,
+                                  ),
+                                )}
+                              </span>
+                              {subscriptionEstimate.noSubscriptionRanges
+                                .length > 0 ? (
+                                <div className="subscriptionInsightRangeList">
+                                  {subscriptionEstimate.noSubscriptionRanges.map(
+                                    (range) => {
+                                      const rangeLabel = formatMonthRange(
+                                        range,
+                                        locale,
+                                      );
+                                      return (
+                                        <span
+                                          key={`none-${range.from.join("-")}-${range.to.join("-")}`}
+                                          className="subscriptionInsightRangeTag"
+                                        >
+                                          {rangeLabel}
+                                        </span>
+                                      );
+                                    },
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="subscriptionInsightRanges">
+                                  {locale === "en" ? "None" : "Ingen"}
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        <div className="subscriptionInsightCard">
+                          <span className="economicLabel">
+                            {t("unusedSubscriptionLabel", locale)}
+                          </span>
+                          <span className="subscriptionInsightValue warning">
+                            {formatCurrency(
+                              subscriptionEstimate.inactivePaidCost,
+                              locale,
+                            )}
+                          </span>
+                          <span className="economicHint">
+                            {t("unusedSubscriptionHint", locale).replace(
+                              "{months}",
+                              String(subscriptionEstimate.inactivePaidMonths),
+                            )}
+                          </span>
+                          {subscriptionSegments.length === 0 && (
+                            <span
+                              className="economicHint"
+                              style={{ fontStyle: "italic", opacity: 0.7 }}
+                            >
+                              {t("unusedSubscriptionDefaultNote", locale)}
+                            </span>
+                          )}
+                          {subscriptionEstimate.inactivePaidRanges.length >
+                          0 ? (
+                            <div className="subscriptionInsightRangeList">
+                              {subscriptionEstimate.inactivePaidRanges.map(
+                                (range) => {
+                                  const rangeLabel = formatMonthRange(
+                                    range,
+                                    locale,
+                                  );
+                                  return (
+                                    <span
+                                      key={`inactive-${range.from.join("-")}-${range.to.join("-")}`}
+                                      className="subscriptionInsightRangeTag"
+                                    >
+                                      {rangeLabel}
+                                    </span>
+                                  );
+                                },
+                              )}
+                            </div>
+                          ) : (
+                            <span className="subscriptionInsightRanges">
+                              {locale === "en" ? "None" : "Ingen"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="subscriptionInsightCard">
+                          <span className="economicLabel">
+                            {t("unusedDailyLabel", locale)}
+                          </span>
+                          <span className="subscriptionInsightValue warning">
+                            {formatCurrency(
+                              subscriptionEstimate.inactivePaidDayCost,
+                              locale,
+                            )}
+                          </span>
+                          <span className="economicHint">
+                            {t("unusedDailyHint", locale).replace(
+                              "{days}",
+                              String(subscriptionEstimate.inactivePaidDays),
                             )}
                           </span>
                         </div>
-                      )}
+                      </div>
                     </div>
+                  )}
 
-                    <div
-                      className="albumWrap"
-                      aria-label={t("albumsLabel", locale)}
+                  {/* Tier impact insight */}
+                  {result && subscriptionSegments.length > 0 && (
+                    <div className="tierImpactBox">
+                      <h4 className="tierImpactTitle">
+                        {t("tierImpactTitle", locale)}
+                      </h4>
+                      {result.freeMonths > 0 ? (
+                        <>
+                          <p className="tierImpactText">
+                            {t("tierImpactFree", locale).replace(
+                              "{months}",
+                              String(result.freeMonths),
+                            )}
+                          </p>
+                          <p className="tierImpactDelta">
+                            {t("tierImpactFreeDelta", locale).replace(
+                              "{amount}",
+                              formatCurrency(result.tierImpactDelta, locale),
+                            )}
+                          </p>
+                          <p
+                            className="tierImpactMethodology"
+                            dangerouslySetInnerHTML={{
+                              __html: t("tierMethodologyNote", locale),
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <p className="tierImpactAllPaid">
+                          {t("tierImpactAllPaid", locale)}
+                        </p>
+                      )}
+                      {subscriptionEstimate?.tierBreakdown?.student &&
+                        subscriptionEstimate.tierBreakdown.student.months >
+                          0 && (
+                          <p className="tierImpactNote">
+                            {t("tierStudentNote", locale)}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
+                  {/* Collapsible methodology info */}
+                  <div className="methodologyToggle">
+                    <button
+                      className="collapsibleToggle"
+                      onClick={() =>
+                        setMethodologyInfoOpen(!methodologyInfoOpen)
+                      }
+                      aria-expanded={methodologyInfoOpen}
                     >
-                      <p className="albumInstructions">
-                        {t("clickAlbumsHint", locale)}
-                      </p>
-                      {(() => {
-                        const isExpanded = expandedAlbumArtists.has(a.artist);
-                        const visibleAlbums = isExpanded
-                          ? a.topAlbums
-                          : a.topAlbums.slice(0, 5);
-                        const hasMore = a.topAlbums.length > 5;
-                        return (
-                          <>
-                            {visibleAlbums.map((x) => {
-                              const key = albumKey(a.artist, x.album);
-                              const isPlanned = !!plannedAlbums[key];
+                      <span
+                        className={`collapsibleChevron ${
+                          methodologyInfoOpen ? "open" : ""
+                        }`}
+                      >
+                        ▾
+                      </span>
+                      {locale === "en"
+                        ? "About these estimates"
+                        : "Om desse estimata"}
+                    </button>
+                    {methodologyInfoOpen && (
+                      <div className="methodologyContent">
+                        <p
+                          className="subtle"
+                          dangerouslySetInnerHTML={{
+                            __html: t("proRataNote", locale),
+                          }}
+                        />
+                        <p
+                          className="subtle"
+                          style={{ marginTop: 10 }}
+                          dangerouslySetInnerHTML={{
+                            __html: t("subPricingNote", locale),
+                          }}
+                        />
+                        {subscriptionSegments.length > 0 && (
+                          <p
+                            className="subtle"
+                            style={{ marginTop: 10 }}
+                            dangerouslySetInnerHTML={{
+                              __html: t("tierMethodologyNote", locale),
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </section>
 
-                              return (
-                                <button
-                                  key={key}
-                                  className={
-                                    isPlanned
-                                      ? "albumChip selected"
-                                      : "albumChip"
-                                  }
-                                  onClick={() => {
-                                    setPlannedAlbums((prev) => {
-                                      const next = { ...prev };
-                                      if (next[key]) delete next[key];
-                                      else
-                                        next[key] = {
-                                          artist: a.artist,
-                                          album: x.album,
-                                        };
-                                      return next;
-                                    });
-                                  }}
-                                  title={`${x.album}${isPlanned ? ` (${t("inPurchasePlan", locale)})` : ""}`}
-                                >
-                                  <span className="chipText">{x.album}</span>
-                                  {isPlanned && (
-                                    <span className="chipMark">✓</span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                            {hasMore && (
+              <section className="card">
+                <div className="cardHeader stickyHeader">
+                  <div>
+                    <h2>
+                      {t("yourArtistsTitle", locale)} ({filteredArtists.length})
+                      – {allAlbumKeys.length} {t("uniqueAlbumsLabel", locale)}
+                    </h2>
+                    {subscriptionEstimate && (
+                      <p className="stickySubtitle">
+                        {locale === "en" ? (
+                          <>
+                            For what you paid for Spotify Premium (
+                            {formatCurrency(effectiveSubscriptionCost, locale)})
+                            you could have bought approx.{" "}
+                            <strong>{albumBudget} albums</strong> at{" "}
+                            {formatCurrency(cfg.albumPriceNOK, locale)} each.
+                          </>
+                        ) : (
+                          <>
+                            For det du har betalt i Spotify Premium (
+                            {formatCurrency(effectiveSubscriptionCost, locale)})
+                            kunne du ha kjøpt ca.{" "}
+                            <strong>{albumBudget} album</strong> à{" "}
+                            {formatCurrency(cfg.albumPriceNOK, locale)} direkte.
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="headerActions">
+                    <button
+                      className="btn"
+                      onClick={() => {
+                        const next = { ...plannedAlbums };
+                        for (const key of shownAlbumKeys) {
+                          const [artist, album] = key.split("|||");
+                          next[key] = { artist, album };
+                        }
+                        setPlannedAlbums(next);
+                      }}
+                    >
+                      {t("addAllToPlan", locale)}
+                    </button>
+
+                    {plannedCount > 0 && (
+                      <button
+                        className="btnGhost"
+                        onClick={() => setPlannedAlbums({})}
+                      >
+                        {t("clear", locale)}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown for planlagde album */}
+                  {plannedCount > 0 && (
+                    <div className="plannedDropdown">
+                      <button
+                        className="plannedDropdownToggle"
+                        onClick={() => setPlannedAlbumsOpen((o) => !o)}
+                      >
+                        <span className="plannedDropdownSummary">
+                          <span className="plannedBadge">{plannedCount}</span>
+                          {t("albumsAddedMiddot", locale)} &middot;{" "}
+                          {formatCurrency(plannedCost, locale)}
+                        </span>
+                        <span
+                          className={`plannedChevron ${plannedAlbumsOpen ? "open" : ""}`}
+                        >
+                          ▾
+                        </span>
+                      </button>
+
+                      {subscriptionEstimate && (
+                        <div className="albumBudgetBar">
+                          <div className="albumBudgetProgress">
+                            <div
+                              className="albumBudgetFill"
+                              style={{
+                                width: `${Math.min(100, albumBudget > 0 ? (plannedCount / albumBudget) * 100 : 0)}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="albumBudgetText">
+                            {albumsRemaining > 0 ? (
+                              <>
+                                <span className="albumBudgetRemaining">
+                                  {albumsRemaining} {t("albumsLeft", locale)}
+                                </span>{" "}
+                                — {albumBudget} {t("couldHaveOwned", locale)} (
+                                {formatCurrency(
+                                  effectiveSubscriptionCost,
+                                  locale,
+                                )}
+                                )
+                              </>
+                            ) : (
+                              <span className="green">
+                                ✓ {plannedCount - albumBudget}{" "}
+                                {t("moreThanBudget", locale)} ({albumBudget}{" "}
+                                {locale === "en" ? "albums" : "album"} ≈{" "}
+                                {formatCurrency(
+                                  effectiveSubscriptionCost,
+                                  locale,
+                                )}
+                                )
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {plannedAlbumsOpen && (
+                        <div className="plannedDropdownList">
+                          {Object.entries(plannedAlbums).map(([key, val]) => (
+                            <div className="plannedDropdownItem" key={key}>
+                              <div className="plannedDropdownInfo">
+                                <span className="plannedAlbumName">
+                                  {val.album}
+                                </span>
+                                <span className="plannedArtistName">
+                                  {val.artist}
+                                </span>
+                              </div>
                               <button
-                                className="albumChip showAllBtn"
+                                className="plannedRemoveBtn"
+                                title={t("removeBtn", locale)}
                                 onClick={() => {
-                                  setExpandedAlbumArtists((prev) => {
-                                    const next = new Set(prev);
-                                    if (next.has(a.artist))
-                                      next.delete(a.artist);
-                                    else next.add(a.artist);
+                                  setPlannedAlbums((prev) => {
+                                    const next = { ...prev };
+                                    delete next[key];
                                     return next;
                                   });
                                 }}
                               >
-                                <span className="chipText">
-                                  {isExpanded
-                                    ? t("showFewer", locale)
-                                    : `${t("showAllAlbums", locale)} ${a.topAlbums.length} ${t("albumWord", locale)}`}
-                                </span>
+                                ✕
                               </button>
-                            )}
-                          </>
-                        );
-                      })()}
+                            </div>
+                          ))}
+                          <div className="plannedDropdownTotal">
+                            <span>
+                              {locale === "en"
+                                ? `Total ${plannedCount} albums`
+                                : `Totalt ${plannedCount} album`}
+                            </span>
+                            <span className="green">
+                              {formatCurrency(plannedCost, locale)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    <button
-                      className="iconBtn"
-                      title={t("removeFromList", locale)}
-                      onClick={() => {
-                        setExcludedArtists((prev) => {
-                          const next = new Set(prev);
-                          next.add(a.artist);
-                          return next;
-                        });
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Pagination below artist list */}
-            <div className="paginationControls paginationBottom">
-              <div className="paginationInfo">
-                {t("showing", locale)} {startIndex + 1}–
-                {Math.min(endIndex, searchedArtists.length)}{" "}
-                {t("ofWord", locale)} {searchedArtists.length}
-              </div>
-
-              <div className="paginationNav">
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage(1);
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === 1}
-                >
-                  ««
-                </button>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage((p) => Math.max(1, p - 1));
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === 1}
-                >
-                  ‹
-                </button>
-                <span className="pageNumbers">
-                  {t("pageLabel", locale)} {currentPage} {t("ofWord", locale)}{" "}
-                  {totalPages}
-                </span>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage((p) => Math.min(totalPages, p + 1));
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === totalPages}
-                >
-                  ›
-                </button>
-                <button
-                  className="pageBtn"
-                  onClick={() => {
-                    setCurrentPage(totalPages);
-                    scrollToPagination();
-                  }}
-                  disabled={currentPage === totalPages}
-                >
-                  »»
-                </button>
-              </div>
-
-              <div className="perPageSelect">
-                <label>
-                  {t("perPage", locale)}
-                  <select
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                      scrollToPagination();
-                    }}
-                  >
-                    <option value={30}>30</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                    <option value={250}>250</option>
-                  </select>
-                </label>
-              </div>
-            </div>
-
-            <div className="divider" />
-
-            <div className="buyPlan">
-              <div className="buyPlanHeader">
-                <h3>{t("plannedPurchases", locale)}</h3>
-                <div className="subtle">
-                  {plannedCount > 0 ? (
-                    <>
-                      {t("albumsInPlan", locale)} <b>{plannedCount}</b> ·{" "}
-                      {t("totalLabel", locale)}{" "}
-                      <b>{formatCurrency(plannedCost, locale)}</b>
-                    </>
-                  ) : (
-                    t("clickChipsToAdd", locale)
                   )}
                 </div>
-                {plannedCount > 0 && (
-                  <button
-                    className="btnExportPdf"
-                    onClick={() =>
-                      exportPlannedAlbumsPDF(
-                        plannedAlbums,
-                        cfg.albumPriceNOK,
-                        locale,
-                      )
-                    }
-                  >
-                    {t("exportShoppingList", locale)}
-                  </button>
-                )}
-              </div>
 
-              {plannedCount > 0 && (
-                <div className="planTable">
-                  {Object.entries(plannedAlbums)
-                    .map(([key, v]) => ({ key, ...v }))
-                    .sort(
-                      (a, b) =>
-                        a.artist.localeCompare(b.artist) ||
-                        a.album.localeCompare(b.album),
-                    )
-                    .map((row) => (
-                      <div className="planRow" key={row.key}>
-                        <div className="planArtist">{row.artist}</div>
-                        <div className="planAlbum">{row.album}</div>
-                        <div className="planPrice">
-                          {formatCurrency(cfg.albumPriceNOK, locale)}
-                        </div>
+                {/* Top-N veljar */}
+                <div className="topNSelector">
+                  <span className="topNLabel">{t("showStatsFor", locale)}</span>
+                  <div className="topNTabs">
+                    {([5, 10, 20, 30, 50, "all"] as const).map((n) => {
+                      const isAll = n === "all";
+                      const label = isAll
+                        ? `${t("allLabel", locale)} (${filteredArtists.length})`
+                        : `${t("topPrefix", locale)} ${n}`;
+                      const disabled = !isAll && n > filteredArtists.length;
+                      return (
                         <button
-                          className="btnGhost"
+                          key={String(n)}
+                          className={`dateTab ${summaryTopN === n ? "active" : ""}`}
+                          onClick={() => setSummaryTopN(n)}
+                          disabled={disabled}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Samandrag */}
+                <div className="sectionSummary">
+                  <div className="summaryItem">
+                    <span className="summaryLabel">
+                      {t("totalListeningTime", locale)},{" "}
+                      {summaryTopN === "all"
+                        ? `${t("allLabel", locale).toLowerCase()} ${topNArtists.length}`
+                        : `${t("topPrefix", locale).toLowerCase()} ${topNArtists.length}`}{" "}
+                      {t("yourArtists", locale)}
+                    </span>
+                    <span className="summaryValue">
+                      {formatHrs(topNMs, locale)}
+                    </span>
+                  </div>
+                  <div className="summarySep" />
+                  <div className="summaryItem">
+                    <span className="summaryLabel">
+                      {t("theorSpotifyValue", locale)}
+                    </span>
+                    <span className="summaryValue">
+                      {formatCurrency(topNValue, locale)}
+                    </span>
+                  </div>
+                  <div className="summarySep" />
+                  <div className="summaryItem">
+                    <span className="summaryLabel">
+                      {t("albumsLabel", locale)}
+                    </span>
+                    <span className="summaryValue">{topNAlbumKeys.length}</span>
+                  </div>
+                  <div className="summarySep" />
+                  <div className="summaryItem">
+                    <span className="summaryLabel">
+                      {t("buyPhysical", locale)}
+                    </span>
+                    <span className="summaryValue green">
+                      {formatCurrency(topNCost, locale)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Søk og paginering */}
+                <div className="paginationControls" ref={paginationRef}>
+                  <div className="searchBox">
+                    <input
+                      type="text"
+                      placeholder={t("searchArtist", locale)}
+                      value={artistSearchQuery}
+                      onChange={(e) => {
+                        setArtistSearchQuery(e.target.value);
+                        setCurrentPage(1);
+                      }}
+                      className="searchInput"
+                    />
+                    {artistSearchQuery && (
+                      <button
+                        className="clearSearch"
+                        onClick={() => {
+                          setArtistSearchQuery("");
+                          setCurrentPage(1);
+                        }}
+                        title={t("clearSearch", locale)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="paginationInfo">
+                    {t("showing", locale)} {startIndex + 1}–
+                    {Math.min(endIndex, searchedArtists.length)}{" "}
+                    {t("ofWord", locale)} {searchedArtists.length}
+                  </div>
+
+                  <div className="paginationNav">
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage(1);
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      ««
+                    </button>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      ‹
+                    </button>
+                    <span className="pageNumbers">
+                      {t("pageLabel", locale)} {currentPage}{" "}
+                      {t("ofWord", locale)} {totalPages}
+                    </span>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === totalPages}
+                    >
+                      ›
+                    </button>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage(totalPages);
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === totalPages}
+                    >
+                      »»
+                    </button>
+                  </div>
+
+                  <div className="perPageSelect">
+                    <label>
+                      {t("perPage", locale)}
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                          scrollToPagination();
+                        }}
+                      >
+                        <option value={30}>30</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={250}>250</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Grid-liste i staden for tabell -> stabil layout */}
+                <div className="artistList">
+                  {shownArtists.map((a) => {
+                    // Finn faktisk posisjon i filteredArtists
+                    const actualRank =
+                      filteredArtists.findIndex(
+                        (artist) => artist.artist === a.artist,
+                      ) + 1;
+
+                    return (
+                      <div className="artistRow" key={a.artist}>
+                        <div className="artistMain">
+                          <div
+                            className="artistName"
+                            onClick={() => setSelectedArtist(a.artist)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            #{actualRank} {a.artist}
+                          </div>
+                          <div className="artistMeta">
+                            <span className="metaItem">
+                              <span className="metaLabel">
+                                {t("listeningTime", locale)}
+                              </span>{" "}
+                              <b>{formatHrs(a.msPlayed, locale)}</b>
+                            </span>
+                            <span className="dot">•</span>
+                            <span className="metaItem">
+                              <span className="metaLabel">
+                                {t("streamsLabel", locale)}
+                              </span>{" "}
+                              <b>{formatNum(a.estStreams, locale)}</b>
+                            </span>
+                            <span className="dot">•</span>
+                            <span className="metaItem">
+                              <span className="metaLabel">
+                                {t("theorValue", locale)}
+                              </span>{" "}
+                              <b>{formatCurrency(a.estValueNOK, locale)}</b>
+                            </span>
+                            <span className="dot">•</span>
+                            <span className="metaItem">
+                              <span className="metaLabel">
+                                {t("albumEquiv", locale)}
+                              </span>{" "}
+                              <b>{a.albumEquivalent.toFixed(2)}</b>
+                            </span>
+                          </div>
+                          {a.loyaltyScore > 0 && (
+                            <div
+                              className="loyaltyBadge"
+                              title={
+                                a.firstListen
+                                  ? `${t("loyaltySince", locale)} ${a.firstListen} · ${a.distinctMonths} ${t("loyaltyMonths", locale)}`
+                                  : ""
+                              }
+                            >
+                              <span className="loyaltyBar">
+                                <span
+                                  className="loyaltyFill"
+                                  style={{ width: `${a.loyaltyScore}%` }}
+                                />
+                              </span>
+                              <span className="loyaltyText">
+                                {t("loyaltyLabel", locale)} {a.loyaltyScore}%
+                                {a.firstListen && (
+                                  <span className="loyaltySince">
+                                    {" · "}
+                                    {t("loyaltySince", locale)}{" "}
+                                    {a.firstListen.slice(0, 7)}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className="albumWrap"
+                          aria-label={t("albumsLabel", locale)}
+                        >
+                          <p className="albumInstructions">
+                            {t("clickAlbumsHint", locale)}
+                          </p>
+                          {(() => {
+                            const isExpanded = expandedAlbumArtists.has(
+                              a.artist,
+                            );
+                            const visibleAlbums = isExpanded
+                              ? a.topAlbums
+                              : a.topAlbums.slice(0, 5);
+                            const hasMore = a.topAlbums.length > 5;
+                            return (
+                              <>
+                                {visibleAlbums.map((x) => {
+                                  const key = albumKey(a.artist, x.album);
+                                  const isPlanned = !!plannedAlbums[key];
+
+                                  return (
+                                    <button
+                                      key={key}
+                                      className={
+                                        isPlanned
+                                          ? "albumChip selected"
+                                          : "albumChip"
+                                      }
+                                      onClick={() => {
+                                        setPlannedAlbums((prev) => {
+                                          const next = { ...prev };
+                                          if (next[key]) delete next[key];
+                                          else
+                                            next[key] = {
+                                              artist: a.artist,
+                                              album: x.album,
+                                            };
+                                          return next;
+                                        });
+                                      }}
+                                      title={`${x.album}${isPlanned ? ` (${t("inPurchasePlan", locale)})` : ""}`}
+                                    >
+                                      <span className="chipText">
+                                        {x.album}
+                                      </span>
+                                      {isPlanned && (
+                                        <span className="chipMark">✓</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                                {hasMore && (
+                                  <button
+                                    className="albumChip showAllBtn"
+                                    onClick={() => {
+                                      setExpandedAlbumArtists((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(a.artist))
+                                          next.delete(a.artist);
+                                        else next.add(a.artist);
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    <span className="chipText">
+                                      {isExpanded
+                                        ? t("showFewer", locale)
+                                        : `${t("showAllAlbums", locale)} ${a.topAlbums.length} ${t("albumWord", locale)}`}
+                                    </span>
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        <button
+                          className="iconBtn"
+                          title={t("removeFromList", locale)}
                           onClick={() => {
-                            setPlannedAlbums((prev) => {
-                              const next = { ...prev };
-                              delete next[row.key];
+                            setExcludedArtists((prev) => {
+                              const next = new Set(prev);
+                              next.add(a.artist);
                               return next;
                             });
                           }}
                         >
-                          {t("removeBtn", locale)}
+                          ✕
                         </button>
                       </div>
-                    ))}
+                    );
+                  })}
                 </div>
-              )}
-            </div>
 
-            <p className="subtle" style={{ marginTop: 12 }}>
-              {t("interpretation", locale)}
-            </p>
-          </section>
+                {/* Pagination below artist list */}
+                <div className="paginationControls paginationBottom">
+                  <div className="paginationInfo">
+                    {t("showing", locale)} {startIndex + 1}–
+                    {Math.min(endIndex, searchedArtists.length)}{" "}
+                    {t("ofWord", locale)} {searchedArtists.length}
+                  </div>
 
-          {/* <section className="card">
+                  <div className="paginationNav">
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage(1);
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      ««
+                    </button>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      ‹
+                    </button>
+                    <span className="pageNumbers">
+                      {t("pageLabel", locale)} {currentPage}{" "}
+                      {t("ofWord", locale)} {totalPages}
+                    </span>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === totalPages}
+                    >
+                      ›
+                    </button>
+                    <button
+                      className="pageBtn"
+                      onClick={() => {
+                        setCurrentPage(totalPages);
+                        scrollToPagination();
+                      }}
+                      disabled={currentPage === totalPages}
+                    >
+                      »»
+                    </button>
+                  </div>
+
+                  <div className="perPageSelect">
+                    <label>
+                      {t("perPage", locale)}
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => {
+                          setItemsPerPage(Number(e.target.value));
+                          setCurrentPage(1);
+                          scrollToPagination();
+                        }}
+                      >
+                        <option value={30}>30</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value={250}>250</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="divider" />
+
+                <div className="buyPlan">
+                  <div className="buyPlanHeader">
+                    <h3>{t("plannedPurchases", locale)}</h3>
+                    <div className="subtle">
+                      {plannedCount > 0 ? (
+                        <>
+                          {t("albumsInPlan", locale)} <b>{plannedCount}</b> ·{" "}
+                          {t("totalLabel", locale)}{" "}
+                          <b>{formatCurrency(plannedCost, locale)}</b>
+                        </>
+                      ) : (
+                        t("clickChipsToAdd", locale)
+                      )}
+                    </div>
+                    {plannedCount > 0 && (
+                      <button
+                        className="btnExportPdf"
+                        onClick={() =>
+                          exportPlannedAlbumsPDF(
+                            plannedAlbums,
+                            cfg.albumPriceNOK,
+                            locale,
+                          )
+                        }
+                      >
+                        {t("exportShoppingList", locale)}
+                      </button>
+                    )}
+                  </div>
+
+                  {plannedCount > 0 && (
+                    <div className="planTable">
+                      {Object.entries(plannedAlbums)
+                        .map(([key, v]) => ({ key, ...v }))
+                        .sort(
+                          (a, b) =>
+                            a.artist.localeCompare(b.artist) ||
+                            a.album.localeCompare(b.album),
+                        )
+                        .map((row) => (
+                          <div className="planRow" key={row.key}>
+                            <div className="planArtist">{row.artist}</div>
+                            <div className="planAlbum">{row.album}</div>
+                            <div className="planPrice">
+                              {formatCurrency(cfg.albumPriceNOK, locale)}
+                            </div>
+                            <button
+                              className="btnGhost"
+                              onClick={() => {
+                                setPlannedAlbums((prev) => {
+                                  const next = { ...prev };
+                                  delete next[row.key];
+                                  return next;
+                                });
+                              }}
+                            >
+                              {t("removeBtn", locale)}
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="subtle" style={{ marginTop: 12 }}>
+                  {t("interpretation", locale)}
+                </p>
+              </section>
+
+              {/* <section className="card">
             <div className="cardHeader">
               <h2>4) Aktiv vs assistert lytting</h2>
               <div className="subtle">
@@ -3543,603 +4001,632 @@ export default function App() {
             </div>
           </section> */}
 
-          {excludedArtists.size > 0 && (
-            <section className="card soft">
+              {excludedArtists.size > 0 && (
+                <section className="card soft">
+                  <div className="cardHeader">
+                    <h2>{t("excludedArtistsTitle", locale)}</h2>
+                    <div className="subtle">{t("clickToRestore", locale)}</div>
+                  </div>
+
+                  <div className="chipsRow">
+                    {Array.from(excludedArtists).map((artist) => (
+                      <button
+                        key={artist}
+                        className="smallChip"
+                        onClick={() => {
+                          setExcludedArtists((prev) => {
+                            const next = new Set(prev);
+                            next.delete(artist);
+                            return next;
+                          });
+                        }}
+                        title={t("restoreTitle", locale)}
+                      >
+                        {artist} ↺
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+
+          {/* Artist Detail Modal */}
+          {selectedArtist && artistDetails && (
+            <div
+              className="modalOverlay"
+              onClick={() => setSelectedArtist(null)}
+            >
+              <div
+                className="modalContent"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modalHeader">
+                  <h2>{artistDetails.artist}</h2>
+                  <button
+                    className="modalClose"
+                    onClick={() => setSelectedArtist(null)}
+                    aria-label={t("closeLabel", locale)}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="modalStats">
+                  <div className="statItem">
+                    <div className="statLabel">
+                      {t("totalListeningTime", locale)}
+                    </div>
+                    <div className="statValue">
+                      {formatHrs(artistDetails.totalMs, locale)}
+                    </div>
+                  </div>
+                  <div className="statItem">
+                    <div className="statLabel">
+                      {t("totalPlaysLabel", locale)}
+                    </div>
+                    <div className="statValue">
+                      {artistDetails.totalPlays.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="statItem">
+                    <div className="statLabel">{t("albumsLabel", locale)}</div>
+                    <div className="statValue">
+                      {artistDetails.albums.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="modalFilters">
+                  <button
+                    className={
+                      artistDetailSort === "time"
+                        ? "filterBtn active"
+                        : "filterBtn"
+                    }
+                    onClick={() => setArtistDetailSort("time")}
+                  >
+                    {t("sortByTime", locale)}
+                  </button>
+                  <button
+                    className={
+                      artistDetailSort === "tracks"
+                        ? "filterBtn active"
+                        : "filterBtn"
+                    }
+                    onClick={() => setArtistDetailSort("tracks")}
+                  >
+                    {t("sortByPlays", locale)}
+                  </button>
+                </div>
+
+                <div className="modalBody">
+                  {artistDetails.albums.map((album) => (
+                    <div key={album.album} className="albumDetail">
+                      <div className="albumHeader">
+                        <h3>{album.album}</h3>
+                        <div className="albumStats">
+                          {formatHrs(album.totalMs, locale)} ·{" "}
+                          {album.totalPlays} {t("playsWord", locale)}
+                        </div>
+                      </div>
+                      <div className="trackList">
+                        {album.tracks.map((track) => (
+                          <div key={track.trackName} className="trackRow">
+                            <div className="trackName">{track.trackName}</div>
+                            <div className="trackStats">
+                              {formatHrs(track.msPlayed, locale)} ·{" "}
+                              {track.plays} {t("playsWord", locale)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Artist Comparison Chart */}
+          {result && result.artists.length > 0 && (
+            <ArtistComparisonChart
+              allRows={rows}
+              artists={result.artists}
+              locale={locale}
+              minMsPlayed={cfg.minMsPlayedToCount}
+              availableYears={availableYears}
+              dateFilterMode={dateFilterMode}
+              dateFilterYear={dateFilterYear}
+              onDateFilterChange={(mode, year) => {
+                setDateFilterMode(mode);
+                if (mode === "year" && year) {
+                  setDateFilterYear(year);
+                } else if (mode === "all") {
+                  setDateFilterYear(null);
+                }
+              }}
+            />
+          )}
+
+          {/* Label Analytics Section */}
+          <LabelAnalytics
+            allRows={rows}
+            minMsPlayed={cfg.minMsPlayedToCount}
+            locale={locale}
+            availableYears={availableYears}
+            dateFilterMode={dateFilterMode}
+            dateFilterYear={dateFilterYear}
+            excludedArtists={excludedArtists}
+            onDateFilterChange={(mode, year) => {
+              setDateFilterMode(mode);
+              if (mode === "year" && year) {
+                setDateFilterYear(year);
+              } else if (mode === "all") {
+                setDateFilterYear(null);
+              }
+            }}
+          />
+
+          {/* ─── Extra Spotify Data Sections ─── */}
+
+          {/* Account info from Userdata.json */}
+          {userdata && userdata.creationTime && (
+            <section className="card">
               <div className="cardHeader">
-                <h2>{t("excludedArtistsTitle", locale)}</h2>
-                <div className="subtle">{t("clickToRestore", locale)}</div>
+                <h2>{t("userdataTitle", locale)}</h2>
+                <p
+                  className="subtle"
+                  dangerouslySetInnerHTML={{
+                    __html: t("userdataDesc", locale),
+                  }}
+                />
+              </div>
+              <div className="userdataGrid">
+                {userdata.creationTime && (
+                  <div className="userdataItem">
+                    <div className="userdataLabel">
+                      {t("userdataCreated", locale)}
+                    </div>
+                    <div className="userdataValue">{userdata.creationTime}</div>
+                  </div>
+                )}
+                {userdata.country && (
+                  <div className="userdataItem">
+                    <div className="userdataLabel">
+                      {t("userdataCountry", locale)}
+                    </div>
+                    <div className="userdataValue">{userdata.country}</div>
+                  </div>
+                )}
+                {userdata.creationTime &&
+                  (() => {
+                    const created = new Date(userdata.creationTime);
+                    if (isNaN(created.getTime())) return null;
+                    const years = Math.floor(
+                      (Date.now() - created.getTime()) /
+                        (365.25 * 24 * 60 * 60 * 1000),
+                    );
+                    return (
+                      <div className="userdataItem">
+                        <div className="userdataLabel">
+                          {t("userdataAccountAge", locale)}
+                        </div>
+                        <div className="userdataValue">
+                          {years} {t("userdataYears", locale)}
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </div>
+            </section>
+          )}
+
+          {/* How Spotify sees you — Inferences.json */}
+          {inferences.length > 0 && (
+            <section className="card">
+              <div className="cardHeader">
+                <h2>{t("inferencesTitle", locale)}</h2>
+                <p
+                  className="subtle"
+                  dangerouslySetInnerHTML={{
+                    __html: t("inferencesDesc", locale),
+                  }}
+                />
               </div>
 
-              <div className="chipsRow">
-                {Array.from(excludedArtists).map((artist) => (
-                  <button
-                    key={artist}
-                    className="smallChip"
-                    onClick={() => {
-                      setExcludedArtists((prev) => {
-                        const next = new Set(prev);
-                        next.delete(artist);
-                        return next;
-                      });
-                    }}
-                    title={t("restoreTitle", locale)}
-                  >
-                    {artist} ↺
-                  </button>
+              {(() => {
+                // Categorize inferences
+                const demo: string[] = [];
+                const content: string[] = [];
+                const adSegments: string[] = [];
+                const other: string[] = [];
+
+                for (const inf of inferences) {
+                  const lower = inf.toLowerCase();
+                  if (lower.startsWith("demographic_")) {
+                    demo.push(
+                      inf.replace("demographic_", "").replace(/_/g, " "),
+                    );
+                  } else if (lower.startsWith("content_")) {
+                    content.push(
+                      inf.replace("content_", "").replace(/_/g, " "),
+                    );
+                  } else if (lower.startsWith("1p_custom_")) {
+                    const clean = inf
+                      .replace("1P_Custom_", "")
+                      .replace(/_/g, " ");
+                    adSegments.push(clean);
+                  } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(lower)) {
+                    // UUIDs — internal IDs, skip display
+                  } else {
+                    other.push(inf.replace(/_/g, " "));
+                  }
+                }
+
+                return (
+                  <div className="inferencesContent">
+                    {demo.length > 0 && (
+                      <div className="inferenceGroup">
+                        <h4 className="inferenceGroupTitle">
+                          👤 {t("inferencesDemo", locale)}
+                        </h4>
+                        <div className="inferenceChips">
+                          {demo.map((d) => (
+                            <span className="inferenceChip demo" key={d}>
+                              {d}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {content.length > 0 && (
+                      <div className="inferenceGroup">
+                        <h4 className="inferenceGroupTitle">
+                          🎵 {t("inferencesContent", locale)}
+                        </h4>
+                        <div className="inferenceChips">
+                          {content.map((c) => (
+                            <span className="inferenceChip content" key={c}>
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {adSegments.length > 0 && (
+                      <div className="inferenceGroup">
+                        <h4 className="inferenceGroupTitle">
+                          📢 {t("inferencesAdSegments", locale)}
+                        </h4>
+                        <div className="inferenceChips">
+                          {adSegments.map((a) => (
+                            <span
+                              className={`inferenceChip ad ${a.includes("[Advertiser-Restricted]") ? "restricted" : ""}`}
+                              key={a}
+                            >
+                              {a.replace(" [Advertiser-Restricted]", "")}
+                              {a.includes("[Advertiser-Restricted]") && (
+                                <span className="restrictedBadge">
+                                  {t("inferencesRestricted", locale)}
+                                </span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {other.length > 0 && (
+                      <div className="inferenceGroup">
+                        <h4 className="inferenceGroupTitle">
+                          🏷️ {t("inferencesOther", locale)}
+                        </h4>
+                        <div className="inferenceChips">
+                          {other.map((o) => (
+                            <span className="inferenceChip other" key={o}>
+                              {o}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <p
+                      className="inferencesPrivacyNote"
+                      dangerouslySetInnerHTML={{
+                        __html: t("inferencesPrivacyNote", locale),
+                      }}
+                    />
+                  </div>
+                );
+              })()}
+            </section>
+          )}
+
+          {/* Listener segments — Marquee.json */}
+          {marqueeArtists.length > 0 && (
+            <section className="card">
+              <div className="cardHeader">
+                <h2>{t("marqueeTitle", locale)}</h2>
+                <p
+                  className="subtle"
+                  dangerouslySetInnerHTML={{
+                    __html: t("marqueeDesc", locale),
+                  }}
+                />
+              </div>
+
+              <div className="marqueeContent">
+                <div className="marqueeCount">
+                  {t("marqueeCount", locale).replace(
+                    "{count}",
+                    String(marqueeArtists.length),
+                  )}
+                </div>
+                {/* Group by segment */}
+                {Object.entries(
+                  marqueeArtists.reduce<Record<string, string[]>>((acc, m) => {
+                    const seg = m.segment || "Unknown";
+                    if (!acc[seg]) acc[seg] = [];
+                    acc[seg].push(m.artistName);
+                    return acc;
+                  }, {}),
+                ).map(([segment, artists]) => (
+                  <div key={segment} style={{ marginBottom: 12 }}>
+                    <div
+                      style={{
+                        fontSize: "0.85rem",
+                        opacity: 0.7,
+                        marginBottom: 6,
+                      }}
+                    >
+                      {segment} ({artists.length})
+                    </div>
+                    <div className="marqueeChips">
+                      {artists.map((name) => (
+                        <span className="marqueeChip" key={name}>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
+                <p
+                  className="marqueeEthicsNote"
+                  dangerouslySetInnerHTML={{
+                    __html: t("marqueeEthicsNote", locale),
+                  }}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* Summary & Export Section */}
+          {result && (
+            <section className="card summaryExportSection">
+              <div className="cardHeader">
+                <h2>{t("summaryExportTitle", locale)}</h2>
+                <p className="subtle">{t("summaryExportDesc", locale)}</p>
+              </div>
+
+              <div className="summaryExportContent">
+                <div className="overviewActionsGroup">
+                  <span className="overviewActionsLabel">
+                    {t("exportReport", locale)}
+                  </span>
+                  <div className="exportBtnGroup">
+                    {(
+                      [
+                        [10, `${t("topPrefix", locale)} 10`],
+                        [30, `${t("topPrefix", locale)} 30`],
+                        [50, `${t("topPrefix", locale)} 50`],
+                        [100, `${t("topPrefix", locale)} 100`],
+                        [500, `${t("topPrefix", locale)} 500`],
+                        [
+                          "all",
+                          `${t("allLabel", locale)} (${result.artists.length})`,
+                        ],
+                      ] as [number | "all", string][]
+                    ).map(([n, label]) => (
+                      <button
+                        key={String(n)}
+                        className="btnExportPdf btnExportSmall"
+                        onClick={() =>
+                          exportFullReportPDF(
+                            result,
+                            cfg,
+                            subscriptionEstimate,
+                            activeDateRange,
+                            excludedArtists,
+                            plannedAlbums,
+                            n as number | "all",
+                            countOnlyActiveSubscriptionMonths,
+                            locale,
+                          )
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="overviewActionsGroup">
+                  <span className="overviewActionsLabel">
+                    {t("shareResults", locale)}
+                  </span>
+                  <div className="shareGroup">
+                    <button
+                      className="btnShare btnShareMain"
+                      onClick={async () => {
+                        const totalVal = result.artists.reduce(
+                          (s, a) => s + a.estValueNOK,
+                          0,
+                        );
+                        const blob = await generateShareImage({
+                          subCost: effectiveSubscriptionCost,
+                          artistValue: totalVal,
+                          artistCount: result.artists.length,
+                          hours: formatHrs(result.totalMsPlayed, locale),
+                          locale,
+                          heroSrc: heroImg,
+                          activePercent: Math.round(result.activeShare * 100),
+                          assistedPercent: Math.round(
+                            result.passiveShare * 100,
+                          ),
+                        });
+                        const file = new File([blob], "spotify-unwrapped.png", {
+                          type: "image/png",
+                        });
+
+                        if (
+                          navigator.share &&
+                          navigator.canShare?.({ files: [file] })
+                        ) {
+                          try {
+                            await navigator.share({
+                              files: [file],
+                              title: "Spotify Unwrapped",
+                              text:
+                                t("shareText", locale) +
+                                "https://banjohans.github.io/Spotify-Unwrapped/",
+                            });
+                            return;
+                          } catch {
+                            /* user cancelled */
+                          }
+                        }
+
+                        let copiedImage = false;
+                        try {
+                          const item = new ClipboardItem({ "image/png": blob });
+                          await navigator.clipboard.write([item]);
+                          copiedImage = true;
+                        } catch {
+                          try {
+                            await navigator.clipboard.writeText(
+                              t("shareText", locale) +
+                                "https://banjohans.github.io/Spotify-Unwrapped/",
+                            );
+                          } catch {
+                            /* clipboard not available */
+                          }
+                        }
+
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "spotify-unwrapped.png";
+                        a.click();
+                        URL.revokeObjectURL(url);
+
+                        setShareToast(
+                          copiedImage
+                            ? t("shareCopiedImage", locale)
+                            : t("shareCopiedText", locale),
+                        );
+                        setTimeout(() => setShareToast(null), 8000);
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+                        <polyline points="7 7 12 2 17 7" />
+                        <line x1="12" y1="2" x2="12" y2="15" />
+                      </svg>
+                      {t("shareResults", locale)}
+                    </button>
+                    <button
+                      className="btnShare btnShareFb"
+                      onClick={async () => {
+                        const totalVal = result.artists.reduce(
+                          (s, a) => s + a.estValueNOK,
+                          0,
+                        );
+                        const blob = await generateShareImage({
+                          subCost: effectiveSubscriptionCost,
+                          artistValue: totalVal,
+                          artistCount: result.artists.length,
+                          hours: formatHrs(result.totalMsPlayed, locale),
+                          locale,
+                          heroSrc: heroImg,
+                          activePercent: Math.round(result.activeShare * 100),
+                          assistedPercent: Math.round(
+                            result.passiveShare * 100,
+                          ),
+                        });
+
+                        const file = new File([blob], "spotify-unwrapped.png", {
+                          type: "image/png",
+                        });
+                        if (
+                          navigator.share &&
+                          navigator.canShare?.({ files: [file] })
+                        ) {
+                          try {
+                            await navigator.share({
+                              files: [file],
+                              title: "Spotify Unwrapped",
+                              text:
+                                t("shareText", locale) +
+                                "https://banjohans.github.io/Spotify-Unwrapped/",
+                            });
+                            return;
+                          } catch {
+                            /* user cancelled */
+                          }
+                        }
+
+                        try {
+                          const item = new ClipboardItem({ "image/png": blob });
+                          await navigator.clipboard.write([item]);
+                        } catch {
+                          /* clipboard image not supported */
+                        }
+
+                        const dlUrl = URL.createObjectURL(blob);
+                        const dl = document.createElement("a");
+                        dl.href = dlUrl;
+                        dl.download = "spotify-unwrapped.png";
+                        dl.click();
+                        URL.revokeObjectURL(dlUrl);
+
+                        window.open(
+                          "https://www.facebook.com/",
+                          "_blank",
+                          "noopener",
+                        );
+
+                        setShareToast(t("shareFbToast", locale));
+                        setTimeout(() => setShareToast(null), 10000);
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                      {t("shareFacebook", locale)}
+                    </button>
+                  </div>
+                  <p className="shareTip">{t("shareTip", locale)}</p>
+                </div>
               </div>
             </section>
           )}
         </>
-      )}
-
-      {/* Artist Detail Modal */}
-      {selectedArtist && artistDetails && (
-        <div className="modalOverlay" onClick={() => setSelectedArtist(null)}>
-          <div className="modalContent" onClick={(e) => e.stopPropagation()}>
-            <div className="modalHeader">
-              <h2>{artistDetails.artist}</h2>
-              <button
-                className="modalClose"
-                onClick={() => setSelectedArtist(null)}
-                aria-label={t("closeLabel", locale)}
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="modalStats">
-              <div className="statItem">
-                <div className="statLabel">
-                  {t("totalListeningTime", locale)}
-                </div>
-                <div className="statValue">
-                  {formatHrs(artistDetails.totalMs, locale)}
-                </div>
-              </div>
-              <div className="statItem">
-                <div className="statLabel">{t("totalPlaysLabel", locale)}</div>
-                <div className="statValue">
-                  {artistDetails.totalPlays.toLocaleString()}
-                </div>
-              </div>
-              <div className="statItem">
-                <div className="statLabel">{t("albumsLabel", locale)}</div>
-                <div className="statValue">{artistDetails.albums.length}</div>
-              </div>
-            </div>
-
-            <div className="modalFilters">
-              <button
-                className={
-                  artistDetailSort === "time" ? "filterBtn active" : "filterBtn"
-                }
-                onClick={() => setArtistDetailSort("time")}
-              >
-                {t("sortByTime", locale)}
-              </button>
-              <button
-                className={
-                  artistDetailSort === "tracks"
-                    ? "filterBtn active"
-                    : "filterBtn"
-                }
-                onClick={() => setArtistDetailSort("tracks")}
-              >
-                {t("sortByPlays", locale)}
-              </button>
-            </div>
-
-            <div className="modalBody">
-              {artistDetails.albums.map((album) => (
-                <div key={album.album} className="albumDetail">
-                  <div className="albumHeader">
-                    <h3>{album.album}</h3>
-                    <div className="albumStats">
-                      {formatHrs(album.totalMs, locale)} · {album.totalPlays}{" "}
-                      {t("playsWord", locale)}
-                    </div>
-                  </div>
-                  <div className="trackList">
-                    {album.tracks.map((track) => (
-                      <div key={track.trackName} className="trackRow">
-                        <div className="trackName">{track.trackName}</div>
-                        <div className="trackStats">
-                          {formatHrs(track.msPlayed, locale)} · {track.plays}{" "}
-                          {t("playsWord", locale)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Artist Comparison Chart */}
-      {result && result.artists.length > 0 && (
-        <ArtistComparisonChart
-          allRows={rows}
-          artists={result.artists}
-          locale={locale}
-          minMsPlayed={cfg.minMsPlayedToCount}
-          availableYears={availableYears}
-          dateFilterMode={dateFilterMode}
-          dateFilterYear={dateFilterYear}
-          onDateFilterChange={(mode, year) => {
-            setDateFilterMode(mode);
-            if (mode === "year" && year) {
-              setDateFilterYear(year);
-            } else if (mode === "all") {
-              setDateFilterYear(null);
-            }
-          }}
-        />
-      )}
-
-      {/* Label Analytics Section */}
-      <LabelAnalytics
-        allRows={rows}
-        minMsPlayed={cfg.minMsPlayedToCount}
-        locale={locale}
-        availableYears={availableYears}
-        dateFilterMode={dateFilterMode}
-        dateFilterYear={dateFilterYear}
-        excludedArtists={excludedArtists}
-        onDateFilterChange={(mode, year) => {
-          setDateFilterMode(mode);
-          if (mode === "year" && year) {
-            setDateFilterYear(year);
-          } else if (mode === "all") {
-            setDateFilterYear(null);
-          }
-        }}
-      />
-
-      {/* ─── Extra Spotify Data Sections ─── */}
-
-      {/* Account info from Userdata.json */}
-      {userdata && userdata.creationTime && (
-        <section className="card">
-          <div className="cardHeader">
-            <h2>{t("userdataTitle", locale)}</h2>
-            <p
-              className="subtle"
-              dangerouslySetInnerHTML={{
-                __html: t("userdataDesc", locale),
-              }}
-            />
-          </div>
-          <div className="userdataGrid">
-            {userdata.creationTime && (
-              <div className="userdataItem">
-                <div className="userdataLabel">
-                  {t("userdataCreated", locale)}
-                </div>
-                <div className="userdataValue">{userdata.creationTime}</div>
-              </div>
-            )}
-            {userdata.country && (
-              <div className="userdataItem">
-                <div className="userdataLabel">
-                  {t("userdataCountry", locale)}
-                </div>
-                <div className="userdataValue">{userdata.country}</div>
-              </div>
-            )}
-            {userdata.creationTime &&
-              (() => {
-                const created = new Date(userdata.creationTime);
-                if (isNaN(created.getTime())) return null;
-                const years = Math.floor(
-                  (Date.now() - created.getTime()) /
-                    (365.25 * 24 * 60 * 60 * 1000),
-                );
-                return (
-                  <div className="userdataItem">
-                    <div className="userdataLabel">
-                      {t("userdataAccountAge", locale)}
-                    </div>
-                    <div className="userdataValue">
-                      {years} {t("userdataYears", locale)}
-                    </div>
-                  </div>
-                );
-              })()}
-          </div>
-        </section>
-      )}
-
-      {/* How Spotify sees you — Inferences.json */}
-      {inferences.length > 0 && (
-        <section className="card">
-          <div className="cardHeader">
-            <h2>{t("inferencesTitle", locale)}</h2>
-            <p
-              className="subtle"
-              dangerouslySetInnerHTML={{
-                __html: t("inferencesDesc", locale),
-              }}
-            />
-          </div>
-
-          {(() => {
-            // Categorize inferences
-            const demo: string[] = [];
-            const content: string[] = [];
-            const adSegments: string[] = [];
-            const other: string[] = [];
-
-            for (const inf of inferences) {
-              const lower = inf.toLowerCase();
-              if (lower.startsWith("demographic_")) {
-                demo.push(inf.replace("demographic_", "").replace(/_/g, " "));
-              } else if (lower.startsWith("content_")) {
-                content.push(inf.replace("content_", "").replace(/_/g, " "));
-              } else if (lower.startsWith("1p_custom_")) {
-                const clean = inf.replace("1P_Custom_", "").replace(/_/g, " ");
-                adSegments.push(clean);
-              } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-/.test(lower)) {
-                // UUIDs — internal IDs, skip display
-              } else {
-                other.push(inf.replace(/_/g, " "));
-              }
-            }
-
-            return (
-              <div className="inferencesContent">
-                {demo.length > 0 && (
-                  <div className="inferenceGroup">
-                    <h4 className="inferenceGroupTitle">
-                      👤 {t("inferencesDemo", locale)}
-                    </h4>
-                    <div className="inferenceChips">
-                      {demo.map((d) => (
-                        <span className="inferenceChip demo" key={d}>
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {content.length > 0 && (
-                  <div className="inferenceGroup">
-                    <h4 className="inferenceGroupTitle">
-                      🎵 {t("inferencesContent", locale)}
-                    </h4>
-                    <div className="inferenceChips">
-                      {content.map((c) => (
-                        <span className="inferenceChip content" key={c}>
-                          {c}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {adSegments.length > 0 && (
-                  <div className="inferenceGroup">
-                    <h4 className="inferenceGroupTitle">
-                      📢 {t("inferencesAdSegments", locale)}
-                    </h4>
-                    <div className="inferenceChips">
-                      {adSegments.map((a) => (
-                        <span
-                          className={`inferenceChip ad ${a.includes("[Advertiser-Restricted]") ? "restricted" : ""}`}
-                          key={a}
-                        >
-                          {a.replace(" [Advertiser-Restricted]", "")}
-                          {a.includes("[Advertiser-Restricted]") && (
-                            <span className="restrictedBadge">
-                              {t("inferencesRestricted", locale)}
-                            </span>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {other.length > 0 && (
-                  <div className="inferenceGroup">
-                    <h4 className="inferenceGroupTitle">
-                      🏷️ {t("inferencesOther", locale)}
-                    </h4>
-                    <div className="inferenceChips">
-                      {other.map((o) => (
-                        <span className="inferenceChip other" key={o}>
-                          {o}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <p
-                  className="inferencesPrivacyNote"
-                  dangerouslySetInnerHTML={{
-                    __html: t("inferencesPrivacyNote", locale),
-                  }}
-                />
-              </div>
-            );
-          })()}
-        </section>
-      )}
-
-      {/* Listener segments — Marquee.json */}
-      {marqueeArtists.length > 0 && (
-        <section className="card">
-          <div className="cardHeader">
-            <h2>{t("marqueeTitle", locale)}</h2>
-            <p
-              className="subtle"
-              dangerouslySetInnerHTML={{
-                __html: t("marqueeDesc", locale),
-              }}
-            />
-          </div>
-
-          <div className="marqueeContent">
-            <div className="marqueeCount">
-              {t("marqueeCount", locale).replace(
-                "{count}",
-                String(marqueeArtists.length),
-              )}
-            </div>
-            {/* Group by segment */}
-            {Object.entries(
-              marqueeArtists.reduce<Record<string, string[]>>((acc, m) => {
-                const seg = m.segment || "Unknown";
-                if (!acc[seg]) acc[seg] = [];
-                acc[seg].push(m.artistName);
-                return acc;
-              }, {}),
-            ).map(([segment, artists]) => (
-              <div key={segment} style={{ marginBottom: 12 }}>
-                <div
-                  style={{ fontSize: "0.85rem", opacity: 0.7, marginBottom: 6 }}
-                >
-                  {segment} ({artists.length})
-                </div>
-                <div className="marqueeChips">
-                  {artists.map((name) => (
-                    <span className="marqueeChip" key={name}>
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-            <p
-              className="marqueeEthicsNote"
-              dangerouslySetInnerHTML={{
-                __html: t("marqueeEthicsNote", locale),
-              }}
-            />
-          </div>
-        </section>
-      )}
-
-      {/* Summary & Export Section */}
-      {result && (
-        <section className="card summaryExportSection">
-          <div className="cardHeader">
-            <h2>{t("summaryExportTitle", locale)}</h2>
-            <p className="subtle">{t("summaryExportDesc", locale)}</p>
-          </div>
-
-          <div className="summaryExportContent">
-            <div className="overviewActionsGroup">
-              <span className="overviewActionsLabel">
-                {t("exportReport", locale)}
-              </span>
-              <div className="exportBtnGroup">
-                {(
-                  [
-                    [10, `${t("topPrefix", locale)} 10`],
-                    [30, `${t("topPrefix", locale)} 30`],
-                    [50, `${t("topPrefix", locale)} 50`],
-                    [100, `${t("topPrefix", locale)} 100`],
-                    [500, `${t("topPrefix", locale)} 500`],
-                    [
-                      "all",
-                      `${t("allLabel", locale)} (${result.artists.length})`,
-                    ],
-                  ] as [number | "all", string][]
-                ).map(([n, label]) => (
-                  <button
-                    key={String(n)}
-                    className="btnExportPdf btnExportSmall"
-                    onClick={() =>
-                      exportFullReportPDF(
-                        result,
-                        cfg,
-                        subscriptionEstimate,
-                        activeDateRange,
-                        excludedArtists,
-                        plannedAlbums,
-                        n as number | "all",
-                        locale,
-                      )
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="overviewActionsGroup">
-              <span className="overviewActionsLabel">
-                {t("shareResults", locale)}
-              </span>
-              <div className="shareGroup">
-                <button
-                  className="btnShare btnShareMain"
-                  onClick={async () => {
-                    const totalVal = result.artists.reduce(
-                      (s, a) => s + a.estValueNOK,
-                      0,
-                    );
-                    const blob = await generateShareImage({
-                      subCost: subscriptionEstimate?.activeCost ?? 0,
-                      artistValue: totalVal,
-                      artistCount: result.artists.length,
-                      hours: formatHrs(result.totalMsPlayed, locale),
-                      locale,
-                      heroSrc: heroImg,
-                      activePercent: Math.round(result.activeShare * 100),
-                      assistedPercent: Math.round(result.passiveShare * 100),
-                    });
-                    const file = new File([blob], "spotify-unwrapped.png", {
-                      type: "image/png",
-                    });
-
-                    if (
-                      navigator.share &&
-                      navigator.canShare?.({ files: [file] })
-                    ) {
-                      try {
-                        await navigator.share({
-                          files: [file],
-                          title: "Spotify Unwrapped",
-                          text:
-                            t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        });
-                        return;
-                      } catch {
-                        /* user cancelled */
-                      }
-                    }
-
-                    let copiedImage = false;
-                    try {
-                      const item = new ClipboardItem({ "image/png": blob });
-                      await navigator.clipboard.write([item]);
-                      copiedImage = true;
-                    } catch {
-                      try {
-                        await navigator.clipboard.writeText(
-                          t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        );
-                      } catch {
-                        /* clipboard not available */
-                      }
-                    }
-
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = "spotify-unwrapped.png";
-                    a.click();
-                    URL.revokeObjectURL(url);
-
-                    setShareToast(
-                      copiedImage
-                        ? t("shareCopiedImage", locale)
-                        : t("shareCopiedText", locale),
-                    );
-                    setTimeout(() => setShareToast(null), 8000);
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
-                    <polyline points="7 7 12 2 17 7" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                  {t("shareResults", locale)}
-                </button>
-                <button
-                  className="btnShare btnShareFb"
-                  onClick={async () => {
-                    const totalVal = result.artists.reduce(
-                      (s, a) => s + a.estValueNOK,
-                      0,
-                    );
-                    const blob = await generateShareImage({
-                      subCost: subscriptionEstimate?.activeCost ?? 0,
-                      artistValue: totalVal,
-                      artistCount: result.artists.length,
-                      hours: formatHrs(result.totalMsPlayed, locale),
-                      locale,
-                      heroSrc: heroImg,
-                      activePercent: Math.round(result.activeShare * 100),
-                      assistedPercent: Math.round(result.passiveShare * 100),
-                    });
-
-                    const file = new File([blob], "spotify-unwrapped.png", {
-                      type: "image/png",
-                    });
-                    if (
-                      navigator.share &&
-                      navigator.canShare?.({ files: [file] })
-                    ) {
-                      try {
-                        await navigator.share({
-                          files: [file],
-                          title: "Spotify Unwrapped",
-                          text:
-                            t("shareText", locale) +
-                            "https://banjohans.github.io/Spotify-Unwrapped/",
-                        });
-                        return;
-                      } catch {
-                        /* user cancelled */
-                      }
-                    }
-
-                    try {
-                      const item = new ClipboardItem({ "image/png": blob });
-                      await navigator.clipboard.write([item]);
-                    } catch {
-                      /* clipboard image not supported */
-                    }
-
-                    const dlUrl = URL.createObjectURL(blob);
-                    const dl = document.createElement("a");
-                    dl.href = dlUrl;
-                    dl.download = "spotify-unwrapped.png";
-                    dl.click();
-                    URL.revokeObjectURL(dlUrl);
-
-                    window.open(
-                      "https://www.facebook.com/",
-                      "_blank",
-                      "noopener",
-                    );
-
-                    setShareToast(t("shareFbToast", locale));
-                    setTimeout(() => setShareToast(null), 10000);
-                  }}
-                >
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                  {t("shareFacebook", locale)}
-                </button>
-              </div>
-              <p className="shareTip">{t("shareTip", locale)}</p>
-            </div>
-          </div>
-        </section>
       )}
 
       {/* Footer */}
@@ -4435,8 +4922,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {shareToast && <div className="shareToast">{shareToast}</div>}
 
       {/* ─── Anonymized export modal ─── */}
       {contributeOpen && result && (
@@ -4742,6 +5227,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {shareToast && <div className="shareToast">{shareToast}</div>}
     </div>
   );
 }

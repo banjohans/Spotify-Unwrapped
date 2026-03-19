@@ -101,13 +101,12 @@ export type SubscriptionSegment = {
   to: [number, number] | null; // null = ongoing
 };
 
-function getTierForMonth(
+function getSegmentForMonth(
   year: number,
   month: number,
   segments: SubscriptionSegment[],
-): SubscriptionTier {
-  // Walk segments in order; last matching segment wins
-  let tier: SubscriptionTier = "individual"; // default
+): SubscriptionSegment | null {
+  let match: SubscriptionSegment | null = null;
   for (const seg of segments) {
     const [fy, fm] = seg.from;
     const fromOk = year > fy || (year === fy && month >= fm);
@@ -117,8 +116,24 @@ function getTierForMonth(
       const toOk = year < ty || (year === ty && month <= tm);
       if (!toOk) continue;
     }
-    tier = seg.tier;
+    match = seg;
   }
+  return match;
+}
+
+function getTierForMonth(
+  year: number,
+  month: number,
+  segments: SubscriptionSegment[],
+): SubscriptionTier {
+  // If no custom history is defined we fall back to Premium Individual.
+  if (segments.length === 0) return "individual";
+
+  // Walk segments in order; last matching segment wins.
+  // Gaps in an explicit history are treated as no paid subscription.
+  const match = getSegmentForMonth(year, month, segments);
+  const tier = match?.tier ?? "free";
+
   // "unknown" maps to individual
   return tier === "unknown" ? "individual" : tier;
 }

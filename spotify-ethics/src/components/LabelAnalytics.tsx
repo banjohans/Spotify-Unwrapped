@@ -465,7 +465,7 @@ export function LabelAnalytics({
         <p className="labelDescription">
           {locale === "en"
             ? "No tracks with Spotify IDs found in your data."
-            : "Ingen låtar med Spotify-ID funne i dataa dine."}
+            : "Ingen låtar med Spotify-ID funne i dataene dine."}
         </p>
       </div>
     );
