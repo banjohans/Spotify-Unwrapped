@@ -1304,12 +1304,12 @@ const T = {
     en: "My data",
   },
   industryTitle: {
-    no: "Skuggeside: Spotify sine eigne tal",
-    en: "The Shadow Side: Spotify's Own Numbers",
+    no: "Oversikten Spotify gløymde: deira eigne tal",
+    en: "The Overview Spotify Left Out: Their Own Numbers",
   },
   industrySubtitle: {
-    no: "Desse grafane brukar offisielle tal frå Spotify Loud & Clear for å setje den store skeivfordelinga i perspektiv.",
-    en: "These charts use official numbers from Spotify Loud & Clear to put the massive inequality in perspective.",
+    no: "Desse grafane brukar offisielle tal frå Spotify Loud & Clear for å vise korleis inntektene faktisk er fordelte — utover topplista.",
+    en: "These charts use official numbers from Spotify Loud & Clear to show how revenue is actually distributed — beyond the top charts.",
   },
   industrySourceNote: {
     no: "Kjelde: loudandclear.byspotify.com · Data frå {year}",
@@ -1329,12 +1329,12 @@ const T = {
 
   // 1. Inequality Pyramid
   pyramidTitle: {
-    no: "Ulikheitspyramiden: {totalArtists} artistar på Spotify",
-    en: "The Inequality Pyramid: {totalArtists} artists on Spotify",
+    no: "Inntektsfordelinga: {totalArtists} artistar på Spotify",
+    en: "Income distribution: {totalArtists} artists on Spotify",
   },
   pyramidDesc: {
-    no: "Spotify skryt av 13 800 artistar som tener over $100 000. Men det er berre 0,12 % av alle artistane på plattforma. Resten — over 11,9 millionar — deler smulane.",
-    en: "Spotify boasts about 13,800 artists earning over $100,000. But that's just 0.12% of all artists on the platform. The rest — over 11.9 million — share the crumbs.",
+    no: "Spotify framhevar at 13 800 artistar tener over $100 000. Det utgjer 0,12 % av alle artistane på plattforma. Ytterlegare ~636 000 artistar (5,3 %) tener mellom $1 000 og $100 000. Dei resterande ~94,6 % — over 11,3 millionar artistar — tener under $1 000 per år.",
+    en: "Spotify highlights that 13,800 artists earn over $100,000. That's 0.12% of all artists on the platform. An additional ~636,000 artists (5.3%) earn between $1,000 and $100,000. The remaining ~94.6% — over 11.3 million artists — earn less than $1,000 per year.",
   },
   pyramidArtists: { no: "artistar", en: "artists" },
   pyramidOfTotal: { no: "av alle", en: "of total" },
@@ -1349,8 +1349,8 @@ const T = {
     en: "Where does {price}/mo go?",
   },
   moneyFlowDesc: {
-    no: "Abonnementet ditt vert delt opp lenge før artisten ser ei krone. Slik ser verdikjeda ut:",
-    en: "Your subscription is carved up long before the artist sees a penny. Here's the value chain:",
+    no: "Abonnementet ditt passerer fleire ledd før noko når artisten. Slik ser verdikjeda ut:",
+    en: "Your subscription passes through several layers before anything reaches the artist. Here's the value chain:",
   },
   moneyFlowSpotify: { no: "Spotify tek ~30 %", en: "Spotify takes ~30%" },
   moneyFlowLabelKeeps: { no: "Plateselskap beheld", en: "Label keeps" },
@@ -1364,12 +1364,12 @@ const T = {
     en: "Songwriter (publishing)",
   },
   moneyFlowLeftForArtist: {
-    no: "Artist + låtskrivar sit att med ~{amount} ({pct}%) — resten går til mellomledd",
-    en: "Artist + songwriter are left with ~{amount} ({pct}%) — the rest goes to intermediaries",
+    no: "Artist + låtskrivar mottek ~{amount} ({pct}%) — resten vert fordelt mellom plattform, plateselskap og forlag",
+    en: "Artist + songwriter receive ~{amount} ({pct}%) — the remainder is distributed among platform, label, and publisher",
   },
   moneyFlowAlbumCompare: {
-    no: "Eitt albumkjøp ({albumPrice}) gir artisten ~{albumArtistShare} — {times}x meir enn ein månad med streaming.",
-    en: "One album purchase ({albumPrice}) gives the artist ~{albumArtistShare} — {times}x more than a month of streaming.",
+    no: "Eitt albumkjøp ({albumPrice}) gir ein enkelt artist ~{albumArtistShare} — {times}x meir enn alle artister du lytter til får for månad med streaming.",
+    en: "One album purchase ({albumPrice}) gives a single artist ~{albumArtistShare} — {times}x more than all the artists you listen to receive for a month of streaming.",
   },
 
   // 3. The 100,000th Artist / Minimum wage
@@ -1378,8 +1378,8 @@ const T = {
     en: "Artist #100,000 (Top {topPct}%) value chain earns {amount}/year",
   },
   minWageDesc: {
-    no: "Spotify framstiller dette som ein suksesshistorie. Men {amount}/år er det som vert utbetalt til heile verdikjeda — plateselskap, forlag, distributør og artist. Artisten sjølv sit att med ein brøkdel. Slik ser fullt beløp ut samanlikna med minstelønn:",
-    en: "Spotify presents this as a success story. But {amount}/year is what's paid out to the entire value chain — label, publisher, distributor, and artist. The artist themselves keeps a fraction. Here's how the full amount compares to minimum wage:",
+    no: "Det er verdt å merke seg at {amount}/år er det som vert utbetalt til heile verdikjeda — plateselskap, forlag, distributør og artist. Artisten sjølv mottek vanlegvis ein mindre del av dette. Slik ser fullt beløp ut samanlikna med minstelønn:",
+    en: "It's worth noting that {amount}/year is what's paid out to the entire value chain — label, publisher, distributor, and artist. The artist typically receives a smaller portion of this. Here's how the full amount compares to minimum wage:",
   },
   minWageHourly: {
     no: "timelønn (fulltid)",
@@ -1481,8 +1481,8 @@ const T = {
     en: "Streams for $10K/yr",
   },
   perStreamNicheNote: {
-    no: "💡 Hovudpoeng: Basert på estimerte ratar trengte ein artist {streams50k_2017}M streams for $50 000 i 2017. I perioden 2020–2022 — då raten var på sitt lågaste — var kravet heile {streams50k_low}M. I 2025 er raten tilbake på 2017-nivå ({streams50k}M), men berre fordi Spotify auka prisane. Samstundes nådde berre 400 000 songar 1 million streams i 2025. Å leve av Spotify-strøyming åleine er framleis urealistisk for dei aller fleste.\n\nArtistar, band og plateselskap med kunstnarisk standing og appell melder om at pro-rata-systemet har fjerna grunnlaget for å rekne med inntekt frå strøyming. Systemet er eine og åleine bygd for det som skal spelast av i store volum.",
-    en: "💡 Key takeaway: Based on estimated rates, an artist needed {streams50k_2017}M streams for $50,000 in 2017. During 2020–2022 — when the rate was at its lowest — the requirement rose to {streams50k_low}M. In 2025 the rate is back to 2017 levels ({streams50k}M), but only because Spotify raised prices. Meanwhile, only 400,000 songs reached 1 million streams in 2025. Making a living from Spotify streaming alone remains unrealistic for the vast majority.\n\nArtists, bands, and labels with artistic standing and appeal report that the pro-rata system has eliminated the basis for expecting income from streaming. The system is built solely for content meant to be played in high volume.",
+    no: "💡 Hovudpoeng: Basert på estimerte ratar trengte ein artist {streams50k_2017}M streams for $50 000 i 2017. I perioden 2020–2022 — då raten var på sitt lågaste — var kravet heile {streams50k_low}M. I 2025 er raten tilbake på 2017-nivå ({streams50k}M), hovudsakleg på grunn av prisaukar. Samstundes nådde berre 400 000 songar 1 million streams i 2025. For dei aller fleste artistar er strøyming åleine ikkje eit realistisk inntektsgrunnlag.\n\nArtistar, band og plateselskap med kunstnarisk standing og appell rapporterer at pro-rata-systemet i praksis gjer det svært vanskeleg å rekne med inntekt frå strøyming. Modellen favoriserer innhald med høgt avspelingsvolum.",
+    en: "💡 Key takeaway: Based on estimated rates, an artist needed {streams50k_2017}M streams for $50,000 in 2017. During 2020–2022 — when the rate was at its lowest — the requirement rose to {streams50k_low}M. In 2025 the rate is back to 2017 levels ({streams50k}M), largely due to price increases. Meanwhile, only 400,000 songs reached 1 million streams in 2025. For the vast majority of artists, streaming alone is not a realistic income source.\n\nArtists, bands, and labels with artistic standing and appeal report that the pro-rata system in practice makes it very difficult to rely on streaming income. The model favours content with high playback volume.",
   },
 
   perStreamPurchasingTitle: {
@@ -1510,16 +1510,16 @@ const T = {
     en: '"$11 billion" — what does it really mean?',
   },
   perArtistDesc: {
-    no: "Spotify la $11 milliardar i potten i 2025. Delt på 12 millionar artistar er snittet ~$917. Men fordelinga er ekstremt skeiv — det store fleirtalet av artistar (over 90 %) har svært få streams og tener nær null. Når ein liten topp tek mesteparten av pengane, dreg det snittet opp — men den «typiske» artisten sit att med nærast ingenting.\n\nStatistiske omgrep som «median» og «gjennomsnitt» vert aktivt misvisande i eit system som kanaliserer inntekt så kraftig mot toppen. Frå 2024 krev Spotify dessutan at ein song har minst 1 000 streams per år for å generere royalty-inntekt i det heile. Det betyr at ein enorm del artistar — truleg fleire millionar — er kutta heilt ut frå potten. Å kalle denne modellen «pro rata» er difor misvisande: det er ikkje ei rettferdig fordeling etter andel, men eit system der botn vert fjerna og toppen haustar.",
-    en: "Spotify put $11 billion in the pool in 2025. Divided among 12 million artists, the average is ~$917. But the distribution is extremely skewed — the vast majority of artists (over 90%) have very few streams and earn close to zero. When a small top takes most of the money, it pulls the average up — but the 'typical' artist is left with almost nothing.\n\nStatistical concepts like 'median' and 'average' become actively misleading in a system that channels income so aggressively toward the top. From 2024, Spotify also requires a song to have at least 1,000 streams per year to generate any royalty income at all. This means an enormous share of artists — likely millions — are cut off from the pool entirely. Calling this model 'pro rata' is therefore misleading: it is not a fair share-based distribution, but a system where the bottom is removed and the top reaps the rewards.",
+    no: "Spotify la $11 milliardar i potten i 2025. Delt på 12 millionar artistar er snittet ~$917. Men fordelinga er svært skeiv — det store fleirtalet av artistar (over 90 %) har få streams og tener lite. Snittet vert drege opp av ein liten topp, medan den typiske artisten mottek vesentleg mindre.\n\nStatistiske mål som «median» og «gjennomsnitt» gir lite meining i ein modell med så konsentrert fordeling. Frå 2024 krev Spotify dessutan at ein song har minst 1 000 streams per år for å generere royalty-inntekt. Det betyr at ein stor del artistar — truleg fleire millionar — ikkje kvalifiserer for utbetaling. Det reiser spørsmålet om omgrepet «pro rata» er dekkande for ein modell med både terskel nedanfrå og sterk konsentrasjon mot toppen.",
+    en: "Spotify put $11 billion in the pool in 2025. Divided among 12 million artists, the average is ~$917. But the distribution is highly skewed — the vast majority of artists (over 90%) have few streams and earn little. The average is pulled up by a small top, while the typical artist receives considerably less.\n\nStatistical measures like 'median' and 'average' offer limited insight in a model with such concentrated distribution. From 2024, Spotify also requires a song to have at least 1,000 streams per year to generate royalty income. This means a large share of artists — likely millions — do not qualify for payouts. This raises the question of whether 'pro rata' adequately describes a model with both a threshold from below and strong concentration toward the top.",
   },
   perArtistAvg: { no: "Gjennomsnitt", en: "Average" },
   perArtistMedian: { no: "Estimert median", en: "Estimated median" },
   perArtistTop1: { no: "Topp 0,01 % snitt", en: "Top 0.01% average" },
   perArtistBottom99: { no: "Botn 99 % snitt", en: "Bottom 99% average" },
   perArtistPerSubscriber: {
-    no: "Per abonnent: ~{amountTotal}/år går til rettshavarar. Med typiske plateavtalar sit artistar og låtskrivarar att med ~{amountArtist}/år — som deretter skal fordelast mellom alle medverkande.",
-    en: "Per subscriber: ~{amountTotal}/year goes to rights holders. With typical label deals, artists and songwriters are left with ~{amountArtist}/year — which is then split among all contributors.",
+    no: "Per abonnent: ~{amountTotal}/år går til rettshavarar. Med typiske plateavtalar mottek artistar og låtskrivarar ~{amountArtist}/år — som deretter vert fordelt mellom alle medverkande.\n\nSpotify brukar ein pro-rata-modell der abonnementet ditt ikkje følgjer lyttinga di direkte — det går inn i ein felles pott som vert fordelt etter total strøymedel. Kor mykje av bidraget ditt som kjem «dine» artistar til gode, avheng av kor mykje du lyttar i høve til gjennomsnittet. Eit estimat basert på noverande sats (~$0,004/stream) og at ~70 % av abonnementet går til rettshavarar, tilseier at ein treng om lag 3,5 timar lytting om dagen for at royaltyverdien skal tilsvare abonnementet (sjå utfyllande break-even-utrekning i metodedelen). Ved lågare lyttetid vil ein større del av bidraget sannsynlegvis fordelast via den globale strøymeprofilen.",
+    en: "Per subscriber: ~{amountTotal}/year goes to rights holders. With typical label deals, artists and songwriters receive ~{amountArtist}/year — which is then split among all contributors.\n\nSpotify uses a pro-rata model where your subscription does not follow your listening directly — it enters a shared pool distributed by total stream share. How much of your contribution benefits 'your' artists depends on how much you listen relative to the average. An estimate based on current rates (~$0.004/stream) and that ~70% of the subscription goes to rights holders suggests you'd need roughly 3.5 hours of listening per day for the royalty value to match your subscription (see the detailed break-even calculation in the methodology section). At lower listening levels, a larger portion of your contribution is likely distributed via the global streaming profile.",
   },
 
   // 6. Streams to survive
@@ -1546,42 +1546,42 @@ const T = {
     en: "Long tail: Income distribution on Spotify",
   },
   longTailDesc: {
-    no: "Same data som pyramiden — vist som ei inntektskurve på logaritmisk skala. Legg merke til det bratte fallet frå venstre: topp ~6 % tek nesten alt. Resten fell raskt ned mot botnen.",
-    en: "Same data as the pyramid — shown as an income curve on a logarithmic scale. Notice the steep drop from the left: the top ~6% take almost everything. The rest fall quickly toward the bottom.",
+    no: "Same data som fordelingsgrafen — vist som ei inntektskurve på logaritmisk skala. Legg merke til det bratte fallet frå venstre: topp ~6 % mottek mesteparten av inntekta. Kurva fell raskt for resten.",
+    en: "Same data as the distribution chart — shown as an income curve on a logarithmic scale. Notice the steep drop from the left: the top ~6% receive most of the income. The curve falls sharply for the rest.",
   },
 
   // Money flow — redistribution notes
   moneyFlowRedistTitle: {
-    no: "Pro-rata: Pengane dine går ikkje dit du trur",
-    en: "Pro-rata: Your money doesn't go where you think",
+    no: "Pro-rata: Korleis abonnementet ditt vert fordelt",
+    en: "Pro-rata: How your subscription is distributed",
   },
   moneyFlowRedistNote: {
-    no: "Abonnementet ditt vert fordelt på SAMTLEGE artistar via pro-rata-modellen — ikkje dei du lyttar på. Pengane i potten vert fordelt etter strøymedel: dei som får flest streams globalt, får mest pengar. For dei med få streams vert bidraget ditt i praksis omfordelt til topp 0,01 %.",
-    en: "Your subscription is distributed across ALL artists via the pro-rata model — not the ones you listen to. The pool is distributed by stream share: those with the most global streams get the most money. For those with few streams, your contribution is effectively redistributed to the top 0.01%.",
+    no: "I pro-rata-modellen vert ikkje abonnementet ditt allokert direkte til artistane du lyttar på. I staden går alt inn i ein felles pott som vert fordelt etter kvar artist sin del av totale streams globalt. I praksis betyr dette at mesteparten av potten går til dei mest strøyma artistane.",
+    en: "Under the pro-rata model, your subscription is not allocated directly to the artists you listen to. Instead, everything goes into a shared pool distributed by each artist's share of total global streams. In practice, this means most of the pool goes to the most-streamed artists.",
   },
   moneyFlowPoolTopCapture: {
-    no: "Topp {n} artistar ({pct}%) tek ~{revPct}% av totalpotten",
-    en: "Top {n} artists ({pct}%) capture ~{revPct}% of total pool",
+    no: "Topp {n} artistar ({pct}%) mottek ~{revPct}% av totalpotten",
+    en: "Top {n} artists ({pct}%) receive ~{revPct}% of total pool",
   },
   moneyFlowPoolBottomCapture: {
-    no: "Botn {n} artistar ({pct}%) får berre ~{revPct}%",
-    en: "Bottom {n} artists ({pct}%) receive only ~{revPct}%",
+    no: "Nedste {n} artistar ({pct}%) mottek ~{revPct}%",
+    en: "Bottom {n} artists ({pct}%) receive ~{revPct}%",
   },
 
   // Per artist — revenue concentration
   perArtistConcTitle: {
-    no: "Inntektskonsentrasjon: kven tek pengane?",
-    en: "Revenue concentration: who gets the money?",
+    no: "Inntektskonsentrasjon: korleis er fordelinga?",
+    en: "Revenue concentration: how is it distributed?",
   },
   perArtistConcDesc: {
-    no: "Kvar rad viser ein inntektsgruppe. Blå er deira del av alle artistar, raud er deira del av totalinntekta. Skilnaden er sjokkerende.",
-    en: "Each row shows an income tier. Blue is their share of all artists, red is their share of total revenue. The gap is staggering.",
+    no: "Kvar rad viser ein inntektsgruppe. Blå er deira del av alle artistar, raud er deira del av totalinntekta. Skilnaden er påfallande.",
+    en: "Each row shows an income tier. Blue is their share of all artists, red is their share of total revenue. The disparity is striking.",
   },
   perArtistPctArtists: { no: "% av artistar", en: "% of artists" },
   perArtistPctRevenue: { no: "% av inntekt", en: "% of revenue" },
   perArtistSkewNote: {
-    no: "Gjennomsnittet ($1 000/år) er meiningslaust. Dei 1 500 best betalte artistane (~0,014 %) tek over ein tredjedel av heile potten — medan 94 % av alle artistar deler berre 2 % seg imellom.",
-    en: "The average ($1,000/year) is meaningless. The top 1,500 artists (~0.014%) take over a third of the entire pool — while 94% of all artists share just 2% among themselves.",
+    no: "Gjennomsnittet ($1 000/år) gir eit misvisande bilde. Dei 1 500 best betalte artistane (~0,014 %) mottek over ein tredjedel av heile potten — medan 94 % av alle artistar deler om lag 2 % seg imellom.",
+    en: "The average ($1,000/year) paints a misleading picture. The top 1,500 artists (~0.014%) receive over a third of the entire pool — while 94% of all artists share roughly 2% among themselves.",
   },
 
   // ─── Per-chart source citations ────────────────────────────────
