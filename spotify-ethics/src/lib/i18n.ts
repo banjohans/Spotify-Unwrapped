@@ -1308,8 +1308,8 @@ const T = {
     en: "The Overview Spotify Left Out: Their Own Numbers",
   },
   industrySubtitle: {
-    no: "Desse grafane brukar offisielle tal frå Spotify Loud & Clear for å vise korleis inntektene faktisk er fordelte — utover topplista.",
-    en: "These charts use official numbers from Spotify Loud & Clear to show how revenue is actually distributed — beyond the top charts.",
+    no: "Desse grafane tek utgangspunkt i offisielle tal frå Spotify Loud & Clear, og viser korleis dei same tala også kan lesast og forståast med meir nyansert perspektiv på korleis inntektene fordelast utanfor toppane.",
+    en: "These charts are based on official numbers from Spotify Loud & Clear, showing how those same figures can also be read and understood with a more nuanced perspective on how revenue is distributed beyond the top charts.",
   },
   industrySourceNote: {
     no: "Kjelde: loudandclear.byspotify.com · Data frå {year}",
