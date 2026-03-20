@@ -54,7 +54,7 @@ export const ROYALTY_HISTORY: Record<Locale, RoyaltyEntry[]> = {
   ],
   en: [
     { from: [2009, 1], ratePerStream: 0.006 },
-    { from: [2015, 1], ratePerStream: 0.005 },
+    { from: [2015, 1], ratePerStream: 0.004 },
     { from: [2018, 1], ratePerStream: 0.0035 },
     { from: [2020, 1], ratePerStream: 0.003 },
     { from: [2023, 1], ratePerStream: 0.004 },
@@ -1333,8 +1333,8 @@ const T = {
     en: "The Inequality Pyramid: {totalArtists} artists on Spotify",
   },
   pyramidDesc: {
-    no: "Spotify skryt av 13 800 artistar som tener over $100 000. Men det er berre 0,13 % av alle artistane på plattforma. Resten — over 10,9 millionar — deler smulane.",
-    en: "Spotify boasts about 13,800 artists earning over $100,000. But that's just 0.13% of all artists on the platform. The rest — over 10.9 million — share the crumbs.",
+    no: "Spotify skryt av 13 800 artistar som tener over $100 000. Men det er berre 0,12 % av alle artistane på plattforma. Resten — over 11,9 millionar — deler smulane.",
+    en: "Spotify boasts about 13,800 artists earning over $100,000. But that's just 0.12% of all artists on the platform. The rest — over 11.9 million — share the crumbs.",
   },
   pyramidArtists: { no: "artistar", en: "artists" },
   pyramidOfTotal: { no: "av alle", en: "of total" },
@@ -1374,8 +1374,8 @@ const T = {
 
   // 3. The 100,000th Artist / Minimum wage
   minWageTitle: {
-    no: "Artist nr. 100 000 sin verdikjede tener {amount}/år",
-    en: "Artist #100,000's value chain earns {amount}/year",
+    no: "Artist nr. 100 000 (Topp {topPct} %) sin verdikjede tener {amount}/år",
+    en: "Artist #100,000 (Top {topPct}%) value chain earns {amount}/year",
   },
   minWageDesc: {
     no: "Spotify framstiller dette som ein suksesshistorie. Men {amount}/år er det som vert utbetalt til heile verdikjeda — plateselskap, forlag, distributør og artist. Artisten sjølv sit att med ein brøkdel. Slik ser fullt beløp ut samanlikna med minstelønn:",
@@ -1393,12 +1393,12 @@ const T = {
 
   // 4. Per-Stream Rate vs Revenue
   perStreamTitle: {
-    no: "Per-stream-rate fell — Spotify sine inntekter stig",
-    en: "Per-stream rate falls — Spotify's revenue rises",
+    no: "Per-stream-rate fell — men totale utbetalingar stig",
+    en: "Per-stream rate fell — but total payouts rise",
   },
   perStreamDesc: {
-    no: "Sjølv om Spotify tener meir enn nokon gong, har betalinga per avspeling blitt lågare med tida. Artistane får ein stadig mindre bit av ein veksande kake.",
-    en: "Even though Spotify earns more than ever, the payment per play has declined over time. Artists get an ever-smaller slice of a growing pie.",
+    no: "Raten per avspeling har falle kraftig sidan 2014, sjølv om totale utbetalingar til rettshavarar aukar kvart år. Hovudårsaka er at det totale talet på streams veks raskare enn pengepotten — kvar einskild stream vert difor mindre verd. Prisaukar sidan 2023 har stabilisert den nominelle raten, men KPI-justert held den reelle verdien fram med å falle.",
+    en: "The per-stream rate has fallen sharply since 2014, even though total payouts to rights holders increase every year. The main reason is that total global streams grow faster than the money pool — so each individual stream becomes worth less. Price hikes since 2023 have stabilized the nominal rate, but CPI-adjusted the real value continues to decline.",
   },
   perStreamRateLabel: {
     no: "Per-stream rate (USD)",
@@ -1412,9 +1412,96 @@ const T = {
     no: "Spotify-inntekt ($mrd)",
     en: "Spotify revenue ($B)",
   },
+  perStreamPayoutLabel: {
+    no: "Utbetalt til rettshavarar ($mrd)",
+    en: "Paid to rights holders ($B)",
+  },
   perStreamCpiNote: {
-    no: "KPI-justert linje viser den reelle verdien av kvar stream i 2025-dollar. Inflasjonen gjer at det reelle fallet er endå brattare.",
-    en: "CPI-adjusted line shows the real value of each stream in 2025 dollars. Inflation makes the real decline even steeper.",
+    no: 'KPI-justert linje viser den reelle kjøpekrafta per stream i 2025-dollar. Når raten er flat nominelt men KPI stig, fell den reelle verdien. Dette illustrerer at sjølv ein "stabil" rate gjev dårlegare avkastning over tid. Merk: ratane er retrospektive derivat frå gjennomsnittsverdiar — ikkje presise utbetalingstal.',
+    en: 'CPI-adjusted line shows the real purchasing power per stream in 2025 dollars. When the nominal rate is flat but CPI rises, real value declines. This illustrates that even a "stable" rate delivers worse returns over time. Note: rates are retrospective derivatives from average values — not precise payout figures.',
+  },
+
+  // 4a. Per-Stream sub-views
+  perStreamSubDilution: {
+    no: "Kvar vert pengane av?",
+    en: "Where does the money go?",
+  },
+  perStreamSubNiche: {
+    no: "Kor mykje må du strøyme?",
+    en: "How much must you stream?",
+  },
+  perStreamSubPurchasing: {
+    no: "Kva er ein stream verd?",
+    en: "What is a stream worth?",
+  },
+
+  perStreamDilutionTitle: {
+    no: "Utbetalingar veks — men per-stream-raten fell likevel",
+    en: "Payouts are growing — yet the per-stream rate keeps falling",
+  },
+  perStreamDilutionDesc: {
+    no: "Tenk deg ein kake (pengepotten) og stadig fleire som skal dele. Kakestykka vert mindre, sjølv om kaka veks. Det er dette som har skjedd med Spotify-utbetalingar.\n\nKvifor fell raten? Fordi Spotify har vakse med stadig fleire låtar og artistar kvart år. Alt nytt innhald konkurrerer med det som finst. Låtar som har «festa seg» i verdstoppen — eller som vert brukt som bakgrunnsmusikk, i spillelister og algoritmeforslag — held fram med å ta ein stor del av alle avspelingar. Bassenget med låtar veks massivt, men den same musikken dominerer. Nye artistar kjempar om eit stadig mindre kakestykke.\n\nDenne grafen viser estimerte tal frå 2017 til 2025, alle indeksert med utgangspunkt i verdien 100:\n• 🔵 Blått område = estimert vekst i globale streams (sjå metodenotat nedanfor)\n• 🟢 Grøn linje = vekst i totale utbetalingar til rettshavarar\n• 🟠 Oransje stipla = utbetalingar justert for inflasjon (KPI)\n• 🔴 Raud stipla linje = estimert per-stream-rate\n\nNår det blå området ligg over den grøne linja, antyder det at det har blitt fleire å dele på enn det har kome meir pengar. Den oransje linja viser at utbetalingsveksten er mindre imponerande justert for prisvekst.",
+    en: "Imagine a pie (the money pool) being shared by more and more people. Each slice gets smaller, even if the pie grows. That's what has been happening with Spotify payouts.\n\nWhy does the rate fall? Because Spotify has grown with more songs and artists every year. All new content competes with what already exists. Songs that have 'stuck' at the top of global charts — or that are used as background music, in playlists and algorithmic recommendations — continue to take a large share of all plays. The pool of songs grows massively, but the same music dominates. New artists fight for an ever-shrinking slice.\n\nThis chart shows estimated figures from 2017 to 2025, all indexed starting at 100:\n• 🔵 Blue area = estimated growth in global streams (see methodology note below)\n• 🟢 Green line = growth in total payouts to rights holders\n• 🟠 Orange dashed = payouts adjusted for inflation (CPI)\n• 🔴 Red dashed line = estimated per-stream rate\n\nWhen the blue area is above the green line, it suggests there have been more people sharing than extra money coming in. The orange line shows that payout growth is less impressive when adjusted for price increases.",
+  },
+  perStreamStreamsGrowthLabel: {
+    no: "Streams, estimert (indeksert)",
+    en: "Streams, estimated (indexed)",
+  },
+  perStreamPayoutsGrowthLabel: {
+    no: "Utbetalingar (indeksert)",
+    en: "Payouts (indexed)",
+  },
+  perStreamPayoutsRealGrowthLabel: {
+    no: "Utbetalingar KPI-justert (indeksert)",
+    en: "Payouts CPI-adjusted (indexed)",
+  },
+  perStreamRateIndexLabel: {
+    no: "Per-stream rate (indeksert)",
+    en: "Per-stream rate (indexed)",
+  },
+  perStreamDilutionCallout: {
+    no: "⚠️ Metodenotat: Spotify publiserer ikkje globale stream-tal. Den blå «streams»-linja er utleia matematisk frå utbetalingar ÷ estimert per-stream-rate. Sidan per-stream-raten sjølv er berekna frå utbetalingar ÷ streams, er dette eit sirkulært estimat — ikkje uavhengig data. Likevel: dei to uavhengige datapunkta (utbetalingar frå Spotify-rapportar og ratar frå tredjepartsanalysar) viser tydeleg at raten har falle sjølv om utbetalingane har auka. Det tyder på at strøymevolumet har vakse raskare enn pengane.",
+    en: "⚠️ Methodology note: Spotify does not publish global stream counts. The blue 'streams' line is derived mathematically from payouts ÷ estimated per-stream rate. Since the per-stream rate itself is calculated from payouts ÷ streams, this is a circular estimate — not independent data. Nevertheless: the two independent data points (payouts from Spotify reports and rates from third-party analysts) clearly show the rate has fallen even as payouts have risen. This suggests streaming volume has grown faster than the money pool.",
+  },
+
+  perStreamNicheTitle: {
+    no: "For å tene det same, måtte artistar strøyme meir og meir",
+    en: "To earn the same, artists had to stream more and more",
+  },
+  perStreamNicheDesc: {
+    no: "Basert på estimerte per-stream-ratar frå 2017 til 2025 viser denne grafen korleis kravet til antal streams har auka over tid for å nå same inntektsnivå. Tala er utrekna i ettertid frå tredjepartskjelder — ikkje presise utbetalingstal.\n• 🔴 $50 000/år — omtrent ei norsk minsteløn, og kan sjåast som minsteløn for ein fulltidsartist\n• 🟠 $10 000/år — eit svært beskjedent tillegg til anna inntekt\n\nDen stiplede linja på 1 million markerer ein terskel som berre ~400 000 songar nådde i heile 2025.",
+    en: "Based on estimated per-stream rates from 2017 to 2025, this chart shows how the number of streams required has grown over time to reach the same income level. Figures are calculated retrospectively from third-party sources — not precise payout data.\n• 🔴 $50,000/year — roughly a minimum living wage for a full-time artist\n• 🟠 $10,000/year — a very modest supplement to other income\n\nThe dashed line at 1 million marks a threshold that only ~400,000 songs reached in all of 2025.",
+  },
+  perStreamNiche50k: {
+    no: "Streams for $50K/år",
+    en: "Streams for $50K/yr",
+  },
+  perStreamNiche10k: {
+    no: "Streams for $10K/år",
+    en: "Streams for $10K/yr",
+  },
+  perStreamNicheNote: {
+    no: "💡 Hovudpoeng: Basert på estimerte ratar trengte ein artist {streams50k_2017}M streams for $50 000 i 2017. I perioden 2020–2022 — då raten var på sitt lågaste — var kravet heile {streams50k_low}M. I 2025 er raten tilbake på 2017-nivå ({streams50k}M), men berre fordi Spotify auka prisane. Samstundes nådde berre 400 000 songar 1 million streams i 2025. Å leve av Spotify-strøyming åleine er framleis urealistisk for dei aller fleste.\n\nArtistar, band og plateselskap med kunstnarisk standing og appell melder om at pro-rata-systemet har fjerna grunnlaget for å rekne med inntekt frå strøyming. Systemet er eine og åleine bygd for det som skal spelast av i store volum.",
+    en: "💡 Key takeaway: Based on estimated rates, an artist needed {streams50k_2017}M streams for $50,000 in 2017. During 2020–2022 — when the rate was at its lowest — the requirement rose to {streams50k_low}M. In 2025 the rate is back to 2017 levels ({streams50k}M), but only because Spotify raised prices. Meanwhile, only 400,000 songs reached 1 million streams in 2025. Making a living from Spotify streaming alone remains unrealistic for the vast majority.\n\nArtists, bands, and labels with artistic standing and appeal report that the pro-rata system has eliminated the basis for expecting income from streaming. The system is built solely for content meant to be played in high volume.",
+  },
+
+  perStreamPurchasingTitle: {
+    no: "Sjølv «stabile» ratar har vorte mindre verde — på grunn av inflasjon",
+    en: "Even 'stable' rates have become worth less — because of inflation",
+  },
+  perStreamPurchasingDesc: {
+    no: "Denne grafen viser estimerte per-stream-ratar frå 2017 til 2025, utrekna i ettertid frå tredjepartskjelder:\n• 🔴 Raud = kva Spotify estimert betalte per stream (nominell rate)\n• 🟠 Oransje stipla = den estimerte reelle verdien justert for prisvekst (KPI/inflasjon), rekna i 2025-kroneverdi\n\nSjølv om den raude linja har stabilisert seg etter 2023, held den oransje fram med å falle. Det betyr at kjøpekrafta frå kvar stream — kva du faktisk kunne kjøpe for pengane — har minka kvart år.\n\nTenk på det slik: viss ein liter mjølk kostar meir kvart år, men inntekta di er flat, har du i praksis fått lønnskutt.",
+    en: "This chart shows estimated per-stream rates from 2017 to 2025, calculated retrospectively from third-party sources:\n• 🔴 Red = what Spotify estimated paid per stream (nominal rate)\n• 🟠 Orange dashed = the estimated real value adjusted for price increases (CPI/inflation), expressed in 2025 dollars\n\nEven though the red line stabilized after 2023, the orange kept falling. This means the purchasing power of each stream — what you could actually buy with the money — has shrunk each year.\n\nThink of it this way: if a gallon of milk costs more each year but your income is flat, you've effectively taken a pay cut.",
+  },
+
+  perStreamSourceNote: {
+    no: "⚠️ Kjeldenotat: Spotify publiserer ikkje per-stream-ratar eller totale stream-tal. Ratane er tredjepartsestimat (The Trichordist, Soundcharts, Digital Music News) — retrospektive gjennomsnitt utleia frå totale utbetalingar og estimerte straumar. Stream-talet i denne grafen er utleia frå desse same ratane og utbetalingane, og er difor eit sirkulært derivat — ikkje uavhengig målt data. Dei mest pålitelege tala her er utbetalingane (frå Spotify sine investorrapportar). Faktisk utbetaling varierer etter land, abonnementstype, avtale og om musikken vert høyrt av gratis- eller premiumbrukarar.",
+    en: "⚠️ Source note: Spotify does not publish per-stream rates or total stream counts. The rates are third-party estimates (The Trichordist, Soundcharts, Digital Music News) — retrospective averages derived from total payouts and estimated streams. The stream count in this chart is derived from these same rates and payouts, making it a circular derivative — not independently measured data. The most reliable figures here are the payouts (from Spotify investor reports). Actual payout varies by country, subscription type, deal terms, and whether music is heard by free or premium users.",
+  },
+
+  perStreamPurchasingCallout: {
+    no: "💡 Hovudpoeng: Basert på estimat var den reelle verdien per stream ~$0.0054 i 2017 (rekna i 2025-kroner). I 2025 var den ~$0.0033 — eit fall på over 35 %. Sjølv når Spotify auka prisane, åt inflasjonen opp gevinsten. Artistar har reelt sett tent mindre for kvar stream kvart år.",
+    en: "💡 Key takeaway: Based on estimates, the real value per stream was ~$0.0054 in 2017 (in 2025 dollars). In 2025 it was ~$0.0033 — a drop of over 35%. Even when Spotify raised prices, inflation ate away the gains. Artists have effectively earned less per stream each year.",
   },
 
   // 5. Per Artist Average
@@ -1423,8 +1510,8 @@ const T = {
     en: '"$11 billion" — what does it really mean?',
   },
   perArtistDesc: {
-    no: "Spotify la $11 milliardar i potten i 2025. Delt på 11 millionar artistar er snittet ~$1 000. Men fordelinga er ekstremt skeiv — medianen er truleg under $100.",
-    en: "Spotify put $11 billion in the pool in 2025. Divided among 11 million artists, the average is ~$1,000. But the distribution is extremely skewed — the median is likely below $100.",
+    no: "Spotify la $11 milliardar i potten i 2025. Delt på 12 millionar artistar er snittet ~$917. Men fordelinga er ekstremt skeiv — det store fleirtalet av artistar (over 90 %) har svært få streams og tener nær null. Når ein liten topp tek mesteparten av pengane, dreg det snittet opp — men den «typiske» artisten sit att med nærast ingenting.\n\nStatistiske omgrep som «median» og «gjennomsnitt» vert aktivt misvisande i eit system som kanaliserer inntekt så kraftig mot toppen. Frå 2024 krev Spotify dessutan at ein song har minst 1 000 streams per år for å generere royalty-inntekt i det heile. Det betyr at ein enorm del artistar — truleg fleire millionar — er kutta heilt ut frå potten. Å kalle denne modellen «pro rata» er difor misvisande: det er ikkje ei rettferdig fordeling etter andel, men eit system der botn vert fjerna og toppen haustar.",
+    en: "Spotify put $11 billion in the pool in 2025. Divided among 12 million artists, the average is ~$917. But the distribution is extremely skewed — the vast majority of artists (over 90%) have very few streams and earn close to zero. When a small top takes most of the money, it pulls the average up — but the 'typical' artist is left with almost nothing.\n\nStatistical concepts like 'median' and 'average' become actively misleading in a system that channels income so aggressively toward the top. From 2024, Spotify also requires a song to have at least 1,000 streams per year to generate any royalty income at all. This means an enormous share of artists — likely millions — are cut off from the pool entirely. Calling this model 'pro rata' is therefore misleading: it is not a fair share-based distribution, but a system where the bottom is removed and the top reaps the rewards.",
   },
   perArtistAvg: { no: "Gjennomsnitt", en: "Average" },
   perArtistMedian: { no: "Estimert median", en: "Estimated median" },
@@ -1447,8 +1534,8 @@ const T = {
   streamsPerMonth: { no: "streams/mnd", en: "streams/mo" },
   streamsPerDay: { no: "~{n} per dag", en: "~{n} per day" },
   impossibleNote: {
-    no: "Til samanlikning: berre ~400 000 songar vart strøyma over 1 million gonger i heile 2025.",
-    en: "For comparison: only ~400,000 songs were streamed over 1 million times in all of 2025.",
+    no: "Til samanlikning: berre ~400 000 songar vart strøyma over 1 million gonger i heile 2025. Hugs at inntekta skal fordelast mellom alle medverkande — ikkje berre artisten",
+    en: "For comparison: only ~400,000 songs were streamed over 1 million times in all of 2025. Remember that the income must be split among all contributors — not just the artist",
   },
 
   // Long-tail toggle (pyramid tab)
@@ -1459,8 +1546,8 @@ const T = {
     en: "Long tail: Income distribution on Spotify",
   },
   longTailDesc: {
-    no: "Same data som pyramiden — vist som ei inntektskurve. Legg merke til den dramatiske spiken heilt til venstre: topp ~6 % tek nesten alt. Resten er ein flat linje langs botnen.",
-    en: "Same data as the pyramid — shown as an income curve. Notice the dramatic spike on the far left: the top ~6% take almost everything. The rest is a flat line along the bottom.",
+    no: "Same data som pyramiden — vist som ei inntektskurve på logaritmisk skala. Legg merke til det bratte fallet frå venstre: topp ~6 % tek nesten alt. Resten fell raskt ned mot botnen.",
+    en: "Same data as the pyramid — shown as an income curve on a logarithmic scale. Notice the steep drop from the left: the top ~6% take almost everything. The rest fall quickly toward the bottom.",
   },
 
   // Money flow — redistribution notes
@@ -1511,12 +1598,12 @@ const T = {
     en: "Sources: Spotify Loud & Clear (artist #100,000 = $7,300/yr to rights holders, not the artist personally), ILO / OECD minimum wage data (2024–2025), converted to USD. The artist typically receives 15–25% of this after label, publisher, and distributor take their share.",
   },
   sourcePerStream: {
-    no: "Kjelder: The Trichordist, Soundcharts, Digital Music News (per-stream-rate), Spotify investorrapportar (inntekt), U.S. Bureau of Labor Statistics CPI-U (inflasjonsjustering).",
-    en: "Sources: The Trichordist, Soundcharts, Digital Music News (per-stream rate), Spotify investor reports (revenue), U.S. Bureau of Labor Statistics CPI-U (inflation adjustment).",
+    no: "Kjelder: The Trichordist, Soundcharts, Digital Music News (per-stream-rate), Spotify Loud & Clear / investorrapportar (utbetalingar), U.S. Bureau of Labor Statistics CPI-U (inflasjonsjustering). Ratane er same estimat som vert brukt i dei personlege utrekningane.",
+    en: "Sources: The Trichordist, Soundcharts, Digital Music News (per-stream rate), Spotify Loud & Clear / investor reports (payouts), U.S. Bureau of Labor Statistics CPI-U (inflation adjustment). Rates are the same estimates used in the personal calculations.",
   },
   sourcePerArtist: {
-    no: "Kjelder: Spotify Loud & Clear ($11 mrd utbetalt 2025, ~11M artistar), investorrapportar (abonnenttal). Gjennomsnittet er matematisk korrekt men misvisande — medianen er estimert <$100.",
-    en: "Sources: Spotify Loud & Clear ($11B paid out 2025, ~11M artists), investor reports (subscriber count). The average is mathematically correct but misleading — the median is estimated at <$100.",
+    no: "Kjelder: Spotify Loud & Clear ($11 mrd utbetalt 2025, ~12M artistar), investorrapportar (abonnenttal). Gjennomsnittet er matematisk korrekt men misvisande — medianen er estimert <$100.",
+    en: "Sources: Spotify Loud & Clear ($11B paid out 2025, ~12M artists), investor reports (subscriber count). The average is mathematically correct but misleading — the median is estimated at <$100.",
   },
   sourceStreamsToLive: {
     no: "Kjelder: Spotify Loud & Clear (per-stream-rate ~$0,004), ILO / OECD minstelønnsdata (2024–2025). Utrekninga: minstelønn/mnd ÷ $0,004/stream.",

@@ -249,7 +249,7 @@ export const YEARLY_STATS: YearlyPlatformStats[] = [
   {
     year: 2025,
     totalPayoutBillions: 11.0,
-    totalArtists: 11_000_000,
+    totalArtists: 12_000_000,
     subscribers: 268,
     totalUsers: 675,
     spotifyRevenueBillions: 17.5,
@@ -257,17 +257,19 @@ export const YEARLY_STATS: YearlyPlatformStats[] = [
 ];
 
 // ─── Per-stream rate evolution (USD) ─────────────────────────────
-// Derived from total payouts ÷ estimated total streams
+// Aligned with ROYALTY_HISTORY.en in i18n.ts (step function from industry estimates).
+// Sources: The Trichordist, Soundcharts, Digital Music News.
+// NOTE: Spotify does NOT publish per-stream rates. These are third-party estimates.
 export const PER_STREAM_USD: Array<{ year: number; rate: number }> = [
-  { year: 2014, rate: 0.007 },
-  { year: 2015, rate: 0.006 },
-  { year: 2016, rate: 0.0055 },
-  { year: 2017, rate: 0.005 },
-  { year: 2018, rate: 0.0045 },
-  { year: 2019, rate: 0.004 },
-  { year: 2020, rate: 0.0035 },
-  { year: 2021, rate: 0.0035 },
-  { year: 2022, rate: 0.0038 },
+  { year: 2014, rate: 0.006 },
+  { year: 2015, rate: 0.004 },
+  { year: 2016, rate: 0.004 },
+  { year: 2017, rate: 0.004 },
+  { year: 2018, rate: 0.0035 },
+  { year: 2019, rate: 0.0035 },
+  { year: 2020, rate: 0.003 },
+  { year: 2021, rate: 0.003 },
+  { year: 2022, rate: 0.003 },
   { year: 2023, rate: 0.004 },
   { year: 2024, rate: 0.004 },
   { year: 2025, rate: 0.004 },
@@ -354,7 +356,7 @@ export const KEY_FACTS = {
   artistsOver100k: 13800, // 2025
   artistsOver1M: 1500, // 2025
   artistsOver10M: 80, // 2025
-  totalArtists: 11_000_000, // ~11M on platform
+  totalArtists: 12_000_000, // ~12M on platform (Loud & Clear 2024)
   the100000thArtist: 7300, // $7,300/year in 2025
   the100000thArtist2015: 350, // $350/year in 2015
   songsOver1MStreams2025: 400_000, // songs streamed >1M times in 2025

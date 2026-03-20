@@ -152,6 +152,9 @@ function PyramidChart({ locale }: { locale: Locale }) {
   const data = useMemo(() => {
     const year = DATA_YEAR;
     const totalArtists = KEY_FACTS.totalArtists;
+    const totalPayout =
+      (YEARLY_STATS.find((s) => s.year === year)?.totalPayoutBillions ?? 11) *
+      1e9;
     const sorted = [...PAYOUT_TIERS].sort((a, b) => b.threshold - a.threshold);
 
     const tiers: Array<{
@@ -159,9 +162,39 @@ function PyramidChart({ locale }: { locale: Locale }) {
       count: number;
       percent: string;
       color: string;
+      estRevShare: string;
     }> = [];
 
     let accounted = 0;
+    let totalEstRevenue = 0;
+
+    // First pass: compute estimated revenue per tier
+    const tierRevenues: number[] = [];
+    sorted.forEach((tier, i) => {
+      const count = tier.counts[year] ?? 0;
+      const nextHigher = i > 0 ? (sorted[i - 1].counts[year] ?? 0) : 0;
+      const exclusive = count - nextHigher;
+      // Midpoint income between this threshold and the next-higher one
+      const upperBound = i > 0 ? sorted[i - 1].threshold : tier.threshold * 2;
+      const avgIncome = (tier.threshold + upperBound) / 2;
+      const estRevenue = exclusive * avgIncome;
+      tierRevenues.push(estRevenue);
+      totalEstRevenue += estRevenue;
+    });
+    // Base tier (<$1K)
+    const baseCount =
+      totalArtists -
+      sorted.reduce((s, t, i) => {
+        const count = t.counts[year] ?? 0;
+        const nextHigher = i > 0 ? (sorted[i - 1].counts[year] ?? 0) : 0;
+        return s + (count - nextHigher);
+      }, 0);
+    const baseRevenue = baseCount * 200; // avg ~$200 for <$1K tier
+    totalEstRevenue += baseRevenue;
+
+    // Scale so that sum equals actual total payout
+    const scaleFactor = totalPayout / totalEstRevenue;
+
     sorted.forEach((tier, i) => {
       const count = tier.counts[year] ?? 0;
       const nextHigher = i > 0 ? (sorted[i - 1].counts[year] ?? 0) : 0;
@@ -169,20 +202,24 @@ function PyramidChart({ locale }: { locale: Locale }) {
       const pct = ((exclusive / totalArtists) * 100).toFixed(
         exclusive / totalArtists < 0.001 ? 4 : 2,
       );
+      const revShare = ((tierRevenues[i] * scaleFactor) / totalPayout) * 100;
       tiers.push({
         label: tier.label,
         count: exclusive,
         percent: pct,
+        estRevShare: revShare < 1 ? revShare.toFixed(1) : revShare.toFixed(0),
         color: PYRAMID_COLORS[i],
       });
       accounted += exclusive;
     });
 
     const remaining = totalArtists - accounted;
+    const baseRevSharePct = ((baseRevenue * scaleFactor) / totalPayout) * 100;
     tiers.push({
       label: t("pyramidBelowThreshold", locale),
       count: remaining,
       percent: ((remaining / totalArtists) * 100).toFixed(1),
+      estRevShare: baseRevSharePct.toFixed(1),
       color: PYRAMID_COLORS[PYRAMID_COLORS.length - 1],
     });
 
@@ -242,13 +279,21 @@ function PyramidChart({ locale }: { locale: Locale }) {
   );
 }
 
+type PyramidTier = {
+  label: string;
+  count: number;
+  percent: string;
+  estRevShare: string;
+  color: string;
+};
+
 function PyramidView({
   data,
   locale,
   hovered,
   setHovered,
 }: {
-  data: Array<{ label: string; count: number; percent: string; color: string }>;
+  data: PyramidTier[];
   locale: Locale;
   hovered: number | null;
   setHovered: (i: number | null) => void;
@@ -334,22 +379,67 @@ function PyramidView({
       </svg>
 
       <div className="pyramidLegend">
+        <div
+          className="pyramidLegendHeader"
+          style={{
+            display: "flex",
+            gap: 8,
+            padding: "0 0 4px",
+            fontSize: 10,
+            color: "rgba(255,255,255,0.45)",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            marginBottom: 4,
+          }}
+        >
+          <span style={{ width: 12 }} />
+          <span style={{ flex: 1 }}>{locale === "no" ? "Nivå" : "Tier"}</span>
+          <span style={{ width: 80, textAlign: "right" }}>
+            {locale === "no" ? "Artistar" : "Artists"}
+          </span>
+          <span style={{ width: 55, textAlign: "right" }}>
+            {locale === "no" ? "% artistar" : "% artists"}
+          </span>
+          <span style={{ width: 65, textAlign: "right", fontWeight: 700 }}>
+            {locale === "no" ? "% inntekt" : "% revenue"}
+          </span>
+        </div>
         {shapes.map((s) => (
           <div
             key={s.idx}
             className={`pyramidLegendRow ${hovered === s.idx ? "highlighted" : ""}`}
             onMouseEnter={() => setHovered(s.idx)}
             onMouseLeave={() => setHovered(null)}
+            style={{ display: "flex", alignItems: "center", gap: 8 }}
           >
             <span
               className="pyramidLegendDot"
               style={{ backgroundColor: s.color }}
             />
-            <span className="pyramidLegendLabel">{s.label}</span>
-            <span className="pyramidLegendCount">
+            <span className="pyramidLegendLabel" style={{ flex: 1 }}>
+              {s.label}
+            </span>
+            <span
+              className="pyramidLegendCount"
+              style={{ width: 80, textAlign: "right" }}
+            >
               {formatNum(s.count, locale)}
             </span>
-            <span className="pyramidLegendPct">{s.percent}%</span>
+            <span
+              className="pyramidLegendPct"
+              style={{ width: 55, textAlign: "right" }}
+            >
+              {s.percent}%
+            </span>
+            <span
+              style={{
+                width: 65,
+                textAlign: "right",
+                fontWeight: 700,
+                color: Number(s.estRevShare) > 10 ? COLORS.red : COLORS.text,
+              }}
+            >
+              {s.estRevShare}%
+            </span>
           </div>
         ))}
       </div>
@@ -361,7 +451,7 @@ function LongTailView({
   data,
   locale,
 }: {
-  data: Array<{ label: string; count: number; percent: string; color: string }>;
+  data: PyramidTier[];
   locale: Locale;
 }) {
   // Build a smooth income-distribution curve.
@@ -415,21 +505,31 @@ function LongTailView({
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
-  const maxIncome = Math.max(...chartData.map((d) => d.income));
+  // Log scale: $50 → $12M
+  const LOG_MIN = Math.log10(50);
+  const LOG_MAX = Math.log10(
+    Math.max(...chartData.map((d) => d.income)) * 1.05,
+  );
+  const logRange = LOG_MAX - LOG_MIN;
 
-  const xScale = (pct: number) => PAD.left + (pct / 100) * plotW;
-  const yScale = (inc: number) => PAD.top + plotH - (inc / maxIncome) * plotH;
+  // Sqrt X-scale: spreading out the top percentiles so they're easier to hover
+  const xScale = (pct: number) => PAD.left + Math.sqrt(pct / 100) * plotW;
+  const yScale = (inc: number) => {
+    const clamped = Math.max(50, inc);
+    const frac = (Math.log10(clamped) - LOG_MIN) / logRange;
+    return PAD.top + plotH * (1 - frac);
+  };
 
   // Build path
   const pathPoints = chartData.map(
     (d) => `${xScale(d.pct)},${yScale(d.income)}`,
   );
   const linePath = `M${pathPoints.join("L")}`;
-  const areaPath = `${linePath}L${xScale(100)},${yScale(0)}L${xScale(0)},${yScale(0)}Z`;
+  const areaPath = `${linePath}L${xScale(100)},${yScale(50)}L${xScale(0)},${yScale(50)}Z`;
 
-  // Y-axis ticks
+  // Y-axis ticks (log-spaced)
   const yTicks = [
-    0, 2_000_000, 4_000_000, 6_000_000, 8_000_000, 10_000_000, 12_000_000,
+    100, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 1_000_000, 10_000_000,
   ];
   const fmtUSD = (v: number) => {
     if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(0)}M`;
@@ -437,8 +537,10 @@ function LongTailView({
     return `$${v}`;
   };
 
-  // X-axis ticks
-  const xTicks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+  // X-axis ticks (non-uniform to match sqrt scale)
+  const xTicks = [0.5, 1, 2, 5, 10, 25, 50, 75, 100];
+
+  const [shareHover, setShareHover] = useState<number | null>(null);
 
   // ── Zoom lens state ──
   const [hover, setHover] = useState<{
@@ -448,10 +550,6 @@ function LongTailView({
     income: number;
   } | null>(null);
 
-  // Zoom inset dimensions — circular magnifying glass
-  const ZOOM_R = 150; // radius of lens
-  const ZOOM_MAX_INCOME = 15_000; // zoom shows $0–$15K
-
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
@@ -460,58 +558,121 @@ function LongTailView({
     const svgX = (e.clientX - rect.left) * scaleX;
     const svgY = (e.clientY - rect.top) * scaleY;
 
-    // Map to data space
-    const pct = ((svgX - PAD.left) / plotW) * 100;
-    if (pct < 0 || pct > 100) {
+    // Map to data space (inverse sqrt scale)
+    const t = (svgX - PAD.left) / plotW;
+    const pct = t * t * 100;
+    if (t < 0 || pct > 100) {
       setHover(null);
       return;
     }
 
-    // Interpolate income from curvePoints
-    let income = 0;
+    // Interpolate income along the actual SVG path segments
+    // The path is linear between data points in sqrt-X / log-Y space,
+    // so we interpolate the SVG Y and then inverse-map to income.
+    const curX = xScale(pct);
+    let interpY = yScale(50);
     for (let i = 0; i < chartData.length - 1; i++) {
-      if (pct >= chartData[i].pct && pct <= chartData[i + 1].pct) {
-        const t =
-          (pct - chartData[i].pct) /
-          (chartData[i + 1].pct - chartData[i].pct || 1);
-        income =
-          chartData[i].income +
-          t * (chartData[i + 1].income - chartData[i].income);
+      const x0 = xScale(chartData[i].pct);
+      const x1 = xScale(chartData[i + 1].pct);
+      if (curX >= x0 && curX <= x1) {
+        const seg = (curX - x0) / (x1 - x0 || 1);
+        const y0 = yScale(chartData[i].income);
+        const y1 = yScale(chartData[i + 1].income);
+        interpY = y0 + seg * (y1 - y0);
         break;
       }
     }
+    // Inverse yScale: frac = (PAD.top + plotH - interpY) / plotH
+    const frac = (PAD.top + plotH - interpY) / plotH;
+    const income = Math.pow(10, LOG_MIN + frac * logRange);
 
-    setHover({ svgX, svgY, pct, income });
+    setHover({ svgX: curX, svgY, pct, income });
   };
 
-  // Compute magnifying glass center (avoid going off-screen)
-  const getZoomCenter = (svgX: number, svgY: number) => {
-    let cx = svgX + ZOOM_R + 30;
-    let cy = svgY - ZOOM_R - 20;
-    if (cx + ZOOM_R > W - 10) cx = svgX - ZOOM_R - 30;
-    if (cy - ZOOM_R < 10) cy = svgY + ZOOM_R + 40;
-    return { cx, cy };
+  // ── Revenue share per official Spotify tier category ──
+  // Each tier shows: label, exclusive artist count, % of artists, est. revenue share
+  const tierShares = useMemo(() => {
+    const year = DATA_YEAR;
+    const totalPayout =
+      (YEARLY_STATS.find((s) => s.year === year)?.totalPayoutBillions ?? 11) *
+      1e9;
+    const sortedTiers = [...PAYOUT_TIERS].sort(
+      (a, b) => b.threshold - a.threshold,
+    );
+
+    let totalEstRev = 0;
+    const tiers: Array<{
+      threshold: number;
+      label: string;
+      exclusive: number;
+      artistPct: string;
+      estRev: number;
+    }> = [];
+
+    sortedTiers.forEach((tier, i) => {
+      const count = tier.counts[year] ?? 0;
+      const higher = i > 0 ? (sortedTiers[i - 1].counts[year] ?? 0) : 0;
+      const exclusive = count - higher;
+      const upper = i > 0 ? sortedTiers[i - 1].threshold : tier.threshold * 2;
+      const avg = (tier.threshold + upper) / 2;
+      const estRev = exclusive * avg;
+      tiers.push({
+        threshold: tier.threshold,
+        label: tier.label,
+        exclusive,
+        artistPct: ((exclusive / totalArtists) * 100).toFixed(
+          exclusive / totalArtists < 0.001 ? 4 : 2,
+        ),
+        estRev,
+      });
+      totalEstRev += estRev;
+    });
+
+    // Base tier (<$1K)
+    const accounted = tiers.reduce((s, t) => s + t.exclusive, 0);
+    const baseExclusive = totalArtists - accounted;
+    const baseEstRev = baseExclusive * 200;
+    totalEstRev += baseEstRev;
+    tiers.push({
+      threshold: 0,
+      label: "<$1K",
+      exclusive: baseExclusive,
+      artistPct: ((baseExclusive / totalArtists) * 100).toFixed(1),
+      estRev: baseEstRev,
+    });
+
+    // Scale so sum = actual total payout, then compute share %
+    const scale = totalPayout / totalEstRev;
+    return tiers.map((t) => ({
+      ...t,
+      revSharePct: ((t.estRev * scale) / totalPayout) * 100,
+    }));
+  }, [totalArtists]);
+
+  // Find which official tier an income level falls into
+  const getTierInfo = (
+    income: number,
+  ): { label: string; artistPct: string; revSharePct: string } => {
+    for (const t of tierShares) {
+      if (income >= t.threshold && t.threshold > 0) {
+        return {
+          label: t.label,
+          artistPct: t.artistPct,
+          revSharePct:
+            t.revSharePct < 1
+              ? t.revSharePct.toFixed(1)
+              : t.revSharePct.toFixed(0),
+        };
+      }
+    }
+    // Base tier
+    const base = tierShares[tierShares.length - 1];
+    return {
+      label: base.label,
+      artistPct: base.artistPct,
+      revSharePct: base.revSharePct.toFixed(1),
+    };
   };
-
-  // Inside the lens: chart coordinates relative to lens center
-  const lensPad = 50; // padding inside the circular lens
-  const lensPlotD = (ZOOM_R - lensPad) * 2;
-
-  // Map data into lens-local coordinates (centered at 0,0)
-  const lensXScale = (pct: number) => -lensPlotD / 2 + (pct / 100) * lensPlotD;
-  const lensYScale = (inc: number) =>
-    lensPlotD / 2 -
-    (Math.min(inc, ZOOM_MAX_INCOME) / ZOOM_MAX_INCOME) * lensPlotD;
-
-  const lensPath = chartData
-    .map(
-      (d, i) =>
-        `${i === 0 ? "M" : "L"}${lensXScale(d.pct)},${lensYScale(d.income)}`,
-    )
-    .join("");
-  const lensAreaPath = `${lensPath}L${lensXScale(100)},${lensYScale(0)}L${lensXScale(0)},${lensYScale(0)}Z`;
-
-  const lensYTicks = [0, 1000, 5000, 10000, 15000];
 
   // ── Interactive insight text based on hover position ──
   const getInsightText = (
@@ -520,525 +681,729 @@ function LongTailView({
     loc: Locale,
   ): { headline: string; body: string } => {
     const fmtI = fmtUSD(Math.round(income));
+    const tier = getTierInfo(income);
+    const tierNote =
+      loc === "no"
+        ? `Kategori ${tier.label}: ${tier.artistPct} % av artistane, ~${tier.revSharePct} % av utbetalingane.`
+        : `Tier ${tier.label}: ${tier.artistPct}% of artists, ~${tier.revSharePct}% of payouts.`;
     if (pct < 0.01) {
       return loc === "no"
         ? {
             headline: "🔴 Topp 0,01 % — Dei globale superstjernene",
-            body: `Rundt 80 artistar tener over $10M/år. Dei dominerer algoritmane, speltelistene og reklameinntektene. Éin einaste artist kan generere meir inntekt enn 100 000 andre til saman. Estimert inntekt her: ${fmtI}.`,
+            body: `Rundt 80 artistar tener over $10M/år. Dei dominerer algoritmane, speltelistene og reklameinntektene. Éin einaste artist kan generere meir inntekt enn 100 000 andre til saman. Estimert inntekt her: ${fmtI}. ${tierNote}`,
           }
         : {
             headline: "🔴 Top 0.01% — The global superstars",
-            body: `About 80 artists earn over $10M/year. They dominate algorithms, playlists, and ad revenue. A single artist can generate more income than 100,000 others combined. Estimated income here: ${fmtI}.`,
+            body: `About 80 artists earn over $10M/year. They dominate algorithms, playlists, and ad revenue. A single artist can generate more income than 100,000 others combined. Estimated income here: ${fmtI}. ${tierNote}`,
           };
     }
     if (pct < 0.5) {
       return loc === "no"
         ? {
             headline: "🟠 Topp 0,5 % — Dei etablerte artistane",
-            body: `Her finn du artistar med platekontraktar og store management-apparat. Dei tener millionar, men sjølv her går mesteparten til plateselskap og mellommenn. Estimert inntekt: ${fmtI}.`,
+            body: `Her finn du artistar med platekontraktar og store management-apparat. Dei tener millionar, men sjølv her går mesteparten til plateselskap og mellommenn. Estimert inntekt: ${fmtI}. ${tierNote}`,
           }
         : {
             headline: "🟠 Top 0.5% — The established artists",
-            body: `These artists have label deals and big management teams. They earn millions, but even here most goes to labels and intermediaries. Estimated income: ${fmtI}.`,
+            body: `These artists have label deals and big management teams. They earn millions, but even here most goes to labels and intermediaries. Estimated income: ${fmtI}. ${tierNote}`,
           };
     }
     if (pct < 2) {
       return loc === "no"
         ? {
             headline: "🟡 Topp 2 % — Artistar som «klarer seg»",
-            body: `Dette er artistar som kan leve av musikken — men berre so vidt. Mange er avhengige av touring og merch i tillegg til strøyming. Under denne grensa byrjar det å bli vanskeleg å kalle det ei levebrød. Estimert inntekt: ${fmtI}.`,
+            body: `Dette er artistar som kan leve av musikken — men berre so vidt. Mange er avhengige av touring og merch i tillegg til strøyming. Under denne grensa byrjar det å bli vanskeleg å kalle det ei levebrød. Estimert inntekt: ${fmtI}. ${tierNote}`,
           }
         : {
             headline: "🟡 Top 2% — Artists who 'get by'",
-            body: `These artists can live off music — but barely. Many depend on touring and merch in addition to streaming. Below this threshold, it's hard to call music a livelihood. Estimated income: ${fmtI}.`,
+            body: `These artists can live off music — but barely. Many depend on touring and merch in addition to streaming. Below this threshold, it's hard to call music a livelihood. Estimated income: ${fmtI}. ${tierNote}`,
           };
     }
     if (pct < 6) {
       return loc === "no"
         ? {
             headline: "🔵 Topp 6 % — Over $1 000/år. Det er alt.",
-            body: `Berre ~6 % av alle artistar på Spotify tener meir enn $1 000 i året. Resten — over 10 millionar menneske — tener mindre enn det kostar å mikse éin singel. Pro-rata-modellen gjer at pengane deira i praksis vert omfordelte til toppen. Estimert inntekt: ${fmtI}.`,
+            body: `Berre ~6 % av alle artistar på Spotify tener meir enn $1 000 i året. Resten — over 10 millionar menneske — tener mindre enn det kostar å mikse éin singel. Pro-rata-modellen gjer at pengane deira i praksis vert omfordelte til toppen. Estimert inntekt: ${fmtI}. ${tierNote}`,
           }
         : {
             headline: "🔵 Top 6% — Over $1,000/year. That's all.",
-            body: `Only ~6% of all Spotify artists earn more than $1,000/year. The rest — over 10 million people — earn less than the cost of mixing a single track. The pro-rata model effectively redistributes their money to the top. Estimated income: ${fmtI}.`,
+            body: `Only ~6% of all Spotify artists earn more than $1,000/year. The rest — over 10 million people — earn less than the cost of mixing a single track. The pro-rata model effectively redistributes their money to the top. Estimated income: ${fmtI}. ${tierNote}`,
           };
     }
     if (pct < 40) {
       return loc === "no"
         ? {
             headline: "⚫ Botn 94 % — Usynlege på grafen",
-            body: `Du er no i den flate linja. Desse artistane tener frå $0 til nokre hundre dollar i året. Mange har lagt sjela si i musikken — men på ein lineær graf er inntekta deira bokstaveleg talt usynleg samanlikna med toppen. Forstørrelsesglasset viser kva som skjuler seg her. Estimert inntekt: ${fmtI}.`,
+            body: `Du er no i den flate delen av kurva. Desse artistane tener frå $0 til nokre hundre dollar i året. Mange har lagt sjela si i musikken — men inntekta deira er forsvinnande lita samanlikna med toppen. Den logaritmiske skalaen gjer at du kan sjå desse verdiane. Estimert inntekt: ${fmtI}. ${tierNote}`,
           }
         : {
             headline: "⚫ Bottom 94% — Invisible on the graph",
-            body: `You're now in the flat line. These artists earn from $0 to a few hundred dollars a year. Many have poured their soul into music — but on a linear graph, their income is literally invisible compared to the top. The magnifying glass reveals what's hidden here. Estimated income: ${fmtI}.`,
+            body: `You're now in the flat part of the curve. These artists earn from $0 to a few hundred dollars a year. Many have poured their soul into music — but their income is vanishingly small compared to the top. The logarithmic scale makes these values visible. Estimated income: ${fmtI}. ${tierNote}`,
           };
     }
     return loc === "no"
       ? {
           headline: "⚫ Den lange halen — Millionar av stemmer utan inntekt",
-          body: `Jo lenger til høgre du går, jo fleire artistar er det — og jo mindre tener dei. Spotify har over 11 millionar artistar, men 94 % av dei tener under $1 000/år. Denne ekstreme skeivfordelinga er ikkje tilfeldig: ho er eit direkte resultat av pro-rata-modellen. Estimert inntekt: ${fmtI}.`,
+          body: `Jo lenger til høgre du går, jo fleire artistar er det — og jo mindre tener dei. Spotify har over 12 millionar artistar, men 94 % av dei tener under $1 000/år. Denne ekstreme skeivfordelinga er ikkje tilfeldig: ho er eit direkte resultat av pro-rata-modellen. Estimert inntekt: ${fmtI}. ${tierNote}`,
         }
       : {
           headline: "⚫ The long tail — Millions of voices without income",
-          body: `The further right you go, the more artists there are — and the less they earn. Spotify has over 11 million artists, but 94% earn under $1,000/year. This extreme skew isn't accidental: it's a direct result of the pro-rata payment model. Estimated income: ${fmtI}.`,
+          body: `The further right you go, the more artists there are — and the less they earn. Spotify has over 12 million artists, but 94% earn under $1,000/year. This extreme skew isn't accidental: it's a direct result of the pro-rata payment model. Estimated income: ${fmtI}. ${tierNote}`,
         };
   };
+
+  const [ltView, setLtView] = useState<"curve" | "share">("curve");
 
   return (
     <div>
       <h4 className="chartSubtitle">{t("longTailTitle", locale)}</h4>
       <p className="chartDesc">{t("longTailDesc", locale)}</p>
 
-      {/* Interactive insight text */}
-      <div
-        className="longTailInsight"
-        style={{
-          minHeight: 72,
-          padding: "12px 16px",
-          margin: "12px 0 4px",
-          borderRadius: 10,
-          background: hover ? "rgba(255,255,255,0.04)" : "transparent",
-          border: hover
-            ? "1px solid rgba(255,255,255,0.1)"
-            : "1px solid transparent",
-          transition: "all 0.3s ease",
-        }}
-      >
-        {hover ? (
-          (() => {
-            const insight = getInsightText(hover.pct, hover.income, locale);
-            return (
-              <>
-                <div
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "rgba(255,255,255,0.9)",
-                    marginBottom: 4,
-                  }}
-                >
-                  {insight.headline}
-                </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    color: "rgba(255,255,255,0.65)",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {insight.body}
-                </div>
-              </>
-            );
-          })()
-        ) : (
-          <div
+      {/* View toggle */}
+      <div style={{ display: "flex", gap: 8, margin: "8px 0 4px" }}>
+        {(["curve", "share"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => {
+              setLtView(v);
+              setHover(null);
+            }}
             style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              border:
+                ltView === v
+                  ? "1px solid rgba(255,255,255,0.4)"
+                  : "1px solid rgba(255,255,255,0.12)",
+              background:
+                ltView === v ? "rgba(255,255,255,0.1)" : "transparent",
+              color:
+                ltView === v
+                  ? "rgba(255,255,255,0.9)"
+                  : "rgba(255,255,255,0.5)",
+              cursor: "pointer",
               fontSize: 13,
-              color: "rgba(255,255,255,0.35)",
-              fontStyle: "italic",
+              fontWeight: ltView === v ? 600 : 400,
+              transition: "all 0.2s",
             }}
           >
-            {locale === "no"
-              ? "👆 Hald musa over grafen for å utforske inntektsfordelinga"
-              : "👆 Hover over the chart to explore the income distribution"}
-          </div>
-        )}
+            {v === "curve"
+              ? locale === "no"
+                ? "Inntektskurve"
+                : "Income curve"
+              : locale === "no"
+                ? "Andelsfordeling"
+                : "Share distribution"}
+          </button>
+        ))}
       </div>
 
-      <div style={{ width: "100%", overflowX: "auto" }}>
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          width="100%"
-          style={{ maxWidth: W, display: "block", margin: "0 auto" }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHover(null)}
-        >
-          <defs>
-            <linearGradient id="longTailGrad2" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={COLORS.red} stopOpacity={0.85} />
-              <stop offset="3%" stopColor={COLORS.orange} stopOpacity={0.6} />
-              <stop offset="8%" stopColor={COLORS.amber} stopOpacity={0.3} />
-              <stop offset="20%" stopColor={COLORS.blue} stopOpacity={0.08} />
-              <stop offset="100%" stopColor={COLORS.gray} stopOpacity={0.02} />
-            </linearGradient>
-            <linearGradient id="zoomGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor={COLORS.amber} stopOpacity={0.6} />
-              <stop offset="20%" stopColor={COLORS.blue} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={COLORS.gray} stopOpacity={0.1} />
-            </linearGradient>
-          </defs>
-
-          {/* Grid lines */}
-          {yTicks.map((v) => (
-            <line
-              key={v}
-              x1={PAD.left}
-              x2={W - PAD.right}
-              y1={yScale(v)}
-              y2={yScale(v)}
-              stroke="rgba(255,255,255,0.08)"
-              strokeDasharray="3 3"
-            />
-          ))}
-
-          {/* Area fill */}
-          <path d={areaPath} fill="url(#longTailGrad2)" />
-
-          {/* Line */}
-          <path
-            d={linePath}
-            fill="none"
-            stroke={COLORS.red}
-            strokeWidth={2.5}
-            strokeLinejoin="round"
-          />
-
-          {/* Data points */}
-          {curvePoints.map((pt, i) => (
-            <circle
-              key={i}
-              cx={xScale(pt.pct)}
-              cy={yScale(pt.income)}
-              r={3}
-              fill="#fff"
-              stroke={COLORS.red}
-              strokeWidth={1.5}
-              opacity={0.7}
-            />
-          ))}
-
-          {/* $100K reference line */}
-          <line
-            x1={PAD.left}
-            x2={W - PAD.right}
-            y1={yScale(100_000)}
-            y2={yScale(100_000)}
-            stroke={COLORS.green}
-            strokeDasharray="5 5"
-            opacity={0.6}
-          />
-          <text
-            x={W - PAD.right + 4}
-            y={yScale(100_000) + 4}
-            fill={COLORS.green}
-            fontSize={10}
+      {ltView === "curve" && (
+        <>
+          {/* Interactive insight text */}
+          <div
+            className="longTailInsight"
+            style={{
+              height: 100,
+              overflow: "hidden",
+              padding: "12px 16px",
+              margin: "12px 0 4px",
+              borderRadius: 10,
+              background: hover ? "rgba(255,255,255,0.04)" : "transparent",
+              border: hover
+                ? "1px solid rgba(255,255,255,0.1)"
+                : "1px solid transparent",
+              transition: "all 0.3s ease",
+            }}
           >
-            $100K
-          </text>
-
-          {/* Annotation: the flat line */}
-          <text
-            x={xScale(50)}
-            y={yScale(0) - 12}
-            fill="rgba(255,255,255,0.5)"
-            fontSize={11}
-            textAnchor="middle"
-          >
-            {locale === "no"
-              ? "~94 % av artistane ligg her, usynlege på lineær skala"
-              : "~94% of artists are here, invisible on a linear scale"}
-          </text>
-
-          {/* Y-axis */}
-          <line
-            x1={PAD.left}
-            y1={PAD.top}
-            x2={PAD.left}
-            y2={PAD.top + plotH}
-            stroke="rgba(255,255,255,0.2)"
-          />
-          {yTicks.map((v) => (
-            <text
-              key={v}
-              x={PAD.left - 8}
-              y={yScale(v) + 4}
-              fill="rgba(255,255,255,0.7)"
-              fontSize={10}
-              textAnchor="end"
-            >
-              {fmtUSD(v)}
-            </text>
-          ))}
-          <text
-            x={16}
-            y={PAD.top + plotH / 2}
-            fill="rgba(255,255,255,0.6)"
-            fontSize={10}
-            textAnchor="middle"
-            transform={`rotate(-90,16,${PAD.top + plotH / 2})`}
-          >
-            {locale === "no" ? "Årsinntekt (USD)" : "Annual income (USD)"}
-          </text>
-
-          {/* X-axis */}
-          <line
-            x1={PAD.left}
-            y1={PAD.top + plotH}
-            x2={W - PAD.right}
-            y2={PAD.top + plotH}
-            stroke="rgba(255,255,255,0.2)"
-          />
-          {xTicks.map((v) => (
-            <text
-              key={v}
-              x={xScale(v)}
-              y={PAD.top + plotH + 16}
-              fill="rgba(255,255,255,0.7)"
-              fontSize={10}
-              textAnchor="middle"
-            >
-              {v}%
-            </text>
-          ))}
-          <text
-            x={PAD.left + plotW / 2}
-            y={H - 6}
-            fill="rgba(255,255,255,0.6)"
-            fontSize={11}
-            textAnchor="middle"
-          >
-            {locale === "no"
-              ? "% av artistar (rikaste → fattigaste)"
-              : "% of artists (richest → poorest)"}
-          </text>
-
-          {/* Hover crosshair + tooltip */}
-          {hover && (
-            <>
-              <line
-                x1={hover.svgX}
-                y1={PAD.top}
-                x2={hover.svgX}
-                y2={PAD.top + plotH}
-                stroke="rgba(255,255,255,0.3)"
-                strokeDasharray="3 3"
-              />
-              <circle
-                cx={hover.svgX}
-                cy={yScale(hover.income)}
-                r={5}
-                fill="#fff"
-                stroke={COLORS.red}
-                strokeWidth={2}
-              />
-              {/* Small label near cursor */}
-              <text
-                x={hover.svgX + 10}
-                y={Math.max(PAD.top + 16, yScale(hover.income) - 8)}
-                fill="#fff"
-                fontSize={11}
-                fontWeight={600}
+            {hover ? (
+              (() => {
+                const insight = getInsightText(hover.pct, hover.income, locale);
+                return (
+                  <>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        fontWeight: 700,
+                        color: "rgba(255,255,255,0.9)",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {insight.headline}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color: "rgba(255,255,255,0.65)",
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {insight.body}
+                    </div>
+                  </>
+                );
+              })()
+            ) : (
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.35)",
+                  fontStyle: "italic",
+                }}
               >
-                {fmtUSD(Math.round(hover.income))} —{" "}
-                {locale === "no" ? "topp" : "top"} {hover.pct.toFixed(1)}%
+                {locale === "no"
+                  ? "👆 Hald musa over grafen for å utforske inntektsfordelinga"
+                  : "👆 Hover over the chart to explore the income distribution"}
+              </div>
+            )}
+          </div>
+
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <svg
+              viewBox={`0 0 ${W} ${H}`}
+              width="100%"
+              style={{ maxWidth: W, display: "block", margin: "0 auto" }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={() => setHover(null)}
+            >
+              <defs>
+                <linearGradient id="longTailGrad2" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor={COLORS.red} stopOpacity={0.85} />
+                  <stop
+                    offset="3%"
+                    stopColor={COLORS.orange}
+                    stopOpacity={0.6}
+                  />
+                  <stop
+                    offset="8%"
+                    stopColor={COLORS.amber}
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="20%"
+                    stopColor={COLORS.blue}
+                    stopOpacity={0.08}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={COLORS.gray}
+                    stopOpacity={0.02}
+                  />
+                </linearGradient>
+              </defs>
+
+              {/* Grid lines */}
+              {yTicks.map((v) => (
+                <line
+                  key={v}
+                  x1={PAD.left}
+                  x2={W - PAD.right}
+                  y1={yScale(v)}
+                  y2={yScale(v)}
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeDasharray="3 3"
+                />
+              ))}
+
+              {/* Area fill */}
+              <path d={areaPath} fill="url(#longTailGrad2)" />
+
+              {/* Line */}
+              <path
+                d={linePath}
+                fill="none"
+                stroke={COLORS.red}
+                strokeWidth={2.5}
+                strokeLinejoin="round"
+              />
+
+              {/* Data points */}
+              {curvePoints.map((pt, i) => (
+                <circle
+                  key={i}
+                  cx={xScale(pt.pct)}
+                  cy={yScale(pt.income)}
+                  r={3}
+                  fill="#fff"
+                  stroke={COLORS.red}
+                  strokeWidth={1.5}
+                  opacity={0.7}
+                />
+              ))}
+
+              {/* $100K reference line */}
+              <line
+                x1={PAD.left}
+                x2={W - PAD.right}
+                y1={yScale(100_000)}
+                y2={yScale(100_000)}
+                stroke={COLORS.green}
+                strokeDasharray="5 5"
+                opacity={0.6}
+              />
+              <text
+                x={W - PAD.right + 4}
+                y={yScale(100_000) + 4}
+                fill={COLORS.green}
+                fontSize={10}
+              >
+                $100K
               </text>
-            </>
-          )}
 
-          {/* ── Magnifying glass (circular lens + handle) ── */}
-          {hover &&
-            (() => {
-              const { cx: lensCx, cy: lensCy } = getZoomCenter(
-                hover.svgX,
-                hover.svgY,
-              );
-              // Handle: angled line from bottom-right of lens
-              const handleAngle = Math.PI * 0.25; // 45°
-              const handleLen = 70;
-              const hx1 = lensCx + Math.cos(handleAngle) * (ZOOM_R - 2);
-              const hy1 = lensCy + Math.sin(handleAngle) * (ZOOM_R - 2);
-              const hx2 = hx1 + Math.cos(handleAngle) * handleLen;
-              const hy2 = hy1 + Math.sin(handleAngle) * handleLen;
+              {/* $1K reference line */}
+              <line
+                x1={PAD.left}
+                x2={W - PAD.right}
+                y1={yScale(1_000)}
+                y2={yScale(1_000)}
+                stroke={COLORS.amber}
+                strokeDasharray="5 5"
+                opacity={0.5}
+              />
+              <text
+                x={W - PAD.right + 4}
+                y={yScale(1_000) + 4}
+                fill={COLORS.amber}
+                fontSize={10}
+              >
+                $1K
+              </text>
 
-              const clipId = "magnifyClip";
+              {/* Annotation: the visible drop */}
+              <text
+                x={xScale(70)}
+                y={yScale(200) + 16}
+                fill="rgba(255,255,255,0.5)"
+                fontSize={11}
+                textAnchor="middle"
+              >
+                {locale === "no"
+                  ? "~94 % av artistane tener under $1 000/år"
+                  : "~94% of artists earn under $1,000/year"}
+              </text>
 
-              return (
-                <g style={{ pointerEvents: "none" }}>
-                  <defs>
-                    <clipPath id={clipId}>
-                      <circle cx={lensCx} cy={lensCy} r={ZOOM_R - 6} />
-                    </clipPath>
-                  </defs>
+              {/* Y-axis */}
+              <line
+                x1={PAD.left}
+                y1={PAD.top}
+                x2={PAD.left}
+                y2={PAD.top + plotH}
+                stroke="rgba(255,255,255,0.2)"
+              />
+              {yTicks.map((v) => (
+                <text
+                  key={v}
+                  x={PAD.left - 8}
+                  y={yScale(v) + 4}
+                  fill="rgba(255,255,255,0.7)"
+                  fontSize={10}
+                  textAnchor="end"
+                >
+                  {fmtUSD(v)}
+                </text>
+              ))}
+              <text
+                x={16}
+                y={PAD.top + plotH / 2}
+                fill="rgba(255,255,255,0.6)"
+                fontSize={10}
+                textAnchor="middle"
+                transform={`rotate(-90,16,${PAD.top + plotH / 2})`}
+              >
+                {locale === "no"
+                  ? "Årsinntekt — log skala (USD)"
+                  : "Annual income — log scale (USD)"}
+              </text>
 
-                  {/* Handle */}
-                  <line
-                    x1={hx1}
-                    y1={hy1}
-                    x2={hx2}
-                    y2={hy2}
-                    stroke="#8B6914"
-                    strokeWidth={14}
-                    strokeLinecap="round"
-                  />
-                  <line
-                    x1={hx1}
-                    y1={hy1}
-                    x2={hx2}
-                    y2={hy2}
-                    stroke="#C49B2A"
-                    strokeWidth={8}
-                    strokeLinecap="round"
-                  />
+              {/* X-axis */}
+              <line
+                x1={PAD.left}
+                y1={PAD.top + plotH}
+                x2={W - PAD.right}
+                y2={PAD.top + plotH}
+                stroke="rgba(255,255,255,0.2)"
+              />
+              {xTicks.map((v) => (
+                <text
+                  key={v}
+                  x={xScale(v)}
+                  y={PAD.top + plotH + 16}
+                  fill="rgba(255,255,255,0.7)"
+                  fontSize={10}
+                  textAnchor="middle"
+                >
+                  {v < 1 ? `${v}%` : `${v}%`}
+                </text>
+              ))}
+              <text
+                x={PAD.left + plotW / 2}
+                y={H - 6}
+                fill="rgba(255,255,255,0.6)"
+                fontSize={11}
+                textAnchor="middle"
+              >
+                {locale === "no"
+                  ? "% av artistar — √-skala (rikaste → fattigaste)"
+                  : "% of artists — √-scale (richest → poorest)"}
+              </text>
 
-                  {/* Lens outer ring (metallic) */}
-                  <circle
-                    cx={lensCx}
-                    cy={lensCy}
-                    r={ZOOM_R}
-                    fill="none"
-                    stroke="#A0853C"
-                    strokeWidth={6}
-                  />
-                  <circle
-                    cx={lensCx}
-                    cy={lensCy}
-                    r={ZOOM_R - 3}
-                    fill="none"
-                    stroke="#C9AE5D"
-                    strokeWidth={2}
-                  />
-
-                  {/* Lens glass background */}
-                  <circle
-                    cx={lensCx}
-                    cy={lensCy}
-                    r={ZOOM_R - 6}
-                    fill="rgba(10,10,30,0.92)"
-                  />
-
-                  {/* Clipped chart content */}
-                  <g clipPath={`url(#${clipId})`}>
-                    <g transform={`translate(${lensCx},${lensCy})`}>
-                      {/* Grid lines */}
-                      {lensYTicks.map((v) => (
-                        <line
-                          key={v}
-                          x1={-lensPlotD / 2}
-                          x2={lensPlotD / 2}
-                          y1={lensYScale(v)}
-                          y2={lensYScale(v)}
-                          stroke="rgba(255,255,255,0.07)"
-                          strokeDasharray="2 2"
-                        />
-                      ))}
-
-                      {/* Y-axis labels */}
-                      {lensYTicks.map((v) => (
-                        <text
-                          key={v}
-                          x={-lensPlotD / 2 - 4}
-                          y={lensYScale(v) + 3}
-                          fill="rgba(255,255,255,0.55)"
-                          fontSize={9}
-                          textAnchor="end"
-                        >
-                          {fmtUSD(v)}
-                        </text>
-                      ))}
-
-                      {/* Area + line */}
-                      <path d={lensAreaPath} fill="url(#zoomGrad)" />
-                      <path
-                        d={lensPath}
-                        fill="none"
-                        stroke={COLORS.amber}
-                        strokeWidth={2.5}
-                      />
-
-                      {/* $1K reference */}
+              {/* Hover crosshair + tooltip */}
+              {hover &&
+                (() => {
+                  const cx = hover.svgX;
+                  const cy = yScale(hover.income);
+                  const labelX =
+                    cx + 10 > W - PAD.right - 80 ? cx - 100 : cx + 10;
+                  return (
+                    <>
                       <line
-                        x1={-lensPlotD / 2}
-                        x2={lensPlotD / 2}
-                        y1={lensYScale(1000)}
-                        y2={lensYScale(1000)}
-                        stroke={COLORS.amber}
-                        strokeDasharray="4 3"
-                        opacity={0.5}
-                      />
-                      <text
-                        x={lensPlotD / 2 + 2}
-                        y={lensYScale(1000) + 3}
-                        fill={COLORS.amber}
-                        fontSize={9}
-                      >
-                        $1K
-                      </text>
-
-                      {/* Hover crosshair in lens */}
-                      <line
-                        x1={lensXScale(hover.pct)}
-                        y1={-lensPlotD / 2}
-                        x2={lensXScale(hover.pct)}
-                        y2={lensPlotD / 2}
-                        stroke="rgba(255,255,255,0.35)"
-                        strokeDasharray="2 2"
+                        x1={cx}
+                        y1={PAD.top}
+                        x2={cx}
+                        y2={PAD.top + plotH}
+                        stroke="rgba(255,255,255,0.3)"
+                        strokeDasharray="3 3"
                       />
                       <circle
-                        cx={lensXScale(hover.pct)}
-                        cy={lensYScale(hover.income)}
+                        cx={cx}
+                        cy={cy}
                         r={5}
                         fill="#fff"
-                        stroke={COLORS.amber}
+                        stroke={COLORS.red}
                         strokeWidth={2}
                       />
+                      {/* Small label near cursor */}
+                      <text
+                        x={labelX}
+                        y={Math.max(PAD.top + 16, cy - 8)}
+                        fill="#fff"
+                        fontSize={11}
+                        fontWeight={600}
+                      >
+                        {fmtUSD(Math.round(hover.income))} —{" "}
+                        {locale === "no" ? "topp" : "top"}{" "}
+                        {hover.pct.toFixed(1)}%
+                      </text>
+                    </>
+                  );
+                })()}
+            </svg>
+          </div>
+        </>
+      )}
 
-                      {/* X-axis labels */}
-                      {[0, 25, 50, 75, 100].map((v) => (
-                        <text
-                          key={v}
-                          x={lensXScale(v)}
-                          y={lensPlotD / 2 + 14}
-                          fill="rgba(255,255,255,0.45)"
-                          fontSize={9}
-                          textAnchor="middle"
-                        >
-                          {v}%
-                        </text>
-                      ))}
-                    </g>
-                  </g>
+      {ltView === "share" &&
+        (() => {
+          // Build cumulative offsets for both bars
+          let cumArtist = 0;
+          let cumRev = 0;
+          const segments = tierShares.map((tier, i) => {
+            const aPct = parseFloat(tier.artistPct);
+            const rPct = tier.revSharePct;
+            const seg = {
+              label:
+                tier.label === "<$1K"
+                  ? locale === "no"
+                    ? "Under $1K"
+                    : "Below $1K"
+                  : tier.label,
+              exclusive: tier.exclusive,
+              artistPct: aPct,
+              revPct: rPct,
+              artistStart: cumArtist,
+              revStart: cumRev,
+              color:
+                PYRAMID_COLORS[i] ?? PYRAMID_COLORS[PYRAMID_COLORS.length - 1],
+            };
+            cumArtist += aPct;
+            cumRev += rPct;
+            return seg;
+          });
 
-                  {/* Title label on glass */}
-                  <text
-                    x={lensCx}
-                    y={lensCy - ZOOM_R + 18}
-                    fill="rgba(255,255,255,0.7)"
-                    fontSize={11}
-                    textAnchor="middle"
-                    fontWeight={600}
+          const BAR_H = 48;
+          const GAP = 24;
+
+          return (
+            <div style={{ marginTop: 12 }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "rgba(255,255,255,0.55)",
+                  marginBottom: 16,
+                  lineHeight: 1.5,
+                }}
+              >
+                {locale === "no"
+                  ? "Dei to stolpane viser same data: kven er artistane, og kven får pengane? Breidda til kvar farge viser prosentandelen. Legg merke til korleis dei øvste kategoriane er usynlege på artiststolpen, men dominerer inntektsstolpen."
+                  : "The two bars show the same data: who are the artists, and who gets the money? Each color's width shows its percentage. Notice how the top tiers are invisible on the artist bar, but dominate the revenue bar."}
+              </p>
+
+              {/* Stacked bars */}
+              <div style={{ position: "relative" }}>
+                {/* Revenue bar */}
+                <div style={{ marginBottom: 4 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.6)",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                    }}
                   >
-                    {locale === "no" ? "Zoom: $0 – $15K" : "Zoom: $0 – $15K"}
-                  </text>
-
-                  {/* Hover value in lens */}
-                  <text
-                    x={lensCx}
-                    y={lensCy + ZOOM_R - 14}
-                    fill="#fff"
-                    fontSize={11}
-                    textAnchor="middle"
-                    fontWeight={600}
+                    {locale === "no"
+                      ? "Andel av utbetalingar"
+                      : "Share of payouts"}{" "}
+                    →
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      height: BAR_H,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
                   >
-                    {fmtUSD(Math.round(hover.income))} — {hover.pct.toFixed(1)}%
-                  </text>
+                    {segments.map((seg, i) => (
+                      <div
+                        key={`rev-${i}`}
+                        onMouseEnter={() => setShareHover(i)}
+                        onMouseLeave={() => setShareHover(null)}
+                        style={{
+                          width: `${Math.max(seg.revPct, 0.15)}%`,
+                          background: seg.color,
+                          opacity:
+                            shareHover === null || shareHover === i
+                              ? 0.85
+                              : 0.3,
+                          transition: "opacity 0.2s",
+                          cursor: "pointer",
+                          position: "relative",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {seg.revPct > 4 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: "#fff",
+                              fontWeight: 700,
+                              textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                            }}
+                          >
+                            {seg.revPct < 1
+                              ? seg.revPct.toFixed(1)
+                              : seg.revPct.toFixed(0)}
+                            %
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-                  {/* Glass shine highlight */}
-                  <ellipse
-                    cx={lensCx - ZOOM_R * 0.3}
-                    cy={lensCy - ZOOM_R * 0.3}
-                    rx={ZOOM_R * 0.2}
-                    ry={ZOOM_R * 0.12}
-                    fill="rgba(255,255,255,0.08)"
-                    transform={`rotate(-30,${lensCx - ZOOM_R * 0.3},${lensCy - ZOOM_R * 0.3})`}
-                  />
-                </g>
-              );
-            })()}
-        </svg>
-      </div>
+                {/* Spacer */}
+                <div style={{ height: GAP }} />
+
+                {/* Artist bar */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "rgba(255,255,255,0.6)",
+                      marginBottom: 4,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {locale === "no" ? "Andel av artistar" : "Share of artists"}{" "}
+                    →
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      height: BAR_H,
+                      borderRadius: 6,
+                      overflow: "hidden",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    {segments.map((seg, i) => (
+                      <div
+                        key={`art-${i}`}
+                        onMouseEnter={() => setShareHover(i)}
+                        onMouseLeave={() => setShareHover(null)}
+                        style={{
+                          width: `${Math.max(seg.artistPct, 0.15)}%`,
+                          background: seg.color,
+                          opacity:
+                            shareHover === null || shareHover === i
+                              ? 0.85
+                              : 0.3,
+                          transition: "opacity 0.2s",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {seg.artistPct > 4 && (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: "#fff",
+                              fontWeight: 700,
+                              textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                            }}
+                          >
+                            {seg.artistPct < 1
+                              ? seg.artistPct.toFixed(1)
+                              : seg.artistPct.toFixed(0)}
+                            %
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hover detail */}
+              <div
+                style={{
+                  height: 56,
+                  overflow: "hidden",
+                  marginTop: 12,
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background:
+                    shareHover !== null
+                      ? "rgba(255,255,255,0.04)"
+                      : "transparent",
+                  border:
+                    shareHover !== null
+                      ? "1px solid rgba(255,255,255,0.1)"
+                      : "1px solid transparent",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {shareHover !== null ? (
+                  (() => {
+                    const s = segments[shareHover];
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 14,
+                            height: 14,
+                            borderRadius: 3,
+                            background: s.color,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 700,
+                              color: "rgba(255,255,255,0.9)",
+                            }}
+                          >
+                            {s.label}{" "}
+                            <span
+                              style={{
+                                fontWeight: 400,
+                                fontSize: 12,
+                                color: "rgba(255,255,255,0.5)",
+                              }}
+                            >
+                              ({s.exclusive.toLocaleString()}{" "}
+                              {locale === "no" ? "artistar" : "artists"})
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "rgba(255,255,255,0.6)",
+                              marginTop: 2,
+                            }}
+                          >
+                            {locale === "no"
+                              ? `${s.artistPct < 0.01 ? s.artistPct.toFixed(4) : s.artistPct < 1 ? s.artistPct.toFixed(2) : s.artistPct.toFixed(1)} % av artistane → ${s.revPct < 1 ? s.revPct.toFixed(1) : s.revPct.toFixed(0)} % av utbetalingane`
+                              : `${s.artistPct < 0.01 ? s.artistPct.toFixed(4) : s.artistPct < 1 ? s.artistPct.toFixed(2) : s.artistPct.toFixed(1)}% of artists → ${s.revPct < 1 ? s.revPct.toFixed(1) : s.revPct.toFixed(0)}% of payouts`}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()
+                ) : (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.3)",
+                      fontStyle: "italic",
+                      paddingTop: 4,
+                    }}
+                  >
+                    {locale === "no"
+                      ? "👆 Hald musa over ein farge for detaljar"
+                      : "👆 Hover a color segment for details"}
+                  </div>
+                )}
+              </div>
+
+              {/* Legend */}
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px 14px",
+                  marginTop: 10,
+                }}
+              >
+                {segments.map((s, i) => (
+                  <div
+                    key={i}
+                    onMouseEnter={() => setShareHover(i)}
+                    onMouseLeave={() => setShareHover(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      cursor: "pointer",
+                      opacity:
+                        shareHover === null || shareHover === i ? 1 : 0.4,
+                      transition: "opacity 0.2s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 2,
+                        background: s.color,
+                      }}
+                    />
+                    <span
+                      style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
     </div>
   );
 }
@@ -1234,10 +1599,11 @@ function MinWageChart({ locale }: { locale: Locale }) {
     (a, b) => b.hourly - a.hourly,
   );
 
-  const title = t("minWageTitle", locale).replace(
-    "{amount}",
-    `$${formatNum(KEY_FACTS.the100000thArtist, locale)}`,
-  );
+  const topPct = ((100_000 / KEY_FACTS.totalArtists) * 100).toFixed(1);
+
+  const title = t("minWageTitle", locale)
+    .replace("{amount}", `$${formatNum(KEY_FACTS.the100000thArtist, locale)}`)
+    .replace("{topPct}", topPct);
 
   return (
     <div>
@@ -1328,56 +1694,304 @@ function MinWageChart({ locale }: { locale: Locale }) {
 
 // ─── 4. Per-Stream Rate vs Revenue (with CPI adjustment) ────────
 
+type PerStreamView = "dilution" | "niche" | "purchasing";
+
 function PerStreamChart({ locale }: { locale: Locale }) {
+  const [subView, setSubView] = useState<PerStreamView>("dilution");
   const cpi2025 = CPI_US[2025] ?? 322;
 
   const data = useMemo(() => {
     return PER_STREAM_USD.map((ps) => {
       const stats = YEARLY_STATS.find((s) => s.year === ps.year);
       const cpiYear = CPI_US[ps.year] ?? cpi2025;
-      const realRate = ps.rate * (cpi2025 / cpiYear); // adjusted to 2025$
+      const realRate = ps.rate * (cpi2025 / cpiYear);
+      const payouts = stats?.totalPayoutBillions ?? null;
+      const estStreams =
+        payouts != null ? (payouts * 1e9) / ps.rate / 1e9 : null;
       return {
         year: ps.year,
-        rate: ps.rate * 1000, // nominal × 1000 for visibility
-        realRate: realRate * 1000, // CPI-adjusted × 1000
-        revenue: stats?.spotifyRevenueBillions ?? null,
+        rate: ps.rate * 1000,
+        realRate: realRate * 1000,
+        rawRate: ps.rate,
+        payouts,
+        realPayouts: payouts != null ? payouts * (cpi2025 / cpiYear) : null,
+        estStreams: estStreams != null ? Math.round(estStreams) : null,
+        streams50k: Math.round((50_000 / ps.rate / 1e6) * 10) / 10,
+        streams10k: Math.round((10_000 / ps.rate / 1e6) * 10) / 10,
       };
     }).filter((d) => d.year >= 2017);
   }, [cpi2025]);
+
+  const subViews: { key: PerStreamView; label: string }[] = [
+    { key: "dilution", label: t("perStreamSubDilution", locale) },
+    { key: "niche", label: t("perStreamSubNiche", locale) },
+    { key: "purchasing", label: t("perStreamSubPurchasing", locale) },
+  ];
 
   return (
     <div>
       <h3 className="chartTitle">{t("perStreamTitle", locale)}</h3>
       <p className="chartDesc">{t("perStreamDesc", locale)}</p>
 
+      <div className="chartsTabs" style={{ marginBottom: 12 }}>
+        {subViews.map((sv) => (
+          <button
+            key={sv.key}
+            className={`chartsTab ${subView === sv.key ? "active" : ""}`}
+            onClick={() => setSubView(sv.key)}
+            style={{ fontSize: 12, padding: "4px 10px" }}
+          >
+            {sv.label}
+          </button>
+        ))}
+      </div>
+
+      {subView === "dilution" && (
+        <DilutionSubView data={data} locale={locale} />
+      )}
+      {subView === "niche" && <NicheSubView data={data} locale={locale} />}
+      {subView === "purchasing" && (
+        <PurchasingSubView data={data} locale={locale} />
+      )}
+
+      <p
+        className="chartFootnote"
+        style={{ marginTop: 12, fontSize: 11, opacity: 0.7 }}
+      >
+        {t("perStreamSourceNote", locale)}
+      </p>
+      <p className="chartSource">{t("sourcePerStream", locale)}</p>
+    </div>
+  );
+}
+
+// ─── Sub-view 1: Dilution ────────────────────────────────────────
+
+type PerStreamDataRow = {
+  year: number;
+  rate: number;
+  realRate: number;
+  rawRate: number;
+  payouts: number | null;
+  realPayouts: number | null;
+  estStreams: number | null;
+  streams50k: number;
+  streams10k: number;
+};
+
+function DilutionSubView({
+  data,
+  locale,
+}: {
+  data: PerStreamDataRow[];
+  locale: Locale;
+}) {
+  const indexed = useMemo(() => {
+    const base = data[0];
+    if (!base?.estStreams || !base.payouts || !base.realPayouts) return [];
+    const baseStreams = base.estStreams;
+    const basePayouts = base.payouts;
+    const baseRealPayouts = base.realPayouts;
+    const baseRate = base.rate;
+    return data.map((d) => ({
+      year: d.year,
+      streamsIdx:
+        d.estStreams != null
+          ? Math.round((d.estStreams / baseStreams) * 100)
+          : null,
+      payoutsIdx:
+        d.payouts != null ? Math.round((d.payouts / basePayouts) * 100) : null,
+      realPayoutsIdx:
+        d.realPayouts != null
+          ? Math.round((d.realPayouts / baseRealPayouts) * 100)
+          : null,
+      rateIdx: Math.round((d.rate / baseRate) * 100),
+    }));
+  }, [data]);
+
+  return (
+    <div>
+      <h4 className="chartSubTitle">{t("perStreamDilutionTitle", locale)}</h4>
+      <p className="chartDesc" style={{ fontSize: 13, whiteSpace: "pre-line" }}>
+        {t("perStreamDilutionDesc", locale)}
+      </p>
+
       <ResponsiveContainer width="100%" height={380}>
-        <ComposedChart data={data} margin={{ left: 0, right: 10 }}>
+        <ComposedChart data={indexed} margin={{ left: 0, right: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
           <XAxis dataKey="year" tick={{ fill: COLORS.text, fontSize: 12 }} />
           <YAxis
-            yAxisId="rate"
-            orientation="left"
-            tick={{ fill: COLORS.red, fontSize: 11 }}
-            tickFormatter={(v: number) => `$${(v / 1000).toFixed(3)}`}
+            tick={{ fill: COLORS.text, fontSize: 11 }}
+            tickFormatter={(v: number) => `${v}`}
+            domain={[50, "auto"]}
             label={{
-              value: t("perStreamRateLabel", locale),
+              value:
+                locale === "no" ? "Indeks (2017 = 100)" : "Index (2017 = 100)",
               angle: -90,
               position: "insideLeft",
-              fill: COLORS.red,
+              fill: COLORS.text,
               fontSize: 10,
               offset: 15,
             }}
           />
-          <YAxis
-            yAxisId="revenue"
-            orientation="right"
-            tick={{ fill: COLORS.spotifyGreen, fontSize: 11 }}
-            tickFormatter={(v: number) => `$${v}B`}
+          <ReferenceLine
+            y={100}
+            stroke={COLORS.text}
+            strokeDasharray="4 3"
+            strokeOpacity={0.4}
             label={{
-              value: t("perStreamRevenueLabel", locale),
-              angle: 90,
-              position: "insideRight",
-              fill: COLORS.spotifyGreen,
+              value:
+                locale === "no"
+                  ? "← 100 = utgangspunkt (2017-nivå)"
+                  : "← 100 = starting point (2017 level)",
+              fill: COLORS.text,
+              fontSize: 10,
+              position: "insideTopRight",
+            }}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            itemStyle={TOOLTIP_ITEM_STYLE}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={
+              ((value: any, name: any) => {
+                const v = Number(value ?? 0);
+                const pctChange = v - 100;
+                const sign = pctChange >= 0 ? "+" : "";
+                const changeStr = `${sign}${Math.round(pctChange)} %`;
+                if (name === "streamsIdx") {
+                  const label =
+                    locale === "no"
+                      ? `🔵 Streams: ${v} (${changeStr} sidan 2017)`
+                      : `🔵 Streams: ${v} (${changeStr} since 2017)`;
+                  return [label, ""];
+                }
+                if (name === "payoutsIdx") {
+                  const label =
+                    locale === "no"
+                      ? `🟢 Utbetalingar: ${v} (${changeStr} sidan 2017)`
+                      : `🟢 Payouts: ${v} (${changeStr} since 2017)`;
+                  return [label, ""];
+                }
+                if (name === "realPayoutsIdx") {
+                  const label =
+                    locale === "no"
+                      ? `🟠 Utbetalingar (KPI-justert): ${v} (${changeStr} sidan 2017)`
+                      : `🟠 Payouts (CPI-adjusted): ${v} (${changeStr} since 2017)`;
+                  return [label, ""];
+                }
+                const label =
+                  locale === "no"
+                    ? `🔴 Per-stream rate: ${v} (${changeStr} sidan 2017)`
+                    : `🔴 Per-stream rate: ${v} (${changeStr} since 2017)`;
+                return [label, ""];
+              }) as any
+            }
+          />
+          <Legend
+            formatter={(value: string) => {
+              if (value === "streamsIdx")
+                return t("perStreamStreamsGrowthLabel", locale);
+              if (value === "payoutsIdx")
+                return t("perStreamPayoutsGrowthLabel", locale);
+              if (value === "realPayoutsIdx")
+                return t("perStreamPayoutsRealGrowthLabel", locale);
+              return t("perStreamRateIndexLabel", locale);
+            }}
+          />
+          <Area
+            type="monotone"
+            dataKey="streamsIdx"
+            fill={COLORS.blue}
+            fillOpacity={0.06}
+            stroke={COLORS.blue}
+            strokeWidth={2}
+            dot={{ fill: COLORS.blue, r: 3 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="payoutsIdx"
+            stroke={COLORS.spotifyGreen}
+            strokeWidth={2}
+            dot={{ fill: COLORS.spotifyGreen, r: 3 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="realPayoutsIdx"
+            stroke={COLORS.orange}
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            dot={{ fill: COLORS.orange, r: 3 }}
+          />
+          <Line
+            type="monotone"
+            dataKey="rateIdx"
+            stroke={COLORS.red}
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            dot={{ fill: COLORS.red, r: 3 }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      <p
+        className="chartCallout"
+        style={{
+          marginTop: 8,
+          padding: "8px 12px",
+          background: "rgba(239,68,68,0.08)",
+          borderLeft: "3px solid #ef4444",
+          borderRadius: 4,
+          fontSize: 13,
+        }}
+      >
+        {t("perStreamDilutionCallout", locale)}
+      </p>
+    </div>
+  );
+}
+
+// ─── Sub-view 2: Niche Impact ────────────────────────────────────
+
+function NicheSubView({
+  data,
+  locale,
+}: {
+  data: PerStreamDataRow[];
+  locale: Locale;
+}) {
+  const latestRate = data[data.length - 1]?.rawRate ?? 0.004;
+  const streams50kM = Math.round((50_000 / latestRate / 1e6) * 10) / 10;
+  const firstRate = data[0]?.rawRate ?? 0.004;
+  const streams50k2017M = Math.round((50_000 / firstRate / 1e6) * 10) / 10;
+  const lowestRate = Math.min(...data.map((d) => d.rawRate));
+  const streams50kLowM = Math.round((50_000 / lowestRate / 1e6) * 10) / 10;
+
+  const note = t("perStreamNicheNote", locale)
+    .replace("{streams50k}", String(streams50kM))
+    .replace("{streams50k_2017}", String(streams50k2017M))
+    .replace("{streams50k_low}", String(streams50kLowM));
+
+  return (
+    <div>
+      <h4 className="chartSubTitle">{t("perStreamNicheTitle", locale)}</h4>
+      <p className="chartDesc" style={{ fontSize: 13, whiteSpace: "pre-line" }}>
+        {t("perStreamNicheDesc", locale)}
+      </p>
+
+      <ResponsiveContainer width="100%" height={380}>
+        <ComposedChart data={data} margin={{ left: 10, right: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
+          <XAxis dataKey="year" tick={{ fill: COLORS.text, fontSize: 12 }} />
+          <YAxis
+            tick={{ fill: COLORS.text, fontSize: 11 }}
+            tickFormatter={(v: number) => `${v}M`}
+            label={{
+              value: locale === "no" ? "Millionar streams" : "Million streams",
+              angle: -90,
+              position: "insideLeft",
+              fill: COLORS.text,
               fontSize: 10,
               offset: 15,
             }}
@@ -1390,30 +2004,119 @@ function PerStreamChart({ locale }: { locale: Locale }) {
             formatter={
               ((value: any, name: any) => {
                 const v = Number(value ?? 0);
-                if (name === "rate")
+                if (name === "streams50k")
+                  return [`${v}M streams`, t("perStreamNiche50k", locale)];
+                return [`${v}M streams`, t("perStreamNiche10k", locale)];
+              }) as any
+            }
+          />
+          <Legend
+            formatter={(value: string) => {
+              if (value === "streams50k") return t("perStreamNiche50k", locale);
+              return t("perStreamNiche10k", locale);
+            }}
+          />
+          <Bar dataKey="streams50k" fill={COLORS.red} fillOpacity={0.8} />
+          <Bar dataKey="streams10k" fill={COLORS.orange} fillOpacity={0.8} />
+          <ReferenceLine
+            y={1}
+            stroke={COLORS.text}
+            strokeDasharray="4 3"
+            label={{
+              value:
+                locale === "no"
+                  ? "1M streams (berre 400K songar nådde dette i 2025)"
+                  : "1M streams (only 400K songs reached this in 2025)",
+              fill: COLORS.text,
+              fontSize: 10,
+              position: "insideTopRight",
+            }}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      <p
+        className="chartCallout"
+        style={{
+          marginTop: 8,
+          padding: "8px 12px",
+          background: "rgba(249,115,22,0.08)",
+          borderLeft: "3px solid #f97316",
+          borderRadius: 4,
+          fontSize: 13,
+        }}
+      >
+        {note}
+      </p>
+    </div>
+  );
+}
+
+// ─── Sub-view 3: Purchasing Power ────────────────────────────────
+
+function PurchasingSubView({
+  data,
+  locale,
+}: {
+  data: PerStreamDataRow[];
+  locale: Locale;
+}) {
+  return (
+    <div>
+      <h4 className="chartSubTitle">{t("perStreamPurchasingTitle", locale)}</h4>
+      <p className="chartDesc" style={{ fontSize: 13, whiteSpace: "pre-line" }}>
+        {t("perStreamPurchasingDesc", locale)}
+      </p>
+
+      <ResponsiveContainer width="100%" height={380}>
+        <ComposedChart data={data} margin={{ left: 0, right: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
+          <XAxis dataKey="year" tick={{ fill: COLORS.text, fontSize: 12 }} />
+          <YAxis
+            tick={{ fill: COLORS.text, fontSize: 11 }}
+            tickFormatter={(v: number) => `$${(v / 1000).toFixed(3)}`}
+            label={{
+              value: t("perStreamRateLabel", locale),
+              angle: -90,
+              position: "insideLeft",
+              fill: COLORS.text,
+              fontSize: 10,
+              offset: 15,
+            }}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            labelStyle={TOOLTIP_LABEL_STYLE}
+            itemStyle={TOOLTIP_ITEM_STYLE}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={
+              ((value: any, name: any) => {
+                const v = Number(value ?? 0);
+                const rate = `$${(v / 1000).toFixed(4)}`;
+                if (name === "rate") {
                   return [
-                    `$${(v / 1000).toFixed(4)} (nominell)`,
-                    t("perStreamRateLabel", locale),
+                    rate,
+                    locale === "no"
+                      ? "🔴 Nominell (kva Spotify betaler)"
+                      : "🔴 Nominal (what Spotify pays)",
                   ];
-                if (name === "realRate")
-                  return [
-                    `$${(v / 1000).toFixed(4)} (2025$)`,
-                    t("perStreamRateRealLabel", locale),
-                  ];
-                return [`$${v}B`, t("perStreamRevenueLabel", locale)];
+                }
+                return [
+                  rate,
+                  locale === "no"
+                    ? "🟠 Reell verdi (kva du kan kjøpe)"
+                    : "🟠 Real value (what you can buy)",
+                ];
               }) as any
             }
           />
           <Legend
             formatter={(value: string) => {
               if (value === "rate") return t("perStreamRateLabel", locale);
-              if (value === "realRate")
-                return t("perStreamRateRealLabel", locale);
-              return t("perStreamRevenueLabel", locale);
+              return t("perStreamRateRealLabel", locale);
             }}
           />
           <Line
-            yAxisId="rate"
             type="monotone"
             dataKey="rate"
             stroke={COLORS.red}
@@ -1421,7 +2124,6 @@ function PerStreamChart({ locale }: { locale: Locale }) {
             dot={{ fill: COLORS.red, r: 3 }}
           />
           <Line
-            yAxisId="rate"
             type="monotone"
             dataKey="realRate"
             stroke={COLORS.orange}
@@ -1429,22 +2131,26 @@ function PerStreamChart({ locale }: { locale: Locale }) {
             strokeDasharray="6 3"
             dot={{ fill: COLORS.orange, r: 3 }}
           />
-          <Area
-            yAxisId="revenue"
-            type="monotone"
-            dataKey="revenue"
-            fill={COLORS.spotifyGreen}
-            fillOpacity={0.15}
-            stroke={COLORS.spotifyGreen}
-            strokeWidth={2}
-          />
         </ComposedChart>
       </ResponsiveContainer>
 
-      <p className="chartFootnote" style={{ marginTop: 12 }}>
+      <p className="chartFootnote" style={{ marginTop: 8 }}>
         {t("perStreamCpiNote", locale)}
       </p>
-      <p className="chartSource">{t("sourcePerStream", locale)}</p>
+
+      <p
+        className="chartCallout"
+        style={{
+          marginTop: 8,
+          padding: "8px 12px",
+          background: "rgba(249,115,22,0.08)",
+          borderLeft: "3px solid #f97316",
+          borderRadius: 4,
+          fontSize: 13,
+        }}
+      >
+        {t("perStreamPurchasingCallout", locale)}
+      </p>
     </div>
   );
 }
@@ -1470,32 +2176,32 @@ function PerArtistChart({ locale }: { locale: Locale }) {
       color: COLORS.red,
     },
     {
-      label: locale === "no" ? "Topp 0,01–0,13 %" : "Top 0.01–0.13%",
-      pctArtists: 0.12,
+      label: locale === "no" ? "Topp 0,01–0,12 %" : "Top 0.01–0.12%",
+      pctArtists: 0.11,
       avgIncome: 300_000,
       color: COLORS.orange,
     },
     {
-      label: locale === "no" ? "0,13–0,38 %" : "0.13–0.38%",
-      pctArtists: 0.25,
+      label: locale === "no" ? "0,12–0,35 %" : "0.12–0.35%",
+      pctArtists: 0.24,
       avgIncome: 70_000,
       color: COLORS.amber,
     },
     {
-      label: locale === "no" ? "0,38–1,8 %" : "0.38–1.8%",
-      pctArtists: 1.44,
+      label: locale === "no" ? "0,35–1,7 %" : "0.35–1.7%",
+      pctArtists: 1.32,
       avgIncome: 15_000,
       color: COLORS.yellow,
     },
     {
-      label: locale === "no" ? "1,8–5,9 %" : "1.8–5.9%",
-      pctArtists: 4.09,
+      label: locale === "no" ? "1,7–5,4 %" : "1.7–5.4%",
+      pctArtists: 3.73,
       avgIncome: 3_000,
       color: COLORS.blue,
     },
     {
-      label: locale === "no" ? "Botn 94,1 %" : "Bottom 94.1%",
-      pctArtists: 94.09,
+      label: locale === "no" ? "Botn 94,6 %" : "Bottom 94.6%",
+      pctArtists: 94.58,
       avgIncome: 50,
       color: COLORS.gray,
     },
