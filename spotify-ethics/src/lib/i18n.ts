@@ -1303,6 +1303,10 @@ const T = {
     no: "Mine data",
     en: "My data",
   },
+  caseNavLabel: {
+    no: "Case",
+    en: "Case Explained",
+  },
   industryTitle: {
     no: "Oversikten Spotify gløymde: deira eigne tal",
     en: "The Overview Spotify Left Out: Their Own Numbers",
@@ -1317,7 +1321,12 @@ const T = {
   },
 
   // Tab labels
+  industryTabDistribution: {
+    no: "Fordelingsdiagram",
+    en: "Distribution Charts",
+  },
   industryTabPyramid: { no: "Ulikheitspyramiden", en: "Inequality Pyramid" },
+  industryTabPieChart: { no: "Piktogram", en: "Pictogram" },
   industryTabMoneyFlow: { no: "Pengeflyten", en: "Money Flow" },
   industryTabMinWage: { no: "Minstelønn-testen", en: "Minimum Wage Test" },
   industryTabPerStream: { no: "Per-stream-rate", en: "Per-Stream Rate" },
@@ -1325,6 +1334,10 @@ const T = {
   industryTabStreamsToLive: {
     no: "Streams for å leve",
     en: "Streams to Survive",
+  },
+  industryTabCase: {
+    no: "Case",
+    en: "Case Explained",
   },
 
   // 1. Inequality Pyramid
@@ -1345,23 +1358,63 @@ const T = {
 
   // 2. Money Flow / Waterfall
   moneyFlowTitle: {
-    no: "Kor går {price}/mnd?",
-    en: "Where does {price}/mo go?",
+    no: "Eksempel på pengefordeling av {price}/mnd:",
+    en: "Example of money distribution for {price}/mo:",
   },
   moneyFlowDesc: {
     no: "Abonnementet ditt passerer fleire ledd før noko når artisten. Slik ser verdikjeda ut:",
     en: "Your subscription passes through several layers before anything reaches the artist. Here's the value chain:",
   },
-  moneyFlowSpotify: { no: "Spotify tek ~30 %", en: "Spotify takes ~30%" },
-  moneyFlowLabelKeeps: { no: "Plateselskap beheld", en: "Label keeps" },
-  moneyFlowPublisherKeeps: { no: "Forlag beheld", en: "Publisher keeps" },
+  moneyFlowSpotify: { no: "Spotify", en: "Spotify" },
+  moneyFlowLabelKeeps: { no: "Plateselskap", en: "Label" },
+  moneyFlowPublisherKeeps: { no: "Forlag", en: "Publisher" },
   moneyFlowArtistRecording: {
-    no: "Artist (innspelingsrettar)",
-    en: "Artist (recording royalty)",
+    no: "Artist",
+    en: "Artist",
   },
   moneyFlowSongwriter: {
-    no: "Låtskrivar (publiseringsrettar)",
-    en: "Songwriter (publishing)",
+    no: "Låtskrivar",
+    en: "Songwriter",
+  },
+  moneyFlowSpotifyTip: {
+    no: "Spotify sin bruttmargin — dekker drift, utvikling, tilsette og profitt.",
+    en: "Spotify's gross margin — covers operations, development, staff, and profit.",
+  },
+  moneyFlowLabelTip: {
+    no: "Plateselskapet sin del av innspelingsrettane (~80 % av recording-royalties). Dekker forskot, marknadsføring, distribusjon.",
+    en: "The label's share of recording rights (~80% of recording royalties). Covers advances, marketing, distribution.",
+  },
+  moneyFlowPublisherTip: {
+    no: "Forlaget sin del av publiseringsrettane (~50 % av publishing). Administrerer songrettar og krev inn lisensar.",
+    en: "The publisher's share of publishing rights (~50% of publishing). Administers song rights and collects licenses.",
+  },
+  moneyFlowArtistTip: {
+    no: "Artisten sin del av innspelingsrettane (~20 % av recording). Varierer sterkt med avtalen — nokre nye artistar får så lite som 10 %.",
+    en: "The artist's share of recording rights (~20% of recording). Varies greatly by deal — some new artists get as little as 10%.",
+  },
+  moneyFlowSongwriterTip: {
+    no: "Låtskrivar/komponistar sin del av publiseringsrettane (~50 % av publishing). Vert ofte delt mellom fleire skribentar.",
+    en: "Songwriter/composers' share of publishing rights (~50% of publishing). Often split among multiple writers.",
+  },
+  moneyFlowSliderNote: {
+    no: "Dra i glidebrytarane for å utforske ulike fordelingsscenario — utrekningane oppdaterer seg automatisk.",
+    en: "Drag the sliders to explore different distribution scenarios — calculations update automatically.",
+  },
+  moneyFlowResetLabel: {
+    no: "Tilbakestill standardfordeling",
+    en: "Reset default distribution",
+  },
+  moneyFlowSpotifySection: {
+    no: "Steg 1: Spotify tek sin del",
+    en: "Step 1: Spotify takes their cut",
+  },
+  moneyFlowPoolSection: {
+    no: "Steg 2: Rettshavarane deler resten",
+    en: "Step 2: Rights holders split the rest",
+  },
+  moneyFlowPoolDesc: {
+    no: "Dei resterande {pct} % ({amount}/mnd) går til rettshavarane. Fordelinga mellom dei er bestemt av individuelle avtalar:",
+    en: "The remaining {pct}% ({amount}/mo) goes to rights holders. The split between them is determined by individual deals:",
   },
   moneyFlowLeftForArtist: {
     no: "Artist + låtskrivar mottek ~{amount} ({pct}%) — resten vert fordelt mellom plattform, plateselskap og forlag",
@@ -1518,8 +1571,36 @@ const T = {
   perArtistTop1: { no: "Topp 0,01 % snitt", en: "Top 0.01% average" },
   perArtistBottom99: { no: "Botn 99 % snitt", en: "Bottom 99% average" },
   perArtistPerSubscriber: {
-    no: "Per abonnent: ~{amountTotal}/år går til rettshavarar. Med typiske plateavtalar mottek artistar og låtskrivarar ~{amountArtist}/år — som deretter vert fordelt mellom alle medverkande.\n\nSpotify brukar ein pro-rata-modell der abonnementet ditt ikkje følgjer lyttinga di direkte — det går inn i ein felles pott som vert fordelt etter total strøymedel. Kor mykje av bidraget ditt som kjem «dine» artistar til gode, avheng av kor mykje du lyttar i høve til gjennomsnittet. Eit estimat basert på noverande sats (~$0,004/stream) og at ~70 % av abonnementet går til rettshavarar, tilseier at ein treng om lag 3,5 timar lytting om dagen for at royaltyverdien skal tilsvare abonnementet (sjå utfyllande break-even-utrekning i metodedelen). Ved lågare lyttetid vil ein større del av bidraget sannsynlegvis fordelast via den globale strøymeprofilen.",
-    en: "Per subscriber: ~{amountTotal}/year goes to rights holders. With typical label deals, artists and songwriters receive ~{amountArtist}/year — which is then split among all contributors.\n\nSpotify uses a pro-rata model where your subscription does not follow your listening directly — it enters a shared pool distributed by total stream share. How much of your contribution benefits 'your' artists depends on how much you listen relative to the average. An estimate based on current rates (~$0.004/stream) and that ~70% of the subscription goes to rights holders suggests you'd need roughly 3.5 hours of listening per day for the royalty value to match your subscription (see the detailed break-even calculation in the methodology section). At lower listening levels, a larger portion of your contribution is likely distributed via the global streaming profile.",
+    no: "Per abonnent: ~{amountTotal}/år går til rettshavarar. Med typiske plateavtalar mottek artistar og låtskrivarar ~{amountArtist}/år — som deretter vert fordelt mellom alle medverkande.",
+    en: "Per subscriber: ~{amountTotal}/year goes to rights holders. With typical label deals, artists and songwriters receive ~{amountArtist}/year — which is then split among all contributors.",
+  },
+  perSubExpandTitle: {
+    no: "Korleis dette scenariet fordelast",
+    en: "How this scenario is distributed",
+  },
+  perSubExpandBody: {
+    no: "unused",
+    en: "unused",
+  },
+  perSubStep1: {
+    no: "Abonnementet ditt går inn i ein felles pott — det følgjer ikkje lyttinga di direkte.",
+    en: "Your subscription enters a shared pool — it does not follow your listening directly.",
+  },
+  perSubStep2: {
+    no: "Potten vert fordelt etter kvar artist sin del av totale streams globalt (pro-rata-modellen).",
+    en: "The pool is distributed by each artist's share of total global streams (pro-rata model).",
+  },
+  perSubStep3: {
+    no: "Kor mykje av bidraget ditt som kjem «dine» artistar til gode, avheng av kor mykje du lyttar i høve til gjennomsnittet.",
+    en: "How much of your contribution benefits 'your' artists depends on how much you listen relative to the average.",
+  },
+  perSubBreakeven: {
+    no: "Med noverande sats (~$0,004/stream) og at ~70 % går til rettshavarar, treng ein om lag 3,5 timar lytting om dagen for at royaltyverdien skal tilsvare abonnementet.",
+    en: "At current rates (~$0.004/stream) and ~70% going to rights holders, you'd need roughly 3.5 hours of listening per day for the royalty value to match your subscription.",
+  },
+  perSubConsequence: {
+    no: "Lyttar du mindre, vil ein større del av bidraget sannsynlegvis fordelast via den globale strøymeprofilen — der innhald med høgt volum dominerer.",
+    en: "If you listen less, a larger share of your contribution is likely distributed via the global streaming profile — where high-volume content dominates.",
   },
 
   // 6. Streams to survive
@@ -1549,6 +1630,28 @@ const T = {
     no: "Same data som fordelingsgrafen — vist som ei inntektskurve på logaritmisk skala. Legg merke til det bratte fallet frå venstre: topp ~6 % mottek mesteparten av inntekta. Kurva fell raskt for resten.",
     en: "Same data as the distribution chart — shown as an income curve on a logarithmic scale. Notice the steep drop from the left: the top ~6% receive most of the income. The curve falls sharply for the rest.",
   },
+  longTailYNote: {
+    no: "Merk: Y-aksen (inntektsprosent) er strukke ut i botnen av grafen. Utan dette ville longtail-kurva vore usynleg — verdiane er så små at dei ikkje ville synt seg i det heile.",
+    en: "Note: The Y-axis (income percentage) is stretched at the bottom of the chart. Without this, the long tail curve would be invisible — the values are so small they wouldn't register at all.",
+  },
+
+  // Isotype / Pictogram
+  isoTitle: {
+    no: "Kven får pengane?",
+    en: "Who gets the money?",
+  },
+  isoDesc: {
+    no: "Oversikta viser alle 12 millionar artistar (venstre) mot inntektsfordelinga (høgre). Zoom-panelet avslører korleis dei som tener over $1 000 fordeler seg. Trykk på eit ikon eller ei gruppe i forklaringa for å samanlikne.",
+    en: "The overview shows all 12 million artists (left) vs revenue distribution (right). The zoom panel reveals how those earning over $1,000 break down. Click an icon or tier in the legend to compare.",
+  },
+  isoHint: {
+    no: "Hald over eit ikon for detaljar — trykk for å velje/avvelje ei gruppe.",
+    en: "Hover an icon for details — click to select/deselect a tier.",
+  },
+  pieChartArtists: { no: "artistar", en: "artists" },
+  pieChartOfRevenue: { no: "av inntektene", en: "of revenue" },
+  pieChartOfArtists: { no: "av artistane", en: "of artists" },
+  pieChartSelected: { no: "Vald", en: "Selected" },
 
   // Money flow — redistribution notes
   moneyFlowRedistTitle: {

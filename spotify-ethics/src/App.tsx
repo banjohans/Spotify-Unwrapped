@@ -10,6 +10,7 @@ import ListeningCharts from "./components/ListeningCharts";
 import ArtistComparisonChart from "./components/ArtistComparisonChart";
 import { LabelAnalytics } from "./components/LabelAnalytics";
 import IndustryCharts from "./components/IndustryCharts";
+import CaseExplained from "./components/CaseExplained";
 import {
   type Locale,
   type SubscriptionTier,
@@ -27,9 +28,7 @@ import {
   tRaw,
 } from "./lib/i18n";
 import "./App.css";
-import analyticsImg from "./assets/analytics.png";
-import insightImg from "./assets/insight.png";
-import privateImg from "./assets/private.png";
+
 import heroImg from "./assets/hero.png";
 
 const COUNTRIES = [
@@ -1371,7 +1370,9 @@ export default function App() {
   const [methodologyInfoOpen, setMethodologyInfoOpen] = useState(false);
   const [locale, setLocale] = useState<Locale>("no");
   const [shareToast, setShareToast] = useState<string | null>(null);
-  const [appView, setAppView] = useState<"industry" | "mydata">("mydata");
+  const [appView, setAppView] = useState<"industry" | "mydata" | "case">(
+    "mydata",
+  );
 
   // Extra Spotify data files
   const [inferences, setInferences] = useState<string[]>([]);
@@ -2050,38 +2051,11 @@ export default function App() {
 
           <div className="heroUnderline" />
 
-          <div className="featureGrid">
-            <div className="featureCard">
-              <div
-                className="featureImg"
-                style={{ backgroundImage: `url(${analyticsImg})` }}
-              />
-              <div className="featureText">
-                <h3>{t("featureAnalyzeTitle", locale)}</h3>
-                <p>{t("featureAnalyzeDesc", locale)}</p>
-              </div>
-            </div>
-            <div className="featureCard">
-              <div
-                className="featureImg"
-                style={{ backgroundImage: `url(${insightImg})` }}
-              />
-              <div className="featureText">
-                <h3>{t("featureInsightTitle", locale)}</h3>
-                <p>{t("featureInsightDesc", locale)}</p>
-              </div>
-            </div>
-            <div className="featureCard">
-              <div
-                className="featureImg"
-                style={{ backgroundImage: `url(${privateImg})` }}
-              />
-              <div className="featureText">
-                <h3>{t("featurePrivateTitle", locale)}</h3>
-                <p>{t("featurePrivateDesc", locale)}</p>
-              </div>
-            </div>
-          </div>
+          <ul className="featureBullets">
+            <li>{t("featureAnalyzeTitle", locale)}</li>
+            <li>{t("featureInsightTitle", locale)}</li>
+            <li>{t("featurePrivateTitle", locale)}</li>
+          </ul>
 
           <div className="heroCta">
             <a
@@ -2110,9 +2084,17 @@ export default function App() {
         >
           {t("industryNavLabel", locale)}
         </button>
+        <button
+          className={`mainNavBtn ${appView === "case" ? "active" : ""}`}
+          onClick={() => setAppView("case")}
+        >
+          {t("caseNavLabel", locale)}
+        </button>
       </nav>
 
       {appView === "industry" && <IndustryCharts locale={locale} />}
+
+      {appView === "case" && <CaseExplained locale={locale} />}
 
       {appView === "mydata" && (
         <>
@@ -2673,144 +2655,228 @@ export default function App() {
                   </div>
 
                   {/* Segment list */}
-                  {subscriptionSegments.length > 0 && (
-                    <div className="subSegmentList">
-                      {subscriptionSegments.map((seg, idx) => {
-                        // Validate tier against launch dates
-                        const launchDate =
-                          TIER_LAUNCH_DATES[
-                            seg.tier as keyof typeof TIER_LAUNCH_DATES
-                          ];
-                        const isBeforeLaunch =
-                          launchDate &&
-                          (seg.from[0] < launchDate[0] ||
-                            (seg.from[0] === launchDate[0] &&
-                              seg.from[1] < launchDate[1]));
+                  {subscriptionSegments.length > 0 &&
+                    (() => {
+                      const currentYear = new Date().getFullYear();
+                      const years = Array.from(
+                        { length: currentYear - 2008 },
+                        (_, i) => 2009 + i,
+                      );
+                      const monthNames = Array.from({ length: 12 }, (_, i) =>
+                        new Intl.DateTimeFormat(
+                          locale === "no" ? "nb-NO" : "en-US",
+                          { month: "long" },
+                        ).format(new Date(2000, i)),
+                      );
+                      return (
+                        <div className="subSegmentList">
+                          {subscriptionSegments.map((seg, idx) => {
+                            // Validate tier against launch dates
+                            const launchDate =
+                              TIER_LAUNCH_DATES[
+                                seg.tier as keyof typeof TIER_LAUNCH_DATES
+                              ];
+                            const isBeforeLaunch =
+                              launchDate &&
+                              (seg.from[0] < launchDate[0] ||
+                                (seg.from[0] === launchDate[0] &&
+                                  seg.from[1] < launchDate[1]));
 
-                        return (
-                          <div className="subSegmentRow" key={idx}>
-                            <select
-                              className="subTierSelect"
-                              value={seg.tier}
-                              onChange={(e) => {
-                                const next = [...subscriptionSegments];
-                                next[idx] = {
-                                  ...next[idx],
-                                  tier: e.target.value as SubscriptionTier,
-                                };
-                                setSubscriptionSegments(next);
-                              }}
-                            >
-                              <option value="individual">
-                                {t("tierIndividual", locale)}
-                              </option>
-                              <option value="free">
-                                {t("tierFree", locale)}
-                              </option>
-                              <option value="student">
-                                {t("tierStudent", locale)}
-                              </option>
-                              <option value="duo">
-                                {t("tierDuo", locale)}
-                              </option>
-                              <option value="family">
-                                {t("tierFamily", locale)}
-                              </option>
-                              <option value="unknown">
-                                {t("tierUnknown", locale)}
-                              </option>
-                            </select>
-
-                            <label className="subDateField">
-                              <span>{t("segmentFrom", locale)}</span>
-                              <input
-                                type="month"
-                                value={`${seg.from[0]}-${String(seg.from[1]).padStart(2, "0")}`}
-                                onChange={(e) => {
-                                  const [y, m] = e.target.value
-                                    .split("-")
-                                    .map(Number);
-                                  if (y && m) {
+                            return (
+                              <div className="subSegmentRow" key={idx}>
+                                <select
+                                  className="subTierSelect"
+                                  value={seg.tier}
+                                  onChange={(e) => {
                                     const next = [...subscriptionSegments];
                                     next[idx] = {
                                       ...next[idx],
-                                      from: [y, m],
+                                      tier: e.target.value as SubscriptionTier,
                                     };
                                     setSubscriptionSegments(next);
-                                  }
-                                }}
-                              />
-                            </label>
+                                  }}
+                                >
+                                  <option value="individual">
+                                    {t("tierIndividual", locale)}
+                                  </option>
+                                  <option value="free">
+                                    {t("tierFree", locale)}
+                                  </option>
+                                  <option value="student">
+                                    {t("tierStudent", locale)}
+                                  </option>
+                                  <option value="duo">
+                                    {t("tierDuo", locale)}
+                                  </option>
+                                  <option value="family">
+                                    {t("tierFamily", locale)}
+                                  </option>
+                                  <option value="unknown">
+                                    {t("tierUnknown", locale)}
+                                  </option>
+                                </select>
 
-                            <label className="subDateField">
-                              <span>{t("segmentTo", locale)}</span>
-                              <div className="subToField">
-                                <input
-                                  type="month"
-                                  value={
-                                    seg.to
-                                      ? `${seg.to[0]}-${String(seg.to[1]).padStart(2, "0")}`
-                                      : ""
-                                  }
-                                  onChange={(e) => {
-                                    const next = [...subscriptionSegments];
-                                    if (!e.target.value) {
-                                      next[idx] = { ...next[idx], to: null };
-                                    } else {
-                                      const [y, m] = e.target.value
-                                        .split("-")
-                                        .map(Number);
-                                      if (y && m) {
+                                <label className="subDateField">
+                                  <span>{t("segmentFrom", locale)}</span>
+                                  <div className="subDateSelects">
+                                    <select
+                                      className="subMonthSelect"
+                                      value={seg.from[1]}
+                                      onChange={(e) => {
+                                        const next = [...subscriptionSegments];
                                         next[idx] = {
                                           ...next[idx],
-                                          to: [y, m],
+                                          from: [
+                                            seg.from[0],
+                                            Number(e.target.value),
+                                          ],
                                         };
-                                      }
-                                    }
-                                    setSubscriptionSegments(next);
+                                        setSubscriptionSegments(next);
+                                      }}
+                                    >
+                                      {monthNames.map((name, i) => (
+                                        <option key={i} value={i + 1}>
+                                          {name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <select
+                                      className="subYearSelect"
+                                      value={seg.from[0]}
+                                      onChange={(e) => {
+                                        const next = [...subscriptionSegments];
+                                        next[idx] = {
+                                          ...next[idx],
+                                          from: [
+                                            Number(e.target.value),
+                                            seg.from[1],
+                                          ],
+                                        };
+                                        setSubscriptionSegments(next);
+                                      }}
+                                    >
+                                      {years.map((y) => (
+                                        <option key={y} value={y}>
+                                          {y}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                </label>
+
+                                <label className="subDateField">
+                                  <span>{t("segmentTo", locale)}</span>
+                                  <div className="subDateSelects">
+                                    {seg.to ? (
+                                      <>
+                                        <select
+                                          className="subMonthSelect"
+                                          value={seg.to[1]}
+                                          onChange={(e) => {
+                                            const next = [
+                                              ...subscriptionSegments,
+                                            ];
+                                            next[idx] = {
+                                              ...next[idx],
+                                              to: [
+                                                seg.to![0],
+                                                Number(e.target.value),
+                                              ],
+                                            };
+                                            setSubscriptionSegments(next);
+                                          }}
+                                        >
+                                          {monthNames.map((name, i) => (
+                                            <option key={i} value={i + 1}>
+                                              {name}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <select
+                                          className="subYearSelect"
+                                          value={seg.to[0]}
+                                          onChange={(e) => {
+                                            const next = [
+                                              ...subscriptionSegments,
+                                            ];
+                                            next[idx] = {
+                                              ...next[idx],
+                                              to: [
+                                                Number(e.target.value),
+                                                seg.to![1],
+                                              ],
+                                            };
+                                            setSubscriptionSegments(next);
+                                          }}
+                                        >
+                                          {years.map((y) => (
+                                            <option key={y} value={y}>
+                                              {y}
+                                            </option>
+                                          ))}
+                                        </select>
+                                        <button
+                                          className="btnGhost btnTiny"
+                                          onClick={() => {
+                                            const next = [
+                                              ...subscriptionSegments,
+                                            ];
+                                            next[idx] = {
+                                              ...next[idx],
+                                              to: null,
+                                            };
+                                            setSubscriptionSegments(next);
+                                          }}
+                                          title={t("segmentOngoing", locale)}
+                                        >
+                                          ∞
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <button
+                                        className="btn btnSmall"
+                                        onClick={() => {
+                                          const next = [
+                                            ...subscriptionSegments,
+                                          ];
+                                          next[idx] = {
+                                            ...next[idx],
+                                            to: [currentYear, 12],
+                                          };
+                                          setSubscriptionSegments(next);
+                                        }}
+                                      >
+                                        {t("segmentOngoing", locale)}
+                                      </button>
+                                    )}
+                                  </div>
+                                </label>
+
+                                <button
+                                  className="btnGhost btnSmall"
+                                  onClick={() => {
+                                    setSubscriptionSegments((prev) =>
+                                      prev.filter((_, i) => i !== idx),
+                                    );
                                   }}
-                                  placeholder={t("segmentOngoing", locale)}
-                                />
-                                {seg.to && (
-                                  <button
-                                    className="btnGhost btnTiny"
-                                    onClick={() => {
-                                      const next = [...subscriptionSegments];
-                                      next[idx] = { ...next[idx], to: null };
-                                      setSubscriptionSegments(next);
-                                    }}
-                                    title={t("segmentOngoing", locale)}
-                                  >
-                                    ∞
-                                  </button>
+                                >
+                                  {t("removeSegment", locale)}
+                                </button>
+
+                                {isBeforeLaunch && (
+                                  <div className="subTierWarning">
+                                    {t("tierNotAvailable", locale).replace(
+                                      "{date}",
+                                      `${launchDate[0]}-${String(launchDate[1]).padStart(2, "0")}`,
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            </label>
-
-                            <button
-                              className="btnGhost btnSmall"
-                              onClick={() => {
-                                setSubscriptionSegments((prev) =>
-                                  prev.filter((_, i) => i !== idx),
-                                );
-                              }}
-                            >
-                              {t("removeSegment", locale)}
-                            </button>
-
-                            {isBeforeLaunch && (
-                              <div className="subTierWarning">
-                                {t("tierNotAvailable", locale).replace(
-                                  "{date}",
-                                  `${launchDate[0]}-${String(launchDate[1]).padStart(2, "0")}`,
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                 </div>
               </div>
             )}

@@ -383,53 +383,21 @@ body {
   margin-right: auto;
 }
 
-.featureGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 40px;
-}
-
-.featureCard {
-  overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.04);
+.featureBullets {
   display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-}
-
-.featureCard:hover {
-  border-color: rgba(30, 215, 96, 0.35);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(30, 215, 96, 0.12);
-}
-
-.featureImg {
-  width: 100%;
-  height: 160px;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.featureText {
-  padding: 16px 20px 20px;
-}
-
-.featureCard h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.featureCard p {
-  margin: 0;
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
   font-size: 13px;
   color: var(--muted);
-  line-height: 1.5;
+}
+
+.featureBullets li + li::before {
+  content: "·";
+  margin-right: 6px;
 }
 
 .heroCta {
@@ -1077,7 +1045,9 @@ body {
   color: var(--muted);
 }
 
-.subDateField input[type="month"] {
+.subDateField input[type="month"],
+.subMonthSelect,
+.subYearSelect {
   padding: 5px 8px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -1086,7 +1056,15 @@ body {
   font-size: 1em;
 }
 
-.subToField {
+.subMonthSelect {
+  min-width: 110px;
+}
+
+.subYearSelect {
+  min-width: 76px;
+}
+
+.subDateSelects {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -2092,11 +2070,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .featureGrid {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
   .hero {
     padding: 40px 0 32px;
   }
@@ -6044,6 +6017,271 @@ body {
   margin-bottom: 20px;
 }
 
+/* ─── Isotype / Pictogram ─────────────────────────────────────── */
+
+.isoSection {
+  margin: 20px 0 12px;
+}
+
+.isoSectionHead {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+
+.isoZoomSection {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.isoZoomNote {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 0 0 8px;
+  font-style: italic;
+}
+
+.isoGridRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.isoGridCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.isoGridLabel {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.isoGridSvg {
+  width: 100%;
+}
+
+.isoHint {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 4px 0 8px;
+}
+
+.isoTooltipWrap {
+  position: relative;
+  height: 52px;
+  margin: 8px auto 0;
+}
+
+.isoTooltip {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 8px 14px;
+  max-width: 480px;
+  width: max-content;
+  background: rgba(20, 20, 40, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.isoTooltipPlaceholder {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.78rem;
+  color: var(--muted);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.isoTooltipDot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ─── Isotype: Accessible table ──────────────────────────────── */
+
+.isoAccessTable {
+  margin: 16px auto 0;
+  max-width: 600px;
+}
+
+.isoAccessTable summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 6px 0;
+}
+
+.isoAccessTable summary:hover {
+  color: var(--text);
+}
+
+.isoAccessTable table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.82rem;
+}
+
+.isoAccessTable th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.isoAccessTable td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.isoAccessTable tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.isoAccessTable td:nth-child(2),
+.isoAccessTable td:nth-child(3),
+.isoAccessTable td:nth-child(4),
+.isoAccessTable th:nth-child(2),
+.isoAccessTable th:nth-child(3),
+.isoAccessTable th:nth-child(4) {
+  text-align: right;
+}
+
+.isoAccessDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ─── Pie: Selection summary ─────────────────────────────────── */
+
+.pieSelectionSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 0;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: rgba(29, 185, 84, 0.08);
+  border: 1px solid rgba(29, 185, 84, 0.2);
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.pieSelStat {
+  color: var(--muted);
+}
+
+.pieSelectionSummary strong {
+  color: #1db954;
+}
+
+/* ─── Pie: Legend with checkboxes ─────────────────────────────── */
+
+.pieLegend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 4px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.pieLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: transparent;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
+}
+
+.pieLegendItem:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.pieLegendItem.selected {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+.pieLegendItem.dimmed {
+  opacity: 0.35;
+}
+
+.pieLegendCheck {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 2px solid var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.pieLegendLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pieLegendPct {
+  font-weight: 600;
+  color: var(--text);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .chartHighlight {
   margin-top: 16px;
   padding: 12px 16px;
@@ -6116,6 +6354,370 @@ body {
 .industrySource a:hover {
   color: var(--text);
   text-decoration: underline;
+}
+
+/* ─── Flow sections ──────────────────────────────────────────── */
+
+.flowSection {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
+}
+
+.flowSectionTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0 0 0.5rem;
+}
+
+.flowPoolDesc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0 0 0.75rem;
+  line-height: 1.5;
+}
+
+.flowSliderRowSingle {
+  margin-top: 0.75rem;
+}
+
+.flowSegmentPool {
+  opacity: 0.5;
+}
+
+/* ─── Horizontal stacked flow bar ────────────────────────────── */
+
+.flowBar {
+  display: flex;
+  width: 100%;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.flowSegment {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 24px;
+  transition:
+    filter 0.2s,
+    width 0.35s ease;
+  cursor: default;
+}
+
+.flowSegmentHover {
+  filter: brightness(1.18);
+  z-index: 2;
+}
+
+.flowSegmentArtist {
+  outline: 2px solid rgba(255, 255, 255, 0.7);
+  outline-offset: -2px;
+}
+
+.flowSegmentLabel {
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 6px;
+  pointer-events: none;
+}
+
+.flowTooltip {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1e2e;
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 10px;
+  min-width: 220px;
+  max-width: 300px;
+  z-index: 20;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.flowTooltip::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: #1e1e2e;
+}
+
+.flowTooltipAmount {
+  color: #a5b4fc;
+  font-weight: 600;
+}
+
+.flowTooltipDesc {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+/* ─── Interactive sliders ─────────────────────────────────────── */
+
+.flowSliders {
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.flowSliderNote {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 0 0 1rem;
+  font-style: italic;
+}
+
+.flowSliderRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.flowSliderLabel {
+  font-weight: 600;
+  font-size: 0.85rem;
+  min-width: 100px;
+  text-align: right;
+}
+
+.flowSliderInput {
+  flex: 1;
+  height: 6px;
+  cursor: pointer;
+}
+
+.flowSliderValue {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.flowResetBtn {
+  margin-top: 0.75rem;
+  background: transparent;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.flowResetBtn:hover {
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.flowSumRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.flowSumLabel {
+  font-weight: 600;
+  font-size: 0.85rem;
+  min-width: 100px;
+  text-align: right;
+  color: #94a3b8;
+}
+
+.flowSumValue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #e2e8f0;
+}
+
+.flowSumWarning .flowSumValue {
+  color: #f59e0b;
+}
+
+.flowSumMsg {
+  font-size: 0.8rem;
+  color: #f59e0b;
+  font-style: italic;
+}
+
+/* ─── Per-subscriber section ──────────────────────────────────── */
+
+.perSubSection {
+  margin-top: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.perSubSectionTitle {
+  padding: 12px 14px 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.perSubBody {
+  padding: 0 14px 14px;
+  font-size: 0.82rem;
+  color: var(--textMuted);
+  line-height: 1.6;
+}
+
+.perSubAmounts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.perSubAmountBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 100px;
+}
+
+.perSubAmountBoxHighlight {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.perSubAmountLabel {
+  font-size: 0.7rem;
+  color: var(--textMuted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 2px;
+}
+
+.perSubAmountValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.perSubAmountBoxHighlight .perSubAmountValue {
+  color: #22c55e;
+}
+
+.perSubAmountNote {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.perSubAmountBoxSpotify {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.perSubAmountBoxSpotify .perSubAmountValue {
+  color: #ef4444;
+}
+
+.perSubAmountArrow {
+  color: var(--textMuted);
+  font-size: 1.2rem;
+  opacity: 0.5;
+}
+
+.perSubBody p {
+  margin: 0 0 8px;
+}
+
+.perSubBody p:last-child {
+  margin-bottom: 0;
+}
+
+.perSubSteps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.perSubStep {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.perSubStepNum {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.perSubBreakeven {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(249, 115, 22, 0.07);
+  border-left: 3px solid #f97316;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.perSubBreakevenIcon {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+}
+
+.perSubConsequence {
+  font-style: italic;
+  opacity: 0.85;
 }
 
 /* ─── SVG Pyramid ─────────────────────────────────────────────── */
@@ -6271,4 +6873,286 @@ body {
   pointer-events: none;
   z-index: 10;
   max-width: 220px;
+}
+
+/* ─── Case Explained ───────────────────────────────────────── */
+
+.caseCard {
+  max-width: 800px;
+  margin: 40px auto 0;
+}
+
+.caseTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 1rem;
+  color: #fff;
+}
+
+.caseIntro {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.7;
+  margin-bottom: 0.5rem;
+}
+
+.caseDifferent {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+  margin-bottom: 2rem;
+}
+
+/* person blocks */
+.casePerson {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.casePerson.casePersonAlt {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.casePersonHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.casePersonHeader h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0;
+  color: #fff;
+}
+
+.caseIcon {
+  flex-shrink: 0;
+}
+
+.casePersonDesc {
+  font-size: 0.93rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.75;
+  white-space: pre-line;
+  margin: 0;
+}
+
+/* system / math / consequence / bigger / conclusion blocks */
+.caseSystemBlock,
+.caseMathBlock,
+.caseConsequenceBlock,
+.caseBiggerBlock,
+.caseConclusionBlock {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.caseSystemBlock h3,
+.caseMathBlock h3,
+.caseConsequenceBlock h3,
+.caseBiggerBlock h3,
+.caseConclusionBlock h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+  color: #fff;
+}
+
+.caseSystemBlock p,
+.caseMathBlock p,
+.caseConsequenceBlock p,
+.caseBiggerBlock p,
+.caseConclusionBlock p {
+  font-size: 0.93rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+/* bars chart */
+.caseBarsWrap {
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.caseBarRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.caseBarLabel {
+  min-width: 110px;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: right;
+}
+
+.caseBarTrack {
+  flex: 1;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.caseBarFill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+
+.caseBarValue {
+  min-width: 60px;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.caseMathNote {
+  font-size: 0.82rem !important;
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-style: italic;
+  margin-top: 0.5rem;
+}
+
+.caseMathTotal {
+  font-size: 1rem !important;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin-top: 1rem;
+}
+
+/* pie chart */
+.casePieWrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.casePieWrap svg {
+  flex-shrink: 0;
+}
+
+.casePieLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.casePieLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.casePieDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.casePieLabel {
+  flex: 1;
+}
+
+.casePiePct {
+  font-weight: 600;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* consequence list */
+.caseConsequenceList {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.caseConsequenceList li {
+  position: relative;
+  padding-left: 24px;
+  margin-bottom: 10px;
+  font-size: 0.93rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+}
+
+.caseConsequenceList li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #f59e0b;
+  font-weight: 700;
+}
+
+.caseConsequenceConclusion {
+  margin-top: 1rem !important;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 3px solid #ef4444;
+  border-radius: 6px;
+}
+
+/* bigger picture */
+.caseBiggerIcon {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.caseBiggerIcon .caseIcon {
+  width: 64px;
+  height: 64px;
+}
+
+.caseBiggerBlock p {
+  font-size: 0.95rem !important;
+}
+
+/* conclusion */
+.caseEpilogue {
+  font-size: 1rem !important;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6) !important;
+  margin-top: 1.5rem !important;
+}
+
+.caseFinalQuestion {
+  font-size: 1.3rem !important;
+  font-weight: 700;
+  color: #f59e0b !important;
+  text-align: center;
+  margin-top: 2rem !important;
+  padding: 20px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+@media (max-width: 600px) {
+  .caseBarLabel {
+    min-width: 80px;
+    font-size: 0.78rem;
+  }
+  .casePieWrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .caseTitle {
+    font-size: 1.2rem;
+  }
 }

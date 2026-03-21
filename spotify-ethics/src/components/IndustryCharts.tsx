@@ -31,11 +31,10 @@ import {
 } from "../lib/spotifyIndustryData";
 
 type IndustryTab =
-  | "pyramid"
+  | "distribution"
   | "moneyFlow"
   | "minWage"
   | "perStream"
-  | "perArtist"
   | "streamsToLive";
 
 interface IndustryChartsProps {
@@ -90,14 +89,13 @@ const FLOW_COLORS: Record<string, string> = {
 };
 
 export default function IndustryCharts({ locale }: IndustryChartsProps) {
-  const [tab, setTab] = useState<IndustryTab>("pyramid");
+  const [tab, setTab] = useState<IndustryTab>("distribution");
 
   const tabs: { key: IndustryTab; label: string }[] = [
-    { key: "pyramid", label: t("industryTabPyramid", locale) },
+    { key: "distribution", label: t("industryTabDistribution", locale) },
     { key: "moneyFlow", label: t("industryTabMoneyFlow", locale) },
     { key: "minWage", label: t("industryTabMinWage", locale) },
     { key: "perStream", label: t("industryTabPerStream", locale) },
-    { key: "perArtist", label: t("industryTabPerArtist", locale) },
     { key: "streamsToLive", label: t("industryTabStreamsToLive", locale) },
   ];
 
@@ -126,11 +124,10 @@ export default function IndustryCharts({ locale }: IndustryChartsProps) {
       </div>
 
       <div className="chartArea">
-        {tab === "pyramid" && <PyramidChart locale={locale} />}
+        {tab === "distribution" && <DistributionCharts locale={locale} />}
         {tab === "moneyFlow" && <MoneyFlowChart locale={locale} />}
         {tab === "minWage" && <MinWageChart locale={locale} />}
         {tab === "perStream" && <PerStreamChart locale={locale} />}
-        {tab === "perArtist" && <PerArtistChart locale={locale} />}
         {tab === "streamsToLive" && <StreamsToLiveChart locale={locale} />}
       </div>
 
@@ -143,11 +140,13 @@ export default function IndustryCharts({ locale }: IndustryChartsProps) {
   );
 }
 
-// ─── 1. Inequality Pyramid (SVG trapezoid) + Long-Tail ──────────
+// ─── 1. Distribution Charts (Pictogram + Pyramid + Long-Tail) ───
 
-function PyramidChart({ locale }: { locale: Locale }) {
+function DistributionCharts({ locale }: { locale: Locale }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const [view, setView] = useState<"pyramid" | "longtail">("pyramid");
+  const [view, setView] = useState<"pictogram" | "pyramid" | "longtail">(
+    "pictogram",
+  );
 
   const data = useMemo(() => {
     const year = DATA_YEAR;
@@ -235,11 +234,14 @@ function PyramidChart({ locale }: { locale: Locale }) {
 
   return (
     <div>
-      <h3 className="chartTitle">{title}</h3>
-      <p className="chartDesc">{t("pyramidDesc", locale)}</p>
-
-      {/* Toggle between pyramid view and long-tail */}
+      {/* Sub-tabs: Pictogram | Pyramid | Long tail */}
       <div className="pyramidViewToggle">
+        <button
+          className={`chartsTab ${view === "pictogram" ? "active" : ""}`}
+          onClick={() => setView("pictogram")}
+        >
+          {t("industryTabPieChart", locale)}
+        </button>
         <button
           className={`chartsTab ${view === "pyramid" ? "active" : ""}`}
           onClick={() => setView("pyramid")}
@@ -254,27 +256,46 @@ function PyramidChart({ locale }: { locale: Locale }) {
         </button>
       </div>
 
-      {view === "pyramid" ? (
-        <PyramidView
-          data={data}
-          locale={locale}
-          hovered={hovered}
-          setHovered={setHovered}
-        />
-      ) : (
-        <LongTailView data={data} locale={locale} />
+      {view === "pictogram" && <IsotypeDiagram locale={locale} />}
+
+      {view === "pyramid" && (
+        <>
+          <h3 className="chartTitle">{title}</h3>
+          <p className="chartDesc">{t("pyramidDesc", locale)}</p>
+          <PyramidView
+            data={data}
+            locale={locale}
+            hovered={hovered}
+            setHovered={setHovered}
+          />
+          <div className="pyramidCallout">
+            <span className="pyramidCalloutBig">94.1%</span>
+            <span className="pyramidCalloutText">
+              {locale === "no"
+                ? `av alle artistar på Spotify tener under $1 000/år — det er ${formatNum(totalArtists - 650_000, locale)} artistar`
+                : `of all artists on Spotify earn less than $1,000/year — that's ${formatNum(totalArtists - 650_000, locale)} artists`}
+            </span>
+          </div>
+          <p className="chartSource">{t("sourcePyramid", locale)}</p>
+        </>
       )}
 
-      {/* Callout stat */}
-      <div className="pyramidCallout">
-        <span className="pyramidCalloutBig">94.1%</span>
-        <span className="pyramidCalloutText">
-          {locale === "no"
-            ? `av alle artistar på Spotify tener under $1 000/år — det er ${formatNum(totalArtists - 650_000, locale)} artistar`
-            : `of all artists on Spotify earn less than $1,000/year — that's ${formatNum(totalArtists - 650_000, locale)} artists`}
-        </span>
-      </div>
-      <p className="chartSource">{t("sourcePyramid", locale)}</p>
+      {view === "longtail" && (
+        <>
+          <h3 className="chartTitle">{title}</h3>
+          <p className="chartDesc">{t("pyramidDesc", locale)}</p>
+          <LongTailView data={data} locale={locale} />
+          <div className="pyramidCallout">
+            <span className="pyramidCalloutBig">94.1%</span>
+            <span className="pyramidCalloutText">
+              {locale === "no"
+                ? `av alle artistar på Spotify tener under $1 000/år — det er ${formatNum(totalArtists - 650_000, locale)} artistar`
+                : `of all artists on Spotify earn less than $1,000/year — that's ${formatNum(totalArtists - 650_000, locale)} artists`}
+            </span>
+          </div>
+          <p className="chartSource">{t("sourcePyramid", locale)}</p>
+        </>
+      )}
     </div>
   );
 }
@@ -357,7 +378,7 @@ function PyramidView({
               strokeWidth={0.5}
               style={{ transition: "opacity 0.2s" }}
             />
-            {s.labelFits && (
+            {s.labelFits ? (
               <text
                 x={W / 2}
                 y={s.midY + 1}
@@ -373,6 +394,31 @@ function PyramidView({
               >
                 {s.label}
               </text>
+            ) : (
+              <>
+                <line
+                  x1={W / 2 + s.midW / 2}
+                  y1={s.midY}
+                  x2={W / 2 + s.midW / 2 + 30}
+                  y2={s.midY}
+                  stroke={s.color}
+                  strokeWidth={1}
+                  opacity={0.7}
+                  style={{ pointerEvents: "none" }}
+                />
+                <text
+                  x={W / 2 + s.midW / 2 + 34}
+                  y={s.midY + 1}
+                  textAnchor="start"
+                  dominantBaseline="middle"
+                  fill={s.color}
+                  fontWeight={600}
+                  fontSize={11}
+                  style={{ pointerEvents: "none" }}
+                >
+                  {s.label}
+                </text>
+              </>
             )}
           </g>
         ))}
@@ -481,21 +527,36 @@ function LongTailView({
     });
   });
 
-  // Massive <$1K base
+  // Massive <$1K base — interpolate a steep decline through this range
+  // Most of these artists earn almost nothing; only a tiny fraction reach ~$500-$1000
   const remaining = totalArtists - cumulative;
   const startPctBase = (cumulative / totalArtists) * 100;
   cumulative += remaining;
-  curvePoints.push({
-    pct: Number(((startPctBase + 100) / 2).toFixed(1)),
-    income: 500,
-    label: data[data.length - 1]?.label ?? "<$1K",
+
+  // Sub-points within the base tier: income drops steeply
+  const baseSteps = [
+    { frac: 0.02, income: 800 },
+    { frac: 0.05, income: 500 },
+    { frac: 0.1, income: 200 },
+    { frac: 0.2, income: 100 },
+    { frac: 0.4, income: 50 },
+    { frac: 0.7, income: 20 },
+    { frac: 1.0, income: 5 },
+  ];
+  const baseRange = 100 - startPctBase;
+  baseSteps.forEach((step) => {
+    curvePoints.push({
+      pct: Number((startPctBase + baseRange * step.frac).toFixed(1)),
+      income: step.income,
+      label: data[data.length - 1]?.label ?? "<$1K",
+    });
   });
 
   // Full dataset with endpoints
   const chartData = [
     { pct: 0, income: curvePoints[0].income * 1.2 },
     ...curvePoints,
-    { pct: 100, income: 100 },
+    { pct: 100, income: 2 },
   ];
 
   // ── SVG dimensions ──
@@ -505,8 +566,8 @@ function LongTailView({
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
-  // Log scale: $50 → $12M
-  const LOG_MIN = Math.log10(50);
+  // Log scale: $1 → $12M
+  const LOG_MIN = Math.log10(1);
   const LOG_MAX = Math.log10(
     Math.max(...chartData.map((d) => d.income)) * 1.05,
   );
@@ -515,7 +576,7 @@ function LongTailView({
   // Sqrt X-scale: spreading out the top percentiles so they're easier to hover
   const xScale = (pct: number) => PAD.left + Math.sqrt(pct / 100) * plotW;
   const yScale = (inc: number) => {
-    const clamped = Math.max(50, inc);
+    const clamped = Math.max(1, inc);
     const frac = (Math.log10(clamped) - LOG_MIN) / logRange;
     return PAD.top + plotH * (1 - frac);
   };
@@ -525,11 +586,12 @@ function LongTailView({
     (d) => `${xScale(d.pct)},${yScale(d.income)}`,
   );
   const linePath = `M${pathPoints.join("L")}`;
-  const areaPath = `${linePath}L${xScale(100)},${yScale(50)}L${xScale(0)},${yScale(50)}Z`;
+  const areaPath = `${linePath}L${xScale(100)},${yScale(1)}L${xScale(0)},${yScale(1)}Z`;
 
   // Y-axis ticks (log-spaced)
   const yTicks = [
-    100, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 1_000_000, 10_000_000,
+    1, 10, 100, 500, 1_000, 5_000, 10_000, 50_000, 100_000, 1_000_000,
+    10_000_000,
   ];
   const fmtUSD = (v: number) => {
     if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(0)}M`;
@@ -758,6 +820,9 @@ function LongTailView({
     <div>
       <h4 className="chartSubtitle">{t("longTailTitle", locale)}</h4>
       <p className="chartDesc">{t("longTailDesc", locale)}</p>
+      <p className="chartDesc" style={{ fontStyle: "italic", opacity: 0.8 }}>
+        {t("longTailYNote", locale)}
+      </p>
 
       {/* View toggle */}
       <div style={{ display: "flex", gap: 8, margin: "8px 0 4px" }}>
@@ -972,14 +1037,14 @@ function LongTailView({
               {/* Annotation: the visible drop */}
               <text
                 x={xScale(70)}
-                y={yScale(200) + 16}
+                y={yScale(30) + 16}
                 fill="rgba(255,255,255,0.5)"
                 fontSize={11}
                 textAnchor="middle"
               >
                 {locale === "no"
-                  ? "~94 % av artistane tener under $1 000/år"
-                  : "~94% of artists earn under $1,000/year"}
+                  ? "~94 % av artistane tener under $1 000/år — dei fleste nær $0"
+                  : "~94% of artists earn under $1,000/year — most near $0"}
               </text>
 
               {/* Y-axis */}
@@ -1408,16 +1473,424 @@ function LongTailView({
   );
 }
 
-// ─── 2. Money Flow (Waterfall) + Redistribution ─────────────────
+// ─── 1b. Isotype Diagram (Pictogram) ────────────────────────────
+
+function IsotypeDiagram({ locale }: { locale: Locale }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(() => new Set());
+
+  const year = DATA_YEAR;
+  const totalArtists = KEY_FACTS.totalArtists;
+  const totalPayout =
+    (YEARLY_STATS.find((s) => s.year === year)?.totalPayoutBillions ?? 11) *
+    1e9;
+  const sorted = [...PAYOUT_TIERS].sort((a, b) => b.threshold - a.threshold);
+
+  const slices = useMemo(() => {
+    const tierRevenues: {
+      label: string;
+      count: number;
+      estRevenue: number;
+      color: string;
+    }[] = [];
+    let totalEstRevenue = 0;
+    let accounted = 0;
+
+    sorted.forEach((tier, i) => {
+      const count = tier.counts[year] ?? 0;
+      const nextHigher = i > 0 ? (sorted[i - 1].counts[year] ?? 0) : 0;
+      const exclusive = count - nextHigher;
+      const upperBound = i > 0 ? sorted[i - 1].threshold : tier.threshold * 2;
+      const avgIncome = (tier.threshold + upperBound) / 2;
+      const estRevenue = exclusive * avgIncome;
+      tierRevenues.push({
+        label: tier.label,
+        count: exclusive,
+        estRevenue,
+        color: PYRAMID_COLORS[i],
+      });
+      totalEstRevenue += estRevenue;
+      accounted += exclusive;
+    });
+
+    const baseCount = totalArtists - accounted;
+    const baseRevenue = baseCount * 200;
+    totalEstRevenue += baseRevenue;
+    tierRevenues.push({
+      label: t("pyramidBelowThreshold", locale),
+      count: baseCount,
+      estRevenue: baseRevenue,
+      color: PYRAMID_COLORS[PYRAMID_COLORS.length - 1],
+    });
+
+    const scaleFactor = totalPayout / totalEstRevenue;
+    return tierRevenues.map((tr) => ({
+      label: tr.label,
+      count: tr.count,
+      revenuePct: ((tr.estRevenue * scaleFactor) / totalPayout) * 100,
+      artistPct: (tr.count / totalArtists) * 100,
+      color: tr.color,
+    }));
+  }, [locale, year]);
+
+  const toggleSelect = (i: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
+
+  const isDimmed = (i: number) => selected.size > 0 && !selected.has(i);
+
+  // Build icon grid with min-1-per-active-tier guarantee
+  type GridIcon = { tierIdx: number; color: string };
+  const buildGrid = (
+    input: { tierIdx: number; pct: number; color: string }[],
+    gridSize: number,
+  ): GridIcon[] => {
+    const active = input.filter((g) => g.pct > 0);
+    if (active.length === 0) return [];
+    const totalPct = active.reduce((s, g) => s + g.pct, 0);
+    const remaining = Math.max(0, gridSize - active.length);
+
+    const icons: GridIcon[] = [];
+    let remainder = 0;
+    active.forEach((g) => {
+      const proportional = (g.pct / totalPct) * remaining;
+      const rawCount = 1 + proportional + remainder;
+      const count = Math.round(rawCount);
+      remainder = rawCount - count;
+      for (let k = 0; k < count && icons.length < gridSize; k++) {
+        icons.push({ tierIdx: g.tierIdx, color: g.color });
+      }
+    });
+    while (icons.length < gridSize) {
+      icons.push(icons[icons.length - 1]);
+    }
+    return icons.slice(0, gridSize);
+  };
+
+  const GRID_SIZE = 200;
+
+  const artistGrid = useMemo(
+    () =>
+      buildGrid(
+        slices.map((s, i) => ({
+          tierIdx: i,
+          pct: s.artistPct,
+          color: s.color,
+        })),
+        GRID_SIZE,
+      ),
+    [slices],
+  );
+  const revenueGrid = useMemo(
+    () =>
+      buildGrid(
+        slices.map((s, i) => ({
+          tierIdx: i,
+          pct: s.revenuePct,
+          color: s.color,
+        })),
+        GRID_SIZE,
+      ),
+    [slices],
+  );
+
+  // Selection stats (use original slice indices)
+  const selRevenue = slices.reduce(
+    (s, sl, i) => s + (selected.has(i) ? sl.revenuePct : 0),
+    0,
+  );
+  const selArtists = slices.reduce(
+    (s, sl, i) => s + (selected.has(i) ? sl.artistPct : 0),
+    0,
+  );
+  const selCount = slices.reduce(
+    (s, sl, i) => s + (selected.has(i) ? sl.count : 0),
+    0,
+  );
+
+  // Person icon path — native bounds ~(1,0)..(9,15), width ~8, height ~15
+  const personPath =
+    "M5 1.5a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM3 7C1.5 7 1 8 1 9v2.5h1.5V14h5v-2.5H9V9c0-1-.5-2-2-2z";
+
+  const renderGrid = (
+    grid: GridIcon[],
+    label: string,
+    cols: number,
+    icon: "person" | "dollar",
+  ) => {
+    const cellW = 20;
+    const cellH = 24;
+    const svgW = cols * cellW;
+    const rows = Math.ceil(grid.length / cols);
+    const svgH = rows * cellH;
+
+    // Person icon: scale path to fit cell
+    const iconScale = 1.6;
+    const iconOffsetX = (cellW - 10 * iconScale) / 2;
+    const iconOffsetY = (cellH - 14.5 * iconScale) / 2;
+
+    return (
+      <div className="isoGridCol">
+        <div className="isoGridLabel">{label}</div>
+        <svg
+          viewBox={`0 0 ${svgW} ${svgH}`}
+          className="isoGridSvg"
+          style={{ maxWidth: svgW }}
+          role="img"
+          aria-label={label}
+        >
+          {grid.map((cell, idx) => {
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+            const dim = isDimmed(cell.tierIdx);
+            const isHov = hovered === cell.tierIdx;
+            return (
+              <g
+                key={idx}
+                opacity={dim ? 0.1 : isHov ? 1 : 0.75}
+                style={{ cursor: "pointer", transition: "opacity 0.15s" }}
+                onMouseEnter={() => setHovered(cell.tierIdx)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => toggleSelect(cell.tierIdx)}
+              >
+                {icon === "person" ? (
+                  <g
+                    transform={`translate(${col * cellW + iconOffsetX},${row * cellH + iconOffsetY}) scale(${iconScale})`}
+                    fill={cell.color}
+                  >
+                    <path d={personPath} />
+                  </g>
+                ) : (
+                  <text
+                    x={col * cellW + cellW / 2}
+                    y={row * cellH + cellH / 2 + 1}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize={15}
+                    fontWeight={700}
+                    fill={cell.color}
+                  >
+                    $
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h3 className="chartTitle">{t("isoTitle", locale)}</h3>
+      <p className="chartDesc">{t("isoDesc", locale)}</p>
+
+      <div className="isoSection">
+        <div className="isoSectionHead">
+          {locale === "no"
+            ? `Alle ${formatNum(totalArtists, locale)} artistar — kvar figur ≈ ${formatNum(totalArtists / GRID_SIZE, locale)}`
+            : `All ${formatNum(totalArtists, locale)} artists — each figure ≈ ${formatNum(totalArtists / GRID_SIZE, locale)}`}
+        </div>
+        <div className="isoGridRow">
+          {renderGrid(
+            artistGrid,
+            locale === "no" ? "Artistar" : "Artists",
+            20,
+            "person",
+          )}
+          {renderGrid(
+            revenueGrid,
+            locale === "no" ? "Inntekter" : "Revenue",
+            20,
+            "dollar",
+          )}
+        </div>
+      </div>
+
+      {/* Selection summary */}
+      {selected.size > 0 && (
+        <div className="pieSelectionSummary">
+          <span>
+            {t("pieChartSelected", locale)}: <strong>{selected.size}</strong>{" "}
+            {selected.size === 1
+              ? locale === "no"
+                ? "gruppe"
+                : "tier"
+              : locale === "no"
+                ? "grupper"
+                : "tiers"}
+          </span>
+          <span className="pieSelStat">
+            {formatNum(selCount, locale)} {t("pieChartArtists", locale)} (
+            {selArtists < 0.01
+              ? selArtists.toFixed(3)
+              : selArtists < 1
+                ? selArtists.toFixed(2)
+                : selArtists.toFixed(1)}
+            %)
+          </span>
+          <span className="pieSelStat">
+            {selRevenue < 1 ? selRevenue.toFixed(1) : Math.round(selRevenue)}%{" "}
+            {t("pieChartOfRevenue", locale)}
+          </span>
+          <button
+            className="btnGhost btnTiny"
+            onClick={() => setSelected(new Set())}
+          >
+            {locale === "no" ? "Nullstill" : "Reset"}
+          </button>
+        </div>
+      )}
+
+      {/* Tooltip — always reserves space to prevent layout shift */}
+      <div className="isoTooltipWrap">
+        {hovered !== null && slices[hovered] ? (
+          <div className="isoTooltip">
+            <span
+              className="isoTooltipDot"
+              style={{ background: slices[hovered].color }}
+            />
+            <strong>{slices[hovered].label}</strong>
+            <span>
+              {formatNum(slices[hovered].count, locale)}{" "}
+              {t("pieChartArtists", locale)}
+            </span>
+            <span>
+              {slices[hovered].artistPct < 0.01
+                ? slices[hovered].artistPct.toFixed(4)
+                : slices[hovered].artistPct < 1
+                  ? slices[hovered].artistPct.toFixed(2)
+                  : slices[hovered].artistPct.toFixed(1)}
+              % {t("pieChartOfArtists", locale)}
+              {" · "}
+              {slices[hovered].revenuePct < 1
+                ? slices[hovered].revenuePct.toFixed(1)
+                : Math.round(slices[hovered].revenuePct)}
+              % {t("pieChartOfRevenue", locale)}
+            </span>
+          </div>
+        ) : (
+          <div className="isoTooltipPlaceholder">
+            {locale === "no"
+              ? "Hald over eit ikon for detaljar"
+              : "Hover an icon for details"}
+          </div>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div className="pieLegend">
+        {slices.map((s, i) => (
+          <div
+            key={i}
+            className={`pieLegendItem ${selected.has(i) ? "selected" : ""} ${isDimmed(i) ? "dimmed" : ""}`}
+            onClick={() => toggleSelect(i)}
+          >
+            <span
+              className="pieLegendCheck"
+              style={{
+                borderColor: s.color,
+                background: selected.has(i) ? s.color : "transparent",
+              }}
+            >
+              {selected.has(i) && "✓"}
+            </span>
+            <span className="pieLegendLabel">{s.label}</span>
+            <span className="pieLegendPct">
+              {s.revenuePct < 1
+                ? s.revenuePct.toFixed(1)
+                : Math.round(s.revenuePct)}
+              %
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Accessible table for screen readers & low vision */}
+      <details className="isoAccessTable">
+        <summary>
+          {locale === "no"
+            ? "Vis tabell (tilgjengeleg versjon)"
+            : "Show table (accessible version)"}
+        </summary>
+        <table>
+          <thead>
+            <tr>
+              <th>{locale === "no" ? "Inntektsgruppe" : "Earning tier"}</th>
+              <th>{locale === "no" ? "Artistar" : "Artists"}</th>
+              <th>{locale === "no" ? "% av artistar" : "% of artists"}</th>
+              <th>{locale === "no" ? "% av inntekter" : "% of revenue"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {slices.map((s, i) => (
+              <tr key={i}>
+                <td>
+                  <span
+                    className="isoAccessDot"
+                    style={{ background: s.color }}
+                  />
+                  {s.label}
+                </td>
+                <td>{formatNum(s.count, locale)}</td>
+                <td>
+                  {s.artistPct < 0.01
+                    ? s.artistPct.toFixed(4)
+                    : s.artistPct < 1
+                      ? s.artistPct.toFixed(2)
+                      : s.artistPct.toFixed(1)}
+                  %
+                </td>
+                <td>
+                  {s.revenuePct < 1
+                    ? s.revenuePct.toFixed(1)
+                    : Math.round(s.revenuePct)}
+                  %
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
+    </div>
+  );
+}
+
+// ─── 2. Money Flow (Two-tier: Spotify cut + Rights holder split) ─
+
+// Default internal pool shares (% of the 70 % rights-holder pool)
+const DEFAULT_POOL: Record<string, number> = {
+  labelKeeps: 60, // 42/70 * 100
+  publisherKeeps: 12.5, // 8.75/70 * 100
+  artistRecording: 15, // 10.5/70 * 100
+  songwriter: 12.5, // 8.75/70 * 100
+};
+const POOL_IDS = [
+  "labelKeeps",
+  "publisherKeeps",
+  "artistRecording",
+  "songwriter",
+] as const;
 
 function MoneyFlowChart({ locale }: { locale: Locale }) {
+  const [spotifyPct, setSpotifyPct] = useState(30);
+  const [poolPercents, setPoolPercents] = useState<Record<string, number>>(
+    () => ({ ...DEFAULT_POOL }),
+  );
+  const [hoveredSegment, setHoveredSegment] = useState<string | null>(null);
+
+  const price =
+    locale === "no" ? KEY_FACTS.currentPremiumNOK : KEY_FACTS.currentPremiumUSD;
   const priceStr =
     locale === "no"
       ? `${KEY_FACTS.currentPremiumNOK} kr`
       : `$${KEY_FACTS.currentPremiumUSD}`;
-
-  const price =
-    locale === "no" ? KEY_FACTS.currentPremiumNOK : KEY_FACTS.currentPremiumUSD;
 
   const flowLabels: Record<string, string> = {
     spotify: t("moneyFlowSpotify", locale),
@@ -1427,61 +1900,96 @@ function MoneyFlowChart({ locale }: { locale: Locale }) {
     songwriter: t("moneyFlowSongwriter", locale),
   };
 
-  // Build waterfall: each step has a "base" (invisible) and "amount" (visible)
-  let running = price;
-  const data = MONEY_FLOW.map((step) => {
-    const amount = Number(((step.percentOfTotal / 100) * price).toFixed(2));
-    const base = running - amount;
-    running -= amount;
-    return {
-      name: flowLabels[step.id] ?? step.id,
-      amount,
-      base: Math.max(0, base),
-      percent: step.percentOfTotal,
-      color: FLOW_COLORS[step.id],
-      isArtist: !!step.isArtistIncome,
-    };
-  });
+  const flowTips: Record<string, string> = {
+    spotify: t("moneyFlowSpotifyTip", locale),
+    labelKeeps: t("moneyFlowLabelTip", locale),
+    publisherKeeps: t("moneyFlowPublisherTip", locale),
+    artistRecording: t("moneyFlowArtistTip", locale),
+    songwriter: t("moneyFlowSongwriterTip", locale),
+  };
 
-  // Total artist income = recording + songwriter
-  const artistTotal = MONEY_FLOW.filter((s) => s.isArtistIncome).reduce(
-    (s, step) => s + (step.percentOfTotal / 100) * price,
-    0,
-  );
+  const poolSum = POOL_IDS.reduce((s, id) => s + poolPercents[id], 0);
+  const poolSumOk = Math.abs(poolSum - 100) < 0.05;
+
+  const isDefault =
+    Math.abs(spotifyPct - 30) < 0.01 &&
+    POOL_IDS.every(
+      (id) => Math.abs(poolPercents[id] - DEFAULT_POOL[id]) < 0.01,
+    );
+
+  const resetDefaults = () => {
+    setSpotifyPct(30);
+    setPoolPercents({ ...DEFAULT_POOL });
+  };
+
+  // Normalised pool shares for calculations (handles sum ≠ 100 %)
+  const normPool: Record<string, number> = {};
+  for (const id of POOL_IDS) {
+    normPool[id] = poolSum > 0 ? (poolPercents[id] / poolSum) * 100 : 0;
+  }
+
+  // Effective % of total subscription
+  const poolPct = 100 - spotifyPct;
+  const poolAmount = price * (poolPct / 100);
+
+  // Artist income = artist recording + songwriter (as % of total price)
+  const artistTotalPctOfPrice =
+    ((normPool.artistRecording + normPool.songwriter) / 100) * poolPct;
+  const artistTotal = price * (artistTotalPctOfPrice / 100);
   const artistTotalStr =
     locale === "no"
       ? `${artistTotal.toFixed(0)} kr`
       : `$${artistTotal.toFixed(2)}`;
-  const artistPct = MONEY_FLOW.filter((s) => s.isArtistIncome)
-    .reduce((s, step) => s + step.percentOfTotal, 0)
-    .toFixed(0);
+  const artistPctStr = artistTotalPctOfPrice.toFixed(0);
 
   const title = t("moneyFlowTitle", locale).replace("{price}", priceStr);
 
   const albumPrice = locale === "no" ? "150 kr" : "$15";
   const albumArtistShare = locale === "no" ? "75–105 kr" : "$7.50–$10.50";
-  const times = Math.round((locale === "no" ? 90 : 9) / artistTotal);
+  const times =
+    artistTotal > 0 ? Math.round((locale === "no" ? 90 : 9) / artistTotal) : 0;
 
   const compareText = t("moneyFlowAlbumCompare", locale)
     .replace("{albumPrice}", albumPrice)
     .replace("{albumArtistShare}", albumArtistShare)
     .replace("{times}", String(times));
 
-  // Pro-rata redistribution data
+  // Per-subscriber — reactive to sliders
+  const perSubTotalYear = price * (poolPct / 100) * 12;
+  const perSubArtistYear = price * (artistTotalPctOfPrice / 100) * 12;
+  const perSubAmountTotalStr =
+    locale === "no"
+      ? `${Math.round(perSubTotalYear)} kr`
+      : `$${perSubTotalYear.toFixed(0)}`;
+  const perSubAmountArtistStr =
+    locale === "no"
+      ? `${Math.round(perSubArtistYear)} kr`
+      : `$${perSubArtistYear.toFixed(0)}`;
+
+  // Pool section description
+  const poolAmountStr =
+    locale === "no"
+      ? `${poolAmount.toFixed(0)} kr`
+      : `$${poolAmount.toFixed(2)}`;
+  const poolDesc = t("moneyFlowPoolDesc", locale)
+    .replace("{pct}", poolPct.toFixed(0))
+    .replace("{amount}", poolAmountStr);
+
+  // Pro-rata redistribution data (not affected by sliders)
   const topN = 1500;
-  const topPct = ((topN / KEY_FACTS.totalArtists) * 100).toFixed(3);
+  const topPctStr = ((topN / KEY_FACTS.totalArtists) * 100).toFixed(3);
   const topRevPct = "36";
   const botN = KEY_FACTS.totalArtists - 650_000;
-  const botPct = ((botN / KEY_FACTS.totalArtists) * 100).toFixed(0);
+  const botPctStr = ((botN / KEY_FACTS.totalArtists) * 100).toFixed(0);
   const botRevPct = "2";
 
   const topCapture = t("moneyFlowPoolTopCapture", locale)
     .replace("{n}", formatNum(topN, locale))
-    .replace("{pct}", topPct)
+    .replace("{pct}", topPctStr)
     .replace("{revPct}", topRevPct);
   const botCapture = t("moneyFlowPoolBottomCapture", locale)
     .replace("{n}", formatNum(botN, locale))
-    .replace("{pct}", botPct)
+    .replace("{pct}", botPctStr)
     .replace("{revPct}", botRevPct);
 
   return (
@@ -1489,68 +1997,182 @@ function MoneyFlowChart({ locale }: { locale: Locale }) {
       <h3 className="chartTitle">{title}</h3>
       <p className="chartDesc">{t("moneyFlowDesc", locale)}</p>
 
-      <ResponsiveContainer width="100%" height={340}>
-        <BarChart
-          data={data}
-          layout="vertical"
-          margin={{ left: 10, right: 30 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
-          <XAxis
-            type="number"
-            tick={{ fill: COLORS.text, fontSize: 12 }}
-            domain={[0, price]}
-            tickFormatter={(v: number) =>
-              locale === "no" ? `${v} kr` : `$${v}`
-            }
+      {/* ── SECTION 1: Spotify's cut ── */}
+      <div className="flowSection">
+        <h4 className="flowSectionTitle">
+          {t("moneyFlowSpotifySection", locale)}
+        </h4>
+        <div className="flowBar" role="img" aria-label="Spotify cut">
+          <div
+            className={`flowSegment${hoveredSegment === "spotify" ? " flowSegmentHover" : ""}`}
+            style={{
+              width: `${spotifyPct}%`,
+              backgroundColor: FLOW_COLORS.spotify,
+            }}
+            onMouseEnter={() => setHoveredSegment("spotify")}
+            onMouseLeave={() => setHoveredSegment(null)}
+          >
+            <span className="flowSegmentLabel">
+              Spotify {spotifyPct.toFixed(0)} %
+            </span>
+            {hoveredSegment === "spotify" && (
+              <div className="flowTooltip">
+                <strong>Spotify</strong>
+                <span className="flowTooltipAmount">
+                  {locale === "no"
+                    ? `${((price * spotifyPct) / 100).toFixed(0)} kr`
+                    : `$${((price * spotifyPct) / 100).toFixed(2)}`}{" "}
+                  ({spotifyPct.toFixed(0)} %)
+                </span>
+                <span className="flowTooltipDesc">{flowTips.spotify}</span>
+              </div>
+            )}
+          </div>
+          <div
+            className="flowSegment flowSegmentPool"
+            style={{
+              width: `${poolPct}%`,
+              backgroundColor: "#334155",
+            }}
+          >
+            <span className="flowSegmentLabel">
+              {locale === "no" ? "Rettshavarar" : "Rights holders"}{" "}
+              {poolPct.toFixed(0)} %
+            </span>
+          </div>
+        </div>
+        <div className="flowSliderRow flowSliderRowSingle">
+          <label
+            className="flowSliderLabel"
+            style={{ color: FLOW_COLORS.spotify }}
+          >
+            Spotify
+          </label>
+          <input
+            type="range"
+            min={0}
+            max={60}
+            step={0.5}
+            value={spotifyPct}
+            onChange={(e) => setSpotifyPct(Number(e.target.value))}
+            className="flowSliderInput"
+            style={{ accentColor: FLOW_COLORS.spotify }}
           />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={200}
-            tick={{ fill: COLORS.text, fontSize: 11 }}
-          />
-          <Tooltip
-            contentStyle={TOOLTIP_STYLE}
-            labelStyle={TOOLTIP_LABEL_STYLE}
-            itemStyle={TOOLTIP_ITEM_STYLE}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            formatter={
-              ((value: any, name: any, props: any) => {
-                if (name === "base") return [null, null]; // hide base
-                const amt = Number(value ?? 0);
-                const pct = props?.payload?.percent ?? 0;
-                return [
-                  `${locale === "no" ? `${amt.toFixed(1)} kr` : `$${amt.toFixed(2)}`} (${pct}%)`,
-                  props?.payload?.isArtist ? "✅ → skapar" : "",
-                ];
-              }) as any
-            }
-          />
-          {/* Invisible base bar */}
-          <Bar dataKey="base" stackId="a" fill="transparent" radius={0} />
-          {/* Visible amount bar */}
-          <Bar dataKey="amount" stackId="a" radius={[0, 6, 6, 0]}>
-            {data.map((entry, i) => (
-              <Cell
-                key={i}
-                fill={entry.color}
-                stroke={entry.isArtist ? "#fff" : "none"}
-                strokeWidth={entry.isArtist ? 2 : 0}
+          <span className="flowSliderValue">{spotifyPct.toFixed(1)} %</span>
+        </div>
+      </div>
+
+      {/* ── SECTION 2: Rights holder pool ── */}
+      <div className="flowSection">
+        <h4 className="flowSectionTitle">
+          {t("moneyFlowPoolSection", locale)}
+        </h4>
+        <p className="flowPoolDesc">{poolDesc}</p>
+
+        <div className="flowBar" role="img" aria-label="Rights holder split">
+          {POOL_IDS.map((id) => {
+            const pct = normPool[id];
+            const amount = (pct / 100) * poolAmount;
+            const isHovered = hoveredSegment === id;
+            const isArtist = id === "artistRecording" || id === "songwriter";
+            return (
+              <div
+                key={id}
+                className={`flowSegment${isArtist ? " flowSegmentArtist" : ""}${isHovered ? " flowSegmentHover" : ""}`}
+                style={{
+                  width: `${pct}%`,
+                  backgroundColor: FLOW_COLORS[id],
+                }}
+                onMouseEnter={() => setHoveredSegment(id)}
+                onMouseLeave={() => setHoveredSegment(null)}
+              >
+                <span className="flowSegmentLabel">
+                  {pct >= 10
+                    ? `${flowLabels[id]} ${pct.toFixed(0)} %`
+                    : `${pct.toFixed(0)} %`}
+                </span>
+                {isHovered && (
+                  <div className="flowTooltip">
+                    <strong>{flowLabels[id]}</strong>
+                    <span className="flowTooltipAmount">
+                      {locale === "no"
+                        ? `${amount.toFixed(1)} kr`
+                        : `$${amount.toFixed(2)}`}{" "}
+                      ({pct.toFixed(0)} %{" "}
+                      {locale === "no" ? "av potten" : "of pool"})
+                    </span>
+                    <span className="flowTooltipDesc">{flowTips[id]}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pool sliders */}
+        <div className="flowSliders">
+          <p className="flowSliderNote">{t("moneyFlowSliderNote", locale)}</p>
+          {POOL_IDS.map((id) => (
+            <div key={id} className="flowSliderRow">
+              <label
+                className="flowSliderLabel"
+                style={{ color: FLOW_COLORS[id] }}
+              >
+                {flowLabels[id]}
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={80}
+                step={0.5}
+                value={poolPercents[id]}
+                onChange={(e) =>
+                  setPoolPercents((prev) => ({
+                    ...prev,
+                    [id]: Number(e.target.value),
+                  }))
+                }
+                className="flowSliderInput"
+                style={{ accentColor: FLOW_COLORS[id] }}
               />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+              <span className="flowSliderValue">
+                {poolPercents[id].toFixed(1)} %
+              </span>
+            </div>
+          ))}
+          <div className={`flowSumRow${poolSumOk ? "" : " flowSumWarning"}`}>
+            <span className="flowSumLabel">
+              {locale === "no" ? "Sum" : "Total"}
+            </span>
+            <span className="flowSumValue">{poolSum.toFixed(1)} %</span>
+            {!poolSumOk && (
+              <span className="flowSumMsg">
+                {locale === "no"
+                  ? poolSum > 100
+                    ? "⚠ Over 100 % — utrekningane viser relativ fordeling"
+                    : "⚠ Under 100 % — utrekningane viser relativ fordeling"
+                  : poolSum > 100
+                    ? "⚠ Over 100% — calculations show relative distribution"
+                    : "⚠ Under 100% — calculations show relative distribution"}
+              </span>
+            )}
+          </div>
+          {!isDefault && (
+            <button className="flowResetBtn" onClick={resetDefaults}>
+              {t("moneyFlowResetLabel", locale)}
+            </button>
+          )}
+        </div>
+      </div>
 
       <p className="chartHighlight chartHighlightGreen">
         {t("moneyFlowLeftForArtist", locale)
           .replace("{amount}", artistTotalStr)
-          .replace("{pct}", artistPct)}
+          .replace("{pct}", artistPctStr)}
       </p>
       <p className="chartFootnote">{compareText}</p>
 
-      {/* Pro-rata redistribution explanation */}
+      {/* ── Pro-rata redistribution ── */}
       <div className="redistCard">
         <h4 className="redistTitle">{t("moneyFlowRedistTitle", locale)}</h4>
         <p className="redistDesc">{t("moneyFlowRedistNote", locale)}</p>
@@ -1563,6 +2185,84 @@ function MoneyFlowChart({ locale }: { locale: Locale }) {
             <span className="redistStatIcon">🔻</span>
             <span>{botCapture}</span>
           </div>
+        </div>
+      </div>
+
+      {/* ── Per-subscriber breakdown ── */}
+      <div className="perSubSection">
+        <h4 className="perSubSectionTitle">{t("perSubExpandTitle", locale)}</h4>
+        <div className="perSubBody">
+          <div className="perSubAmounts">
+            <div className="perSubAmountBox">
+              <span className="perSubAmountLabel">
+                {locale === "no" ? "Abonnement/år" : "Subscription/yr"}
+              </span>
+              <span className="perSubAmountValue">
+                {locale === "no"
+                  ? `${price * 12} kr`
+                  : `$${(price * 12).toFixed(0)}`}
+              </span>
+            </div>
+            <span className="perSubAmountArrow">→</span>
+            <div className="perSubAmountBox perSubAmountBoxSpotify">
+              <span className="perSubAmountLabel">
+                {locale === "no"
+                  ? `Spotify tek ${spotifyPct.toFixed(0)} %`
+                  : `Spotify takes ${spotifyPct.toFixed(0)}%`}
+              </span>
+              <span className="perSubAmountValue">
+                {locale === "no"
+                  ? `${Math.round(price * (spotifyPct / 100) * 12)} kr`
+                  : `$${(price * (spotifyPct / 100) * 12).toFixed(0)}`}
+              </span>
+            </div>
+            <span className="perSubAmountArrow">→</span>
+            <div className="perSubAmountBox">
+              <span className="perSubAmountLabel">
+                {locale === "no" ? "Til rettshavarar" : "To rights holders"}
+              </span>
+              <span className="perSubAmountValue">{perSubAmountTotalStr}</span>
+              <span className="perSubAmountNote">
+                {locale === "no"
+                  ? "fordelt på alle artistar"
+                  : "split across all artists"}
+              </span>
+            </div>
+            <span className="perSubAmountArrow">→</span>
+            <div className="perSubAmountBox perSubAmountBoxHighlight">
+              <span className="perSubAmountLabel">
+                {locale === "no"
+                  ? "Til artist + låtskrivar"
+                  : "To artist + songwriter"}
+              </span>
+              <span className="perSubAmountValue">{perSubAmountArtistStr}</span>
+              <span className="perSubAmountNote">
+                {locale === "no"
+                  ? "fordelt på alle artistar"
+                  : "split across all artists"}
+              </span>
+            </div>
+          </div>
+
+          <div className="perSubSteps">
+            <div className="perSubStep">
+              <span className="perSubStepNum">1</span>
+              <span>{t("perSubStep1", locale)}</span>
+            </div>
+            <div className="perSubStep">
+              <span className="perSubStepNum">2</span>
+              <span>{t("perSubStep2", locale)}</span>
+            </div>
+            <div className="perSubStep">
+              <span className="perSubStepNum">3</span>
+              <span>{t("perSubStep3", locale)}</span>
+            </div>
+          </div>
+          <div className="perSubBreakeven">
+            <span className="perSubBreakevenIcon">⏱</span>
+            <span>{t("perSubBreakeven", locale)}</span>
+          </div>
+          <p className="perSubConsequence">{t("perSubConsequence", locale)}</p>
         </div>
       </div>
 
@@ -2151,296 +2851,6 @@ function PurchasingSubView({
       >
         {t("perStreamPurchasingCallout", locale)}
       </p>
-    </div>
-  );
-}
-
-// ─── 5. Per Artist Breakdown ─────────────────────────────────────
-
-function PerArtistChart({ locale }: { locale: Locale }) {
-  const stats2025 = YEARLY_STATS.find((s) => s.year === DATA_YEAR)!;
-  const avgPerArtist =
-    (stats2025.totalPayoutBillions * 1_000_000_000) / stats2025.totalArtists;
-  const perSubscriberYear =
-    (stats2025.totalPayoutBillions * 1_000_000_000) /
-    (stats2025.subscribers * 1_000_000);
-
-  const [hovered, setHovered] = useState<number | null>(null);
-
-  // Build proportional tiers: width = % of artists, height = avg income
-  const tiers = [
-    {
-      label: t("perArtistTop1", locale),
-      pctArtists: 0.01,
-      avgIncome: 5_000_000,
-      color: COLORS.red,
-    },
-    {
-      label: locale === "no" ? "Topp 0,01–0,12 %" : "Top 0.01–0.12%",
-      pctArtists: 0.11,
-      avgIncome: 300_000,
-      color: COLORS.orange,
-    },
-    {
-      label: locale === "no" ? "0,12–0,35 %" : "0.12–0.35%",
-      pctArtists: 0.24,
-      avgIncome: 70_000,
-      color: COLORS.amber,
-    },
-    {
-      label: locale === "no" ? "0,35–1,7 %" : "0.35–1.7%",
-      pctArtists: 1.32,
-      avgIncome: 15_000,
-      color: COLORS.yellow,
-    },
-    {
-      label: locale === "no" ? "1,7–5,4 %" : "1.7–5.4%",
-      pctArtists: 3.73,
-      avgIncome: 3_000,
-      color: COLORS.blue,
-    },
-    {
-      label: locale === "no" ? "Botn 94,6 %" : "Bottom 94.6%",
-      pctArtists: 94.58,
-      avgIncome: 50,
-      color: COLORS.gray,
-    },
-  ];
-
-  // SVG dimensions
-  const W = 800,
-    H = 400;
-  const padLeft = 60,
-    padRight = 20,
-    padTop = 30,
-    padBot = 80;
-  const chartW = W - padLeft - padRight;
-  const chartH = H - padTop - padBot;
-
-  // Log scale for height: map income → pixel height
-  const minLog = Math.log10(10); // $10
-  const maxLog = Math.log10(10_000_000); // $10M
-  const logRange = maxLog - minLog;
-  const incomeToY = (income: number) => {
-    const logVal = Math.log10(Math.max(10, income));
-    const frac = (logVal - minLog) / logRange;
-    return padTop + chartH * (1 - frac);
-  };
-
-  // Build rects
-  let xCursor = padLeft;
-  const blocks = tiers.map((tier, i) => {
-    const w = Math.max(2, (tier.pctArtists / 100) * chartW);
-    const yTop = incomeToY(tier.avgIncome);
-    const h = padTop + chartH - yTop;
-    const block = {
-      ...tier,
-      x: xCursor,
-      y: yTop,
-      w,
-      h,
-      idx: i,
-    };
-    xCursor += w;
-    return block;
-  });
-
-  // Y-axis ticks
-  const yTicks = [10, 100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
-
-  // Average reference line
-  const avgY = incomeToY(avgPerArtist);
-
-  const perSubAmountTotalStr =
-    locale === "no"
-      ? `${Math.round(perSubscriberYear * 10)} kr`
-      : `$${perSubscriberYear.toFixed(0)}`;
-
-  // After intermediaries: ~19.25% of subscription reaches artists+songwriters
-  const artistSharePct = 19.25; // artistRecording (10.5%) + songwriter (8.75%)
-  const perSubArtistYear = perSubscriberYear * (artistSharePct / 100);
-  const perSubAmountArtistStr =
-    locale === "no"
-      ? `${Math.round(perSubArtistYear * 10)} kr`
-      : `$${perSubArtistYear.toFixed(0)}`;
-
-  const perSubNote = t("perArtistPerSubscriber", locale)
-    .replace("{amountTotal}", perSubAmountTotalStr)
-    .replace("{amountArtist}", perSubAmountArtistStr);
-
-  const fmtIncome = (v: number) => {
-    if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(0)}M`;
-    if (v >= 1_000) return `$${(v / 1_000).toFixed(0)}K`;
-    return `$${v}`;
-  };
-
-  return (
-    <div>
-      <h3 className="chartTitle">{t("perArtistTitle", locale)}</h3>
-      <p className="chartDesc">{t("perArtistDesc", locale)}</p>
-
-      <div className="perArtistSvgWrap">
-        <svg viewBox={`0 0 ${W} ${H}`} className="perArtistSvg">
-          {/* Grid lines */}
-          {yTicks.map((tick) => {
-            const y = incomeToY(tick);
-            return (
-              <g key={tick}>
-                <line
-                  x1={padLeft}
-                  y1={y}
-                  x2={W - padRight}
-                  y2={y}
-                  stroke="rgba(255,255,255,0.07)"
-                  strokeDasharray="3 3"
-                />
-                <text
-                  x={padLeft - 6}
-                  y={y + 4}
-                  textAnchor="end"
-                  fill="rgba(255,255,255,0.6)"
-                  fontSize={10}
-                >
-                  {fmtIncome(tick)}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Blocks */}
-          {blocks.map((b) => (
-            <g
-              key={b.idx}
-              onMouseEnter={() => setHovered(b.idx)}
-              onMouseLeave={() => setHovered(null)}
-              style={{ cursor: "pointer" }}
-            >
-              <rect
-                x={b.x}
-                y={b.y}
-                width={b.w}
-                height={b.h}
-                fill={b.color}
-                opacity={hovered === null || hovered === b.idx ? 0.85 : 0.3}
-                stroke="rgba(0,0,0,0.4)"
-                strokeWidth={0.5}
-                rx={2}
-                style={{ transition: "opacity 0.2s" }}
-              />
-              {/* Income label on top of block if wide enough */}
-              {b.w > 30 && (
-                <text
-                  x={b.x + b.w / 2}
-                  y={b.y - 6}
-                  textAnchor="middle"
-                  fill="#fff"
-                  fontSize={11}
-                  fontWeight={700}
-                  style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
-                >
-                  {fmtIncome(b.avgIncome)}
-                </text>
-              )}
-              {/* Percentage label at bottom */}
-              {b.w > 20 && (
-                <text
-                  x={b.x + b.w / 2}
-                  y={padTop + chartH + 16}
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.7)"
-                  fontSize={10}
-                >
-                  {b.pctArtists < 1
-                    ? `${b.pctArtists}%`
-                    : `${b.pctArtists.toFixed(1)}%`}
-                </text>
-              )}
-              {/* Tier label */}
-              {b.w > 50 && (
-                <text
-                  x={b.x + b.w / 2}
-                  y={padTop + chartH + 30}
-                  textAnchor="middle"
-                  fill="rgba(255,255,255,0.5)"
-                  fontSize={9}
-                >
-                  {b.label}
-                </text>
-              )}
-            </g>
-          ))}
-
-          {/* Average reference line */}
-          <line
-            x1={padLeft}
-            y1={avgY}
-            x2={W - padRight}
-            y2={avgY}
-            stroke={COLORS.amber}
-            strokeDasharray="6 3"
-            strokeWidth={1.5}
-          />
-          <text
-            x={W - padRight + 2}
-            y={avgY + 4}
-            fill={COLORS.amber}
-            fontSize={10}
-            fontWeight={600}
-          >
-            {locale === "no" ? "snitt" : "avg"}{" "}
-            {fmtIncome(Math.round(avgPerArtist))}
-          </text>
-
-          {/* X-axis label */}
-          <text
-            x={padLeft + chartW / 2}
-            y={H - 8}
-            textAnchor="middle"
-            fill="rgba(255,255,255,0.5)"
-            fontSize={11}
-          >
-            {locale === "no"
-              ? "← bredde = % av artistar — høgde = gjennomsnittsinntekt (log) →"
-              : "← width = % of artists — height = avg income (log) →"}
-          </text>
-
-          {/* Y-axis label */}
-          <text
-            x={14}
-            y={padTop + chartH / 2}
-            textAnchor="middle"
-            fill="rgba(255,255,255,0.5)"
-            fontSize={10}
-            transform={`rotate(-90, 14, ${padTop + chartH / 2})`}
-          >
-            {locale === "no" ? "Årsinntekt (USD)" : "Annual income (USD)"}
-          </text>
-        </svg>
-
-        {/* Hover tooltip overlay */}
-        {hovered !== null && (
-          <div className="perArtistTooltip">
-            <strong>{blocks[hovered].label}</strong>
-            <br />
-            {locale === "no" ? "Snittinntekt" : "Avg income"}:{" "}
-            {fmtIncome(blocks[hovered].avgIncome)}
-            <br />
-            {locale === "no" ? "Del av artistar" : "Share of artists"}:{" "}
-            {blocks[hovered].pctArtists}%
-            <br />≈{" "}
-            {formatNum(
-              Math.round(
-                (blocks[hovered].pctArtists / 100) * stats2025.totalArtists,
-              ),
-              locale,
-            )}{" "}
-            {locale === "no" ? "artistar" : "artists"}
-          </div>
-        )}
-      </div>
-
-      <p className="chartFootnote">{perSubNote}</p>
-      <p className="chartSource">{t("sourcePerArtist", locale)}</p>
     </div>
   );
 }
