@@ -1,5 +1,4 @@
 import type { Locale } from "../lib/i18n";
-import { t } from "../lib/i18n";
 
 interface Props {
   locale: Locale;
